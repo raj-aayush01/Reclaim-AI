@@ -6,6 +6,7 @@ const recoveryRoutes = require("./routes/recoveryRoutes");
 const aiRoutes = require("./routes/aiRoutes");
 const testRecoveryRoutes = require("./routes/testRecoveryRoutes");
 const dashboardRoutes = require("./routes/dashboardRoutes");
+const paymentRoutes = require("./routes/paymentRoutes");
 
 const app = express();
 
@@ -17,6 +18,7 @@ app.use("/api/recovery", recoveryRoutes);
 app.use("/api/ai", aiRoutes);
 app.use("/api/test", testRecoveryRoutes);
 app.use("/api/dashboard", dashboardRoutes);
+app.use("/api/payments", paymentRoutes);
 
 app.get("/api/health", (req, res) => {
     res.json({

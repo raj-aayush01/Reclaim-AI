@@ -29,8 +29,7 @@ const runAIRecovery = async (paymentId) => {
         customer.toObject()
     );
 
-    // 2. Ask deterministic policy whether
-    //    the AI recommendation is allowed
+    // 2. Asking deterministic policy whether the AI recommendation is allowed - Policy GuardRail
 
     const policyDecision = evaluateRecoveryPolicy( payment, aiDecision );
 

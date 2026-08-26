@@ -19,6 +19,10 @@ const getDashboardSummary = async (req, res) => {
                 payment.status === "escalated"
         );
 
+        const recoveredPayments = payments.filter(
+            payment => payment.status === "recovered"
+        ).length;
+
         const totalAtRisk = atRiskPayments.reduce(
             (sum, payment) => sum + payment.amount,
             0
@@ -62,7 +66,9 @@ const getDashboardSummary = async (req, res) => {
         res.status(200).json({
             totalPayments,
             failedPayments,
+            atRiskCount: atRiskPayments.length,
             totalAtRisk,
+            recoveredCount: recoveredPayments,
             recoveredAmount,
             recoveryRate: Number(recoveryRate),
 
