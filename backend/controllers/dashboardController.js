@@ -3,8 +3,32 @@ const RecoveryLog = require("../models/RecoveryLog");
 
 const getDashboardSummary = async (req, res) => {
     try {
+        const { timeRange = "7D" } = req.query;
 
-        const payments = await Payment.find();
+        const normalizedTimeRange = timeRange.toLowerCase();
+
+        const now = new Date();
+        let startDate = null;
+
+        if (normalizedTimeRange === "today") {
+            startDate = new Date(
+                now.getFullYear(),
+                now.getMonth(),
+                now.getDate()
+            );
+        } else if (normalizedTimeRange === "7d") {
+            startDate = new Date();
+            startDate.setDate(startDate.getDate() - 7);
+        } else if (normalizedTimeRange === "30d") {
+            startDate = new Date();
+            startDate.setDate(startDate.getDate() - 30);
+        }
+
+        const dateQuery = startDate
+            ? { createdAt: { $gte: startDate } }
+            : {};
+
+        const payments = await Payment.find(dateQuery);
 
         const totalPayments = payments.length;
 
@@ -59,11 +83,69 @@ const getDashboardSummary = async (req, res) => {
                 payment.recoveryAction === "STOP_RECOVERY"
         ).length;
 
-        const recentLogs = await RecoveryLog.find()
+        const recentLogs = await RecoveryLog.find(dateQuery)
             .sort({ createdAt: -1 })
             .limit(10);
 
+        const recoveryFlow = [];
+
+        if (startDate) {
+            const rangeDays =
+                normalizedTimeRange === "today"
+                    ? 1
+                    : normalizedTimeRange === "7d"
+                        ? 7
+                        : 30;
+
+            for (let i = rangeDays - 1; i >= 0; i--) {
+                const dayStart = new Date(now);
+                dayStart.setHours(0, 0, 0, 0);
+                dayStart.setDate(dayStart.getDate() - i);
+
+                const dayEnd = new Date(dayStart);
+                dayEnd.setDate(dayEnd.getDate() + 1);
+
+                const dayPayments = payments.filter(payment => {
+                    const createdAt = new Date(payment.createdAt);
+
+                    return (
+                        createdAt >= dayStart &&
+                        createdAt < dayEnd
+                    );
+                });
+
+                const dayAtRisk = dayPayments
+                    .filter(
+                        payment =>
+                            payment.status === "failed" ||
+                            payment.status === "pending" ||
+                            payment.status === "escalated"
+                    )
+                    .reduce(
+                        (sum, payment) => sum + payment.amount,
+                        0
+                    );
+
+                const dayRecovered = dayPayments.reduce(
+                    (sum, payment) =>
+                        sum + (payment.recoveredAmount || 0),
+                    0
+                );
+
+                recoveryFlow.push({
+                    date: dayStart.toISOString().split("T")[0],
+                    label: dayStart.toLocaleDateString("en-IN", {
+                        day: "2-digit",
+                        month: "short"
+                    }),
+                    atRisk: dayAtRisk,
+                    recovered: dayRecovered
+                });
+            }
+        }
+
         res.status(200).json({
+            timeRange,
             totalPayments,
             failedPayments,
             atRiskCount: atRiskPayments.length,
@@ -79,15 +161,12 @@ const getDashboardSummary = async (req, res) => {
                 stoppedCount
             },
 
-            recentLogs
+            recentLogs,
+            recoveryFlow
         });
 
     } catch (error) {
-
-        console.error(
-            "Dashboard error:",
-            error
-        );
+        console.error("Dashboard error:", error);
 
         res.status(500).json({
             message: "Failed to load dashboard",

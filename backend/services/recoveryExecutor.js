@@ -1,20 +1,23 @@
-const crypto = require("crypto");
+const {
+    processPaymentRetry,
+    createPaymentLink
+} = require("./paymentGatewaySimulator");
 
 const executeRecoveryAction = async (payment, action) => {
 
-    // Store the action that was actually executed
     payment.recoveryAction = action;
 
     switch (action) {
 
         case "RETRY_PAYMENT": {
-            // Simulate a payment retry.
-            // For our demo, 80% of retries succeed.
-            const retrySuccessful = Math.random() < 0.8;
 
             payment.attemptCount += 1;
 
-            if (retrySuccessful) {
+            const gatewayResult =
+                await processPaymentRetry(payment);
+
+            if (gatewayResult.success) {
+
                 payment.status = "recovered";
                 payment.recoveredAmount = payment.amount;
                 payment.recoveryResult = "RECOVERED";
@@ -22,7 +25,13 @@ const executeRecoveryAction = async (payment, action) => {
                 return {
                     success: true,
                     result: "RECOVERED",
-                    recoveredAmount: payment.amount
+                    recoveredAmount: payment.amount,
+                    transactionId:
+                        gatewayResult.transactionId,
+                    gatewayStatus:
+                        gatewayResult.status,
+                    message:
+                        gatewayResult.message
                 };
             }
 
@@ -32,17 +41,26 @@ const executeRecoveryAction = async (payment, action) => {
             return {
                 success: false,
                 result: "FAILED",
-                recoveredAmount: 0
+                recoveredAmount: 0,
+                transactionId:
+                    gatewayResult.transactionId,
+                gatewayStatus:
+                    gatewayResult.status,
+                message:
+                    gatewayResult.message
             };
         }
 
         case "CREATE_PAYMENT_LINK": {
-            const paymentLinkId = `pl_${crypto.randomUUID()}`;
 
-            payment.paymentLinkId = paymentLinkId;
+            const gatewayResult =
+                await createPaymentLink(payment);
+
+            payment.paymentLinkId =
+                gatewayResult.paymentLinkId;
 
             payment.paymentLinkUrl =
-                `https://reclaimai.demo/pay/${paymentLinkId}`;
+                gatewayResult.paymentLinkUrl;
 
             payment.status = "pending";
             payment.recoveryResult = "PENDING";
@@ -50,12 +68,17 @@ const executeRecoveryAction = async (payment, action) => {
             return {
                 success: true,
                 result: "PENDING",
-                paymentLinkId,
-                paymentLinkUrl: payment.paymentLinkUrl
+                paymentLinkId:
+                    gatewayResult.paymentLinkId,
+                paymentLinkUrl:
+                    gatewayResult.paymentLinkUrl,
+                message:
+                    gatewayResult.message
             };
         }
 
         case "ESCALATE_TO_HUMAN": {
+
             payment.status = "escalated";
             payment.recoveryResult = "ESCALATED";
 
@@ -66,6 +89,7 @@ const executeRecoveryAction = async (payment, action) => {
         }
 
         case "STOP_RECOVERY": {
+
             payment.status = "stopped";
             payment.recoveryResult = "STOPPED";
 
@@ -76,7 +100,9 @@ const executeRecoveryAction = async (payment, action) => {
         }
 
         default:
-            throw new Error(`Unknown recovery action: ${action}`);
+            throw new Error(
+                `Unknown recovery action: ${action}`
+            );
     }
 };
 
