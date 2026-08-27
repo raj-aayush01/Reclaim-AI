@@ -1,82 +1,57 @@
-import React, { useEffect, useState } from "react";
+import React from "react";
 import { useLocation } from "react-router-dom";
-import { checkHealth } from "../../services/dashboardService";
-import { RefreshCw, Server, AlertCircle } from "lucide-react";
 
-export const Navbar = ({ onOpenSimulator }) => {
+export const Navbar = ({ timeRange = "7D", onTimeRangeChange }) => {
     const location = useLocation();
-    const [backendStatus, setBackendStatus] = useState("checking"); // 'connected', 'error', 'checking'
 
-    const getPageTitle = () => {
-        if (location.pathname === "/") return "Dashboard";
-        if (location.pathname.startsWith("/payments/")) return "Payment Details";
-        if (location.pathname === "/payments") return "Payments Management";
-        return "ReclaimAI";
+    const getBreadcrumb = () => {
+        const path = location.pathname.toLowerCase();
+        if (path === "/" || path === "/overview") return "Overview";
+        if (path === "/ledger" || path === "/payments") return "Payment Ledger";
+        if (path === "/failed-payments") return "Failed Payments";
+        if (path === "/exceptions") return "Exceptions";
+        if (path === "/guardrails") return "Guardrails";
+        if (path.startsWith("/payments/")) return "Payment Details";
+        return "Overview";
     };
-
-    const verifyBackend = async () => {
-        setBackendStatus("checking");
-        try {
-            await checkHealth();
-            setBackendStatus("connected");
-        } catch {
-            setBackendStatus("error");
-        }
-    };
-
-    useEffect(() => {
-        verifyBackend();
-    }, []);
 
     return (
-        <header className="h-16 bg-slate-900/60 border-b border-slate-800/80 fixed top-0 right-0 left-64 z-20 backdrop-blur-xl px-8 flex items-center justify-between">
-            {/* Left Page Title */}
+        <header className="h-16 bg-[#090d16]/80 border-b border-slate-800/80 fixed top-0 right-0 left-64 z-20 backdrop-blur-xl px-8 flex items-center justify-between">
+            {/* Left Breadcrumb */}
             <div>
-                <h2 className="text-base font-semibold text-slate-100">{getPageTitle()}</h2>
+                <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest block">
+                    RECLAIM-AI
+                </span>
+                <h2 className="text-sm font-bold text-slate-100">{getBreadcrumb()}</h2>
             </div>
 
-            {/* Right Health Indicator & Quick Actions */}
-            <div className="flex items-center gap-4">
-                {/* Backend Health Badge */}
-                <div
-                    onClick={verifyBackend}
-                    title="Click to re-check backend health"
-                    className={`cursor-pointer px-3 py-1.5 rounded-full border text-xs font-semibold flex items-center gap-2 transition-all ${
-                        backendStatus === "connected"
-                            ? "bg-emerald-950/50 text-emerald-400 border-emerald-800/60 hover:bg-emerald-900/60"
-                            : backendStatus === "error"
-                            ? "bg-rose-950/50 text-rose-400 border-rose-800/60 hover:bg-rose-900/60"
-                            : "bg-amber-950/50 text-amber-400 border-amber-800/60"
-                    }`}
-                >
-                    {backendStatus === "connected" && (
-                        <>
-                            <span className="h-2 w-2 rounded-full bg-emerald-400"></span>
-                            <span>Backend Connected</span>
-                        </>
-                    )}
-                    {backendStatus === "error" && (
-                        <>
-                            <AlertCircle className="w-3.5 h-3.5" />
-                            <span>Backend Disconnected</span>
-                        </>
-                    )}
-                    {backendStatus === "checking" && (
-                        <>
-                            <RefreshCw className="w-3.5 h-3.5 animate-spin" />
-                            <span>Checking Backend...</span>
-                        </>
-                    )}
+            {/* Right Time-Range Filters & Live Status */}
+            <div className="flex items-center gap-3">
+                {/* Time Range Selector Toggles */}
+                <div className="flex items-center p-1 rounded-xl bg-slate-900 border border-slate-800 text-xs">
+                    {["Today", "7D", "30D"].map((t) => (
+                        <button
+                            key={t}
+                            onClick={() => onTimeRangeChange && onTimeRangeChange(t)}
+                            className={`px-3 py-1 rounded-lg font-semibold transition-all cursor-pointer ${
+                                timeRange === t
+                                    ? "bg-emerald-500 text-slate-950 font-bold shadow-md shadow-emerald-500/20"
+                                    : "text-slate-400 hover:text-slate-200"
+                            }`}
+                        >
+                            {t}
+                        </button>
+                    ))}
                 </div>
 
-                {/* Quick Simulator Button */}
-                <button
-                    onClick={onOpenSimulator}
-                    className="px-3.5 py-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold shadow-md shadow-indigo-600/20 transition-all cursor-pointer flex items-center gap-1.5"
-                >
-                    <Server className="w-3.5 h-3.5" />
-                    <span>Simulator</span>
-                </button>
+                {/* Live Pulse Badge (Single Larger Pulsing Dot) */}
+                <div className="px-3.5 py-1.5 rounded-xl bg-rose-950/40 border border-rose-800/60 text-xs font-extrabold text-rose-400 flex items-center gap-2">
+                    <span className="relative flex h-2.5 w-2.5">
+                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-rose-400 opacity-75"></span>
+                        <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-rose-500"></span>
+                    </span>
+                    <span className="tracking-wider">LIVE</span>
+                </div>
             </div>
         </header>
     );

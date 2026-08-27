@@ -1,30 +1,42 @@
 import React from "react";
+import { useOutletContext, useNavigate } from "react-router-dom";
 import { useDashboard } from "../hooks/useDashboard";
-import StatCard from "../components/dashboard/StatCard";
-import RecoveryChart from "../components/dashboard/RecoveryChart";
-import RecoveryActions from "../components/dashboard/RecoveryActions";
+import AnimatedNumber from "../components/common/AnimatedNumber";
+import DonutChart from "../components/dashboard/DonutChart";
+import RecoveryFlowChart from "../components/dashboard/RecoveryFlowChart";
+import RecoveryRunSummary from "../components/dashboard/RecoveryRunSummary";
 import RecentActivity from "../components/dashboard/RecentActivity";
 import Loader from "../components/common/Loader";
 import ErrorMessage from "../components/common/ErrorMessage";
-import { formatCurrency, formatCompactCurrency } from "../utils/formatCurrency";
 import {
     AlertTriangle,
     TrendingUp,
-    ShieldCheck,
-    CreditCard
+    Zap,
+    AlertOctagon,
+    ArrowRight
 } from "lucide-react";
-import { useNavigate } from "react-router-dom";
 
 export const Dashboard = () => {
-    const { data, loading, error, refetch } = useDashboard();
+    const { timeRange = "7D" } = useOutletContext() || {};
+    const { data, loading, error, refetch } = useDashboard(timeRange);
     const navigate = useNavigate();
 
     if (loading && !data) {
-        return <Loader fullPage text="Loading ReclaimAI Dashboard metrics..." />;
+        return (
+            <Loader
+                fullPage
+                text="Loading ReclaimAI Overview metrics..."
+            />
+        );
     }
 
     if (error && !data) {
-        return <ErrorMessage message={error} onRetry={refetch} />;
+        return (
+            <ErrorMessage
+                message={error}
+                onRetry={refetch}
+            />
+        );
     }
 
     const {
@@ -35,109 +47,176 @@ export const Dashboard = () => {
         recoveredCount = 0,
         recoveredAmount = 0,
         recoveryRate = 0,
-        actions = {},
-        recentLogs = []
+        actions = {
+            retryCount: 0,
+            paymentLinkCount: 0,
+            escalatedCount: 0,
+            stoppedCount: 0
+        },
+        recentLogs = [],
+        recoveryFlow = []
     } = data || {};
 
-    const stoppedCount = actions.stoppedCount || 0;
+    const openExceptionsCount = actions.escalatedCount || 0;
 
     return (
-        <div className="space-y-8 animate-fade-in">
-
-            {/* Header Title Banner */}
-            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 glass-panel p-6 rounded-2xl border border-indigo-500/20 bg-gradient-to-r from-slate-900/90 via-slate-900/60 to-indigo-950/30">
-                <div>
-                    <h1 className="text-xl font-bold text-slate-100 flex items-center gap-2">
-                        Payment Recovery Situation Room
-
-                        <span className="px-2.5 py-0.5 rounded-full bg-indigo-950 text-indigo-400 border border-indigo-800/60 text-xs font-semibold">
-                            Live Monitoring
-                        </span>
-                    </h1>
-
-                    <p className="text-xs text-slate-400 mt-1">
-                        Autonomous AI detection, risk monitoring, and deterministic recovery execution.
-                    </p>
-                </div>
-
-                <div className="flex items-center gap-3">
-                    <button
-                        onClick={() => navigate("/payments")}
-                        className="px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold shadow-lg shadow-indigo-600/25 transition-all cursor-pointer flex items-center gap-1.5"
-                    >
-                        <CreditCard className="w-4 h-4" />
-                        <span>Go to Payments</span>
-                    </button>
-                </div>
-            </div>
-
-            {/* Top Metric Cards Row */}
+        <div className="space-y-6 animate-fade-in font-sans">
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+                <div
+                    onClick={() => navigate("/ledger?status=at_risk")}
+                    className="glass-panel p-5 rounded-2xl border border-amber-500/20 hover:border-amber-500/40 transition-all cursor-pointer group"
+                >
+                    <div className="flex items-center justify-between mb-3">
+                        <span className="text-[10px] font-bold uppercase tracking-widest text-slate-400">
+                            REVENUE AT RISK
+                        </span>
 
-                {/* Card 1: Money at Risk */}
-                <StatCard
-                    title="Money at Risk"
-                    value={formatCurrency(totalAtRisk)}
-                    subtext={
-                        <div className="space-y-0.5">
-                            <div>
-                                {atRiskCount} payments currently at risk
-                            </div>
-
-                            <div className="text-rose-400/90 font-medium">
-                                {failedPayments} payment attempts failed
-                            </div>
+                        <div className="p-2 rounded-xl bg-amber-500/10 text-amber-400 border border-amber-500/20">
+                            <AlertTriangle className="w-4 h-4" />
                         </div>
-                    }
-                    icon={AlertTriangle}
-                    colorVariant="rose"
-                    onClick={() => navigate("/payments?status=at_risk")}
-                />
+                    </div>
 
-                {/* Card 2: Total Recovered */}
-                <StatCard
-                    title="Total Recovered"
-                    value={formatCurrency(recoveredAmount)}
-                    subtext={`${recoveredCount} payments successfully reclaimed`}
-                    icon={ShieldCheck}
-                    colorVariant="emerald"
-                    onClick={() => navigate("/payments?status=recovered")}
-                />
+                    <div className="text-3xl font-extrabold text-amber-400 tracking-tight mb-1 font-mono">
+                        <AnimatedNumber
+                            value={totalAtRisk / 100000}
+                            decimals={2}
+                            prefix="₹"
+                            suffix="L"
+                        />
+                    </div>
 
-                {/* Card 3: Recovery Rate */}
-                <StatCard
-                    title="Recovery Rate"
-                    value={`${recoveryRate}%`}
-                    subtext={`${formatCompactCurrency(recoveredAmount)} recovered from ${formatCompactCurrency(totalAtRisk)} at risk`}
-                    icon={TrendingUp}
-                    colorVariant="amber"
-                />
-
-                {/* Card 4: Total Processed */}
-                <StatCard
-                    title="Total Processed"
-                    value={totalPayments}
-                    subtext={`${atRiskCount} at risk · ${recoveredCount} recovered · ${stoppedCount} halted`}
-                    icon={CreditCard}
-                    colorVariant="indigo"
-                    onClick={() => navigate("/payments")}
-                />
-            </div>
-
-            {/* Action Cards Quick Bar */}
-            <RecoveryActions actions={actions} />
-
-            {/* Main Visual Section: Recovery Chart + Recent Activity */}
-            <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-
-                <div className="lg:col-span-6">
-                    <RecoveryChart actions={actions} />
+                    <div className="text-xs text-rose-400 font-medium">
+                        {atRiskCount} payments
+                    </div>
                 </div>
 
+                <div
+                    onClick={() => navigate("/ledger?status=recovered")}
+                    className="glass-panel p-5 rounded-2xl border border-emerald-500/20 hover:border-emerald-500/40 transition-all cursor-pointer group"
+                >
+                    <div className="flex items-center justify-between mb-3">
+                        <span className="text-[10px] font-bold uppercase tracking-widest text-slate-400">
+                            AMOUNT RECOVERED
+                        </span>
+
+                        <div className="p-2 rounded-xl bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+                            <TrendingUp className="w-4 h-4" />
+                        </div>
+                    </div>
+
+                    <div className="text-3xl font-extrabold text-emerald-400 tracking-tight mb-1 font-mono">
+                        <AnimatedNumber
+                            value={recoveredAmount / 100000}
+                            decimals={2}
+                            prefix="₹"
+                            suffix="L"
+                        />
+                    </div>
+
+                    <div className="text-xs text-emerald-400/90 font-medium">
+                        {recoveredCount} payments
+                    </div>
+                </div>
+
+                <div className="glass-panel p-5 rounded-2xl border border-emerald-500/20">
+                    <div className="flex items-center justify-between mb-3">
+                        <span className="text-[10px] font-bold uppercase tracking-widest text-slate-400">
+                            RECOVERY RATE
+                        </span>
+
+                        <div className="p-2 rounded-xl bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+                            <Zap className="w-4 h-4" />
+                        </div>
+                    </div>
+
+                    <div className="text-3xl font-extrabold text-emerald-400 tracking-tight mb-1 font-mono">
+                        <AnimatedNumber
+                            value={recoveryRate}
+                            decimals={1}
+                            suffix="%"
+                        />
+                    </div>
+
+                    <div className="text-xs text-slate-400 font-medium">
+                        current recovery performance ({timeRange})
+                    </div>
+                </div>
+
+                <div
+                    onClick={() => navigate("/exceptions")}
+                    className="glass-panel p-5 rounded-2xl border border-rose-500/20 hover:border-rose-500/40 transition-all cursor-pointer group"
+                >
+                    <div className="flex items-center justify-between mb-3">
+                        <span className="text-[10px] font-bold uppercase tracking-widest text-slate-400">
+                            OPEN EXCEPTIONS
+                        </span>
+
+                        <div className="p-2 rounded-xl bg-rose-500/10 text-rose-400 border border-rose-500/20">
+                            <AlertOctagon className="w-4 h-4" />
+                        </div>
+                    </div>
+
+                    <div className="text-3xl font-extrabold text-rose-400 tracking-tight mb-1 font-mono">
+                        <AnimatedNumber
+                            value={openExceptionsCount}
+                            decimals={0}
+                        />
+                    </div>
+
+                    <div className="text-xs text-rose-400/90 font-medium">
+                        need review
+                    </div>
+                </div>
+            </div>
+
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+                <div className="lg:col-span-8">
+                    <RecoveryFlowChart
+                        data={recoveryFlow}
+                        timeRange={timeRange}
+                    />
+                </div>
+
+                <div className="lg:col-span-4">
+                    <DonutChart actions={actions} />
+                </div>
+            </div>
+
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
                 <div className="lg:col-span-6">
                     <RecentActivity logs={recentLogs} />
                 </div>
 
+                <div className="lg:col-span-6">
+                    <RecoveryRunSummary
+                        batchData={{
+                            evaluated: totalPayments,
+                            recoveredAmount,
+                            blocked: actions.stoppedCount || 0,
+                            exceptions: openExceptionsCount,
+                            recoveryRate
+                        }}
+                    />
+                </div>
+            </div>
+
+            <div className="p-4 rounded-2xl bg-rose-950/40 border border-rose-800/60 flex items-center justify-between text-xs">
+                <div className="flex items-center gap-2 text-rose-300 font-medium">
+                    <span className="w-2 h-2 rounded-full bg-rose-500 animate-ping" />
+
+                    <span>
+                        <strong>{openExceptionsCount} exceptions</strong>{" "}
+                        need review
+                    </span>
+                </div>
+
+                <button
+                    onClick={() => navigate("/exceptions")}
+                    className="px-3.5 py-1.5 rounded-xl bg-rose-600 hover:bg-rose-500 text-white font-bold text-xs shadow-md shadow-rose-600/20 transition-all cursor-pointer flex items-center gap-1.5"
+                >
+                    <span>View Exceptions</span>
+                    <ArrowRight className="w-3.5 h-3.5" />
+                </button>
             </div>
         </div>
     );

@@ -1,17 +1,47 @@
 import api from "./api";
 
 /**
- * Execute full AI Recovery pipeline (Gemini diagnosis -> Policy guardrail evaluation -> Execution engine -> MongoDB update)
+ * Triggers autonomous AI recovery agent for a specific failed payment
+ * Calls POST /api/agent/ai/:paymentId
  */
 export const runAIRecovery = async (paymentId) => {
-    const response = await api.post(`/recovery/ai/${paymentId}`);
-    return response.data;
+    try {
+        const response = await api.post(`/agent/ai/${paymentId}`);
+        return response.data;
+    } catch (error) {
+        console.error("runAIRecovery error:", error);
+        throw new Error(
+            error.response?.data?.message || "Failed to execute AI recovery"
+        );
+    }
 };
 
 /**
- * Analyze payment with Gemini AI only
+ * Fetches the dynamic AgentRun history & step logs for a payment
+ * Calls GET /api/agent/runs/:paymentId
  */
-export const analyzePaymentWithAI = async (paymentId) => {
-    const response = await api.post(`/ai/analyze/${paymentId}`);
-    return response.data;
+export const getAgentRun = async (paymentId) => {
+    try {
+        const response = await api.get(`/agent/runs/${paymentId}`);
+        return response.data;
+    } catch (error) {
+        console.error("getAgentRun error:", error);
+        throw new Error(
+            error.response?.data?.message || "Failed to fetch agent run history"
+        );
+    }
+};
+
+// Evaluates policy rules against AI decision before execution
+
+export const evaluatePolicy = async (paymentId, decisionData) => {
+    try {
+        const response = await api.post(`/recovery/policy/${paymentId}`, decisionData);
+        return response.data;
+    } catch (error) {
+        console.error("evaluatePolicy error:", error);
+        throw new Error(
+            error.response?.data?.message || "Failed to evaluate recovery policy"
+        );
+    }
 };

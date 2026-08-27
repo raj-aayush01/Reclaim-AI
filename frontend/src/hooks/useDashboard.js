@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { getDashboardSummary } from "../services/dashboardService";
 
-export const useDashboard = () => {
+export const useDashboard = (timeRange = "7D") => {
     const [data, setData] = useState(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
@@ -10,7 +10,7 @@ export const useDashboard = () => {
         setLoading(true);
         setError(null);
         try {
-            const summary = await getDashboardSummary();
+            const summary = await getDashboardSummary(timeRange);
             if (isMounted) {
                 setData(summary);
             }
@@ -24,7 +24,7 @@ export const useDashboard = () => {
                 setLoading(false);
             }
         }
-    }, []);
+    }, [timeRange]);
 
     useEffect(() => {
         let isMounted = true;
@@ -42,3 +42,5 @@ export const useDashboard = () => {
         refetch: () => fetchDashboard(true)
     };
 };
+
+export default useDashboard;
