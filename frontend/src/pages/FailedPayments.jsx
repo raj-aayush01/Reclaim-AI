@@ -1,9 +1,6 @@
 import React, { useState } from "react";
 import { usePayments } from "../hooks/usePayments";
-import {
-    runAIRecovery,
-    getAgentRun
-} from "../services/recoveryService";
+import { runAIRecovery } from "../services/recoveryService";
 import AgentRunTimeline from "../components/recovery/AgentRunTimeline";
 import PaymentStatusBadge from "../components/payments/PaymentStatusBadge";
 import Loader from "../components/common/Loader";
@@ -43,53 +40,39 @@ export const FailedPayments = () => {
         setModalOpen(true);
 
         try {
-            let existingRun = null;
+            /*
+             * IMPORTANT:
+             * Do NOT call getAgentRun() before recovery.
+             *
+             * A payment that has never been processed by the agent
+             * naturally has no AgentRun in MongoDB, which previously
+             * caused the 404 error and unnecessary request.
+             */
 
-            try {
-                const runRes = await getAgentRun(payment.paymentId);
+            const recoveryRes = await runAIRecovery(
+                payment.paymentId
+            );
 
-                if (runRes?.run) {
-                    existingRun = runRes.run;
-                }
-            } catch (historyError) {
-                console.warn(
-                    "No existing AgentRun found. Starting AI recovery:",
-                    historyError
-                );
-            }
-
-            if (existingRun) {
-                setAgentRun(existingRun);
-                setExecuting(false);
-                return;
-            }
-
-            const recoveryRes = await runAIRecovery(payment.paymentId);
-
-            const immediateResult =
+            /*
+             * The recovery endpoint already returns the result.
+             * Use that response directly instead of making another
+             * GET /agent/runs/:paymentId request.
+             */
+            const result =
                 recoveryRes?.result ||
                 recoveryRes?.run ||
                 recoveryRes;
 
-            if (immediateResult) {
-                setAgentRun(immediateResult);
+            if (result) {
+                setAgentRun(result);
             }
 
             setExecuting(false);
 
-            try {
-                const runRes = await getAgentRun(payment.paymentId);
-
-                if (runRes?.run) {
-                    setAgentRun(runRes.run);
-                }
-            } catch (historyError) {
-                console.warn(
-                    "AgentRun could not be fetched after execution. Using AI recovery response:",
-                    historyError
-                );
-            }
-
+            /*
+             * Refresh the failed-payment list so the payment status
+             * reflects whatever the recovery agent actually did.
+             */
             try {
                 await refetch();
             } catch (refreshError) {
@@ -125,8 +108,17 @@ export const FailedPayments = () => {
     };
 
     return (
-        <div className="space-y-6 animate-fade-in font-sans">
+        /*
+         * IMPORTANT:
+         * Do NOT put animate-fade-in here.
+         *
+         * animate-fade-in uses transform: scale(...)
+         * and a transformed parent breaks position: fixed
+         * behavior for the Modal.
+         */
+        <div className="space-y-6 font-sans">
 
+            {/* Header */}
             <div
                 className="
                     glass-panel
@@ -195,6 +187,7 @@ export const FailedPayments = () => {
                 </div>
             </div>
 
+            {/* Error */}
             {error && !loading && (
                 <ErrorMessage
                     message={error}
@@ -202,6 +195,7 @@ export const FailedPayments = () => {
                 />
             )}
 
+            {/* Payments */}
             {loading && payments.length === 0 ? (
                 <Loader
                     text="Fetching failed payment transactions..."
@@ -420,9 +414,11 @@ export const FailedPayments = () => {
                                                         />
 
                                                         <span>
-                                                            {isCurrentPaymentExecuting
-                                                                ? "Checking..."
-                                                                : "AI Recovery"}
+                                                            {
+                                                                isCurrentPaymentExecuting
+                                                                    ? "Checking..."
+                                                                    : "AI Recovery"
+                                                            }
                                                         </span>
                                                     </Button>
                                                 </td>
@@ -434,6 +430,7 @@ export const FailedPayments = () => {
                         </table>
                     </div>
 
+                    {/* Pagination */}
                     {pagination?.pages > 1 && (
                         <div
                             className="
@@ -468,6 +465,7 @@ export const FailedPayments = () => {
                 </div>
             ) : null}
 
+            {/* AI Recovery Modal */}
             <Modal
                 isOpen={modalOpen}
                 maxWidth="max-w-4xl"
@@ -497,16 +495,6 @@ export const FailedPayments = () => {
                             The system is reviewing the payment,
                             evaluating the recovery decision,
                             and processing the appropriate action.
-                        </p>
-
-                        <p
-                            className="
-                                text-[10px]
-                                text-slate-500
-                            "
-                        >
-                            Existing recovery logs are reused
-                            without running Gemini again.
                         </p>
                     </div>
                 ) : execError ? (
