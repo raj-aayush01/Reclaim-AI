@@ -8,16 +8,19 @@ const ai = new GoogleGenAI({
 
 async function testGemini() {
     try {
+        console.log("Testing Gemini API...");
+        console.log("Model: gemini-3.6-flash");
+
         const response = await ai.models.generateContent({
             model: "gemini-3.6-flash",
-            contents: "Say hello to ReclaimAI in one sentence."
+            contents: "Reply with exactly: RECLAIM-AI TEST OK"
         });
 
-        console.log("Gemini response:");
+        console.log("\nGemini response:");
         console.log(response.text);
 
     } catch (error) {
-        console.error("Gemini error:");
+        console.error("\nGemini test failed:");
         console.error(error.message);
     }
 }

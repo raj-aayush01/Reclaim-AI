@@ -18,19 +18,19 @@ const evaluateRecoveryPolicy = (payment, aiDecision = null) => {
         };
     }
 
-    // Rule 3: High-value payments
+    // Rule 3: High-value payments must be escalated
     if (payment.amount >= 20000) {
         return {
-            allowed: false,
+            allowed: true,
             finalAction: "ESCALATE_TO_HUMAN",
             reason: "High-value payment requires human approval"
         };
     }
 
-    // Rule 4: Unknown failures should be escalated
+    // Rule 4: Unknown failures must be escalated
     if (payment.scenario === "UNKNOWN_FAILURE") {
         return {
-            allowed: false,
+            allowed: true,
             finalAction: "ESCALATE_TO_HUMAN",
             reason: "Unknown failure requires human investigation"
         };

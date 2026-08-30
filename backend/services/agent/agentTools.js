@@ -1,5 +1,6 @@
 const Payment = require("../../models/Payment");
 const Customer = require("../../models/Customer");
+const RecoveryLog = require("../../models/RecoveryLog");
 
 const {
     evaluateRecoveryPolicy
@@ -9,11 +10,7 @@ const {
     executeRecoveryAction
 } = require("../recoveryExecutor");
 
-
-// READ TOOLS
-
 const getPayment = async ({ paymentId }) => {
-
     const payment = await Payment.findOne({
         paymentId
     });
@@ -27,36 +24,26 @@ const getPayment = async ({ paymentId }) => {
 
     return {
         success: true,
-
         payment: {
             paymentId: payment.paymentId,
             orderId: payment.orderId,
             customerId: payment.customerId,
-
             amount: payment.amount,
             currency: payment.currency,
-
             paymentMethod: payment.paymentMethod,
-
             status: payment.status,
             failureReason: payment.failureReason,
-
             attemptCount: payment.attemptCount,
             recoveredAmount: payment.recoveredAmount,
-
             scenario: payment.scenario,
-
             recoveryAction: payment.recoveryAction,
             recoveryResult: payment.recoveryResult,
-
             paymentLinkId: payment.paymentLinkId
         }
     };
 };
 
-
 const getCustomerHistory = async ({ customerId }) => {
-
     const customer = await Customer.findOne({
         customerId
     });
@@ -76,35 +63,26 @@ const getCustomerHistory = async ({ customerId }) => {
 
     return {
         success: true,
-
         customer: {
             customerId: customer.customerId,
             name: customer.name,
-
             totalPayments: customer.totalPayments,
             successfulPayments: customer.successfulPayments,
             failedPayments: customer.failedPayments,
             totalSpent: customer.totalSpent
         },
-
         recentPayments: payments.map(payment => ({
             paymentId: payment.paymentId,
             amount: payment.amount,
             currency: payment.currency,
-
             status: payment.status,
             failureReason: payment.failureReason,
-
             attemptCount: payment.attemptCount,
             scenario: payment.scenario,
-
             recoveredAmount: payment.recoveredAmount
         }))
     };
 };
-
-
-// ACTION TOOL
 
 const performRecoveryAction = async ({
     paymentId,
@@ -112,7 +90,6 @@ const performRecoveryAction = async ({
     confidence,
     reason
 }) => {
-
     const payment = await Payment.findOne({
         paymentId
     });
@@ -136,110 +113,82 @@ const performRecoveryAction = async ({
     );
 
     if (!policyDecision.allowed) {
+        const finalAction = policyDecision.finalAction;
 
-        // Execute the policy-mandated terminal action.
-        if (
-            policyDecision.finalAction === "ESCALATE_TO_HUMAN" &&
-            action !== "ESCALATE_TO_HUMAN"
-        ) {
+        const safePolicyActions = [
+            "ESCALATE_TO_HUMAN",
+            "STOP_RECOVERY"
+        ];
 
+        if (safePolicyActions.includes(finalAction)) {
             const executionResult =
                 await executeRecoveryAction(
                     payment,
-                    "ESCALATE_TO_HUMAN"
+                    finalAction
                 );
 
             await payment.save();
 
-            return {
-                success: executionResult.success,
-
-                executed: true,
-
-                blocked: true,
-
-                actionRequested: action,
-
-                actionExecuted: "ESCALATE_TO_HUMAN",
-
-                policyDecision: {
-                    allowed: false,
-                    finalAction:
-                        "ESCALATE_TO_HUMAN",
-                    reason:
-                        policyDecision.reason
-                },
-
-                executionResult,
-
-                terminal: true,
-
+            await RecoveryLog.create({
+                paymentId: payment.paymentId,
+                customerId: payment.customerId,
+                aiAction: action,
+                aiReason: reason,
+                aiConfidence: confidence,
+                policyAllowed: false,
+                finalAction,
+                executionResult:
+                    executionResult.result || "UNKNOWN",
+                recoveredAmount:
+                    executionResult.recoveredAmount || 0,
                 message:
-                    `Action blocked. Payment escalated because: ${policyDecision.reason}`
-            };
-        }
-
-        // Execute the policy-mandated stop action.
-        if (
-            policyDecision.finalAction === "STOP_RECOVERY" &&
-            action !== "STOP_RECOVERY"
-        ) {
-
-            const executionResult =
-                await executeRecoveryAction(
-                    payment,
-                    "STOP_RECOVERY"
-                );
-
-            await payment.save();
+                    `AI action was overridden by policy. ${policyDecision.reason}`
+            });
 
             return {
                 success: executionResult.success,
-
                 executed: true,
-
                 blocked: true,
-
                 actionRequested: action,
-
-                actionExecuted: "STOP_RECOVERY",
-
+                actionExecuted: finalAction,
                 policyDecision: {
                     allowed: false,
-                    finalAction:
-                        "STOP_RECOVERY",
-                    reason:
-                        policyDecision.reason
+                    finalAction,
+                    reason: policyDecision.reason
                 },
-
                 executionResult,
-
                 terminal: true,
-
                 message:
-                    `Action blocked. Recovery stopped because: ${policyDecision.reason}`
+                    `AI action was overridden by policy. ${policyDecision.reason}`
             };
         }
+
+        await RecoveryLog.create({
+            paymentId: payment.paymentId,
+            customerId: payment.customerId,
+            aiAction: action,
+            aiReason: reason,
+            aiConfidence: confidence,
+            policyAllowed: false,
+            finalAction,
+            executionResult: "BLOCKED",
+            recoveredAmount: 0,
+            message:
+                `Agent action blocked by policy: ${policyDecision.reason}`
+        });
 
         return {
             success: false,
-
             executed: false,
-
             blocked: true,
-
             terminal: true,
-
             actionRequested: action,
-
+            actionExecuted: null,
             policyDecision: {
                 allowed: false,
-                finalAction:
-                    policyDecision.finalAction,
-                reason:
-                    policyDecision.reason
+                finalAction,
+                reason: policyDecision.reason
             },
-
             message:
                 `Agent action blocked by policy: ${policyDecision.reason}`
         };
@@ -253,42 +202,46 @@ const performRecoveryAction = async ({
 
     await payment.save();
 
+    await RecoveryLog.create({
+        paymentId: payment.paymentId,
+        customerId: payment.customerId,
+        aiAction: action,
+        aiReason: reason,
+        aiConfidence: confidence,
+        policyAllowed: true,
+        finalAction: policyDecision.finalAction,
+        executionResult:
+            executionResult.result || "UNKNOWN",
+        recoveredAmount:
+            executionResult.recoveredAmount || 0,
+        message:
+            executionResult.message || null
+    });
+
     return {
         success: executionResult.success,
-
         executed: true,
-
         blocked: false,
-
         terminal:
             executionResult.result === "RECOVERED" ||
             executionResult.result === "ESCALATED" ||
             executionResult.result === "STOPPED",
-
         actionRequested: action,
-
         actionExecuted:
             policyDecision.finalAction,
-
         policyDecision: {
             allowed: true,
-            reason:
-                policyDecision.reason
+            reason: policyDecision.reason
         },
-
         executionResult
     };
 };
-
-
-// TOOL WRAPPERS
 
 const retryPayment = async ({
     paymentId,
     confidence,
     reason
 }) => {
-
     return performRecoveryAction({
         paymentId,
         action: "RETRY_PAYMENT",
@@ -297,13 +250,11 @@ const retryPayment = async ({
     });
 };
 
-
 const createPaymentLink = async ({
     paymentId,
     confidence,
     reason
 }) => {
-
     return performRecoveryAction({
         paymentId,
         action: "CREATE_PAYMENT_LINK",
@@ -312,13 +263,11 @@ const createPaymentLink = async ({
     });
 };
 
-
 const escalateToHuman = async ({
     paymentId,
     confidence,
     reason
 }) => {
-
     return performRecoveryAction({
         paymentId,
         action: "ESCALATE_TO_HUMAN",
@@ -327,13 +276,11 @@ const escalateToHuman = async ({
     });
 };
 
-
 const stopRecovery = async ({
     paymentId,
     confidence,
     reason
 }) => {
-
     return performRecoveryAction({
         paymentId,
         action: "STOP_RECOVERY",
@@ -342,24 +289,15 @@ const stopRecovery = async ({
     });
 };
 
-
-// GEMINI TOOL DECLARATIONS
-
 const toolDeclarations = [
     {
         functionDeclarations: [
-
-            // READ: PAYMENT
-
             {
                 name: "get_payment",
-
                 description:
-                    "Retrieve the current state and details of a payment. Use this before taking a recovery action.",
-
+                    "Retrieve the current state and details of a payment.",
                 parameters: {
                     type: "object",
-
                     properties: {
                         paymentId: {
                             type: "string",
@@ -367,24 +305,15 @@ const toolDeclarations = [
                                 "The unique payment ID to inspect."
                         }
                     },
-
-                    required: [
-                        "paymentId"
-                    ]
+                    required: ["paymentId"]
                 }
             },
-
-            // READ: CUSTOMER HISTORY
-
             {
                 name: "get_customer_history",
-
                 description:
-                    "Retrieve customer information and recent payment history. Use this to understand the customer's historical payment behavior.",
-
+                    "Retrieve customer information and recent payment history.",
                 parameters: {
                     type: "object",
-
                     properties: {
                         customerId: {
                             type: "string",
@@ -392,46 +321,32 @@ const toolDeclarations = [
                                 "The unique customer ID."
                         }
                     },
-
-                    required: [
-                        "customerId"
-                    ]
+                    required: ["customerId"]
                 }
             },
-
-
-            // ACTION: RETRY
-
             {
                 name: "retry_payment",
-
                 description:
-                    "Request a payment retry. The recovery policy will validate whether retrying this payment is allowed before execution.",
-
+                    "Request a payment retry. The recovery policy validates whether retrying is allowed.",
                 parameters: {
                     type: "object",
-
                     properties: {
-
                         paymentId: {
                             type: "string",
                             description:
                                 "The payment to retry."
                         },
-
                         confidence: {
                             type: "number",
                             description:
-                                "The agent's confidence in this recovery decision, between 0 and 1."
+                                "The agent confidence between 0 and 1."
                         },
-
                         reason: {
                             type: "string",
                             description:
-                                "Why retrying this payment is the appropriate next action."
+                                "Why retrying is appropriate."
                         }
                     },
-
                     required: [
                         "paymentId",
                         "confidence",
@@ -439,39 +354,29 @@ const toolDeclarations = [
                     ]
                 }
             },
-
-            // ACTION: PAYMENT LINK
-
             {
                 name: "create_payment_link",
-
                 description:
-                    "Request creation of an alternative payment link. The recovery policy will validate whether this action is allowed.",
-
+                    "Request an alternative payment link. The recovery policy validates whether this action is allowed.",
                 parameters: {
                     type: "object",
-
                     properties: {
-
                         paymentId: {
                             type: "string",
                             description:
-                                "The payment for which the payment link should be created."
+                                "The payment for which the link should be created."
                         },
-
                         confidence: {
                             type: "number",
                             description:
-                                "The agent's confidence in this recovery decision, between 0 and 1."
+                                "The agent confidence between 0 and 1."
                         },
-
                         reason: {
                             type: "string",
                             description:
-                                "Why creating a payment link is the appropriate next action."
+                                "Why creating a payment link is appropriate."
                         }
                     },
-
                     required: [
                         "paymentId",
                         "confidence",
@@ -479,40 +384,29 @@ const toolDeclarations = [
                     ]
                 }
             },
-
-
-            // ACTION: HUMAN ESCALATION
-
             {
                 name: "escalate_to_human",
-
                 description:
-                    "Escalate the payment to human review when automated recovery is unsafe, blocked, or uncertain.",
-
+                    "Escalate the payment to human review when automated recovery is unsafe.",
                 parameters: {
                     type: "object",
-
                     properties: {
-
                         paymentId: {
                             type: "string",
                             description:
                                 "The payment requiring human review."
                         },
-
                         confidence: {
                             type: "number",
                             description:
-                                "The agent's confidence in the escalation decision, between 0 and 1."
+                                "The agent confidence between 0 and 1."
                         },
-
                         reason: {
                             type: "string",
                             description:
                                 "Why human intervention is required."
                         }
                     },
-
                     required: [
                         "paymentId",
                         "confidence",
@@ -520,39 +414,29 @@ const toolDeclarations = [
                     ]
                 }
             },
-
-            // ACTION: STOP
-
             {
                 name: "stop_recovery",
-
                 description:
-                    "Stop automated recovery when no safe recovery path remains or continuing would risk additional loss.",
-
+                    "Stop automated recovery when no safe recovery path remains.",
                 parameters: {
                     type: "object",
-
                     properties: {
-
                         paymentId: {
                             type: "string",
                             description:
                                 "The payment whose recovery should stop."
                         },
-
                         confidence: {
                             type: "number",
                             description:
-                                "The agent's confidence in stopping recovery, between 0 and 1."
+                                "The agent confidence between 0 and 1."
                         },
-
                         reason: {
                             type: "string",
                             description:
                                 "Why recovery should be stopped."
                         }
                     },
-
                     required: [
                         "paymentId",
                         "confidence",
@@ -560,61 +444,32 @@ const toolDeclarations = [
                     ]
                 }
             }
-
         ]
     }
 ];
 
-
-// Gemini gives us a function name.
-// We map that name to a real JavaScript function.
-
-
 const toolHandlers = {
-
-    get_payment:
-        getPayment,
-
-    get_customer_history:
-        getCustomerHistory,
-
-    retry_payment:
-        retryPayment,
-
-    create_payment_link:
-        createPaymentLink,
-
-    escalate_to_human:
-        escalateToHuman,
-
-    stop_recovery:
-        stopRecovery
+    get_payment: getPayment,
+    get_customer_history: getCustomerHistory,
+    retry_payment: retryPayment,
+    create_payment_link: createPaymentLink,
+    escalate_to_human: escalateToHuman,
+    stop_recovery: stopRecovery
 };
 
-
-const executeTool = async (
-    functionName,
-    args
-) => {
-
-    const handler =
-        toolHandlers[functionName];
+const executeTool = async (functionName, args) => {
+    const handler = toolHandlers[functionName];
 
     if (!handler) {
-
         return {
             success: false,
-            error:
-                `Unknown agent tool: ${functionName}`
+            error: `Unknown agent tool: ${functionName}`
         };
     }
 
     try {
-
         return await handler(args);
-
     } catch (error) {
-
         console.error(
             `Agent tool error [${functionName}]:`,
             error
@@ -627,11 +482,7 @@ const executeTool = async (
     }
 };
 
-
 module.exports = {
-
     toolDeclarations,
-
     executeTool
-
 };

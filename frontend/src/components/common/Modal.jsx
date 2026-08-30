@@ -1,37 +1,177 @@
-import React, { useEffect } from "react";
+import React, { useEffect, useRef } from "react";
 import { X } from "lucide-react";
 
-export const Modal = ({ isOpen, onClose, title, children, maxWidth = "max-w-lg" }) => {
+export const Modal = ({
+    isOpen,
+    onClose,
+    title = "AI Recovery",
+    children,
+    maxWidth = "max-w-4xl",
+    footer
+}) => {
+    const scrollContainerRef = useRef(null);
+
     useEffect(() => {
-        const handleKeyDown = (e) => {
-            if (e.key === "Escape" && isOpen) {
+        if (!isOpen) {
+            return;
+        }
+
+        const handleKeyDown = (event) => {
+            if (event.key === "Escape") {
                 onClose();
             }
         };
+
         window.addEventListener("keydown", handleKeyDown);
-        return () => window.removeEventListener("keydown", handleKeyDown);
+
+        return () => {
+            window.removeEventListener("keydown", handleKeyDown);
+        };
     }, [isOpen, onClose]);
 
-    if (!isOpen) return null;
+    useEffect(() => {
+        if (isOpen && scrollContainerRef.current) {
+            scrollContainerRef.current.scrollTop = 0;
+        }
+    }, [isOpen]);
+
+    useEffect(() => {
+        if (!isOpen) {
+            return;
+        }
+
+        const originalOverflow = document.body.style.overflow;
+
+        document.body.style.overflow = "hidden";
+
+        return () => {
+            document.body.style.overflow = originalOverflow;
+        };
+    }, [isOpen]);
+
+    if (!isOpen) {
+        return null;
+    }
 
     return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md animate-fade-in">
-            <div className={`relative w-full ${maxWidth} bg-slate-900/90 border border-slate-800 rounded-2xl shadow-2xl shadow-indigo-950/40 overflow-hidden transform transition-all duration-300 scale-100`}>
-                {/* Header */}
-                <div className="flex items-center justify-between px-6 py-4 border-b border-slate-800/80 bg-slate-900/50">
-                    <h3 className="text-lg font-semibold text-slate-100">{title}</h3>
+        <div
+            className="
+                fixed
+                inset-0
+                z-[100]
+                flex
+                items-center
+                justify-center
+                p-3
+                sm:p-6
+                bg-slate-950/85
+                backdrop-blur-sm
+                animate-fade-in
+            "
+            onMouseDown={(event) => {
+                if (event.target === event.currentTarget) {
+                    onClose();
+                }
+            }}
+        >
+            <div
+                className={`
+                    relative
+                    w-full
+                    ${maxWidth}
+                    max-h-[calc(100vh-1.5rem)]
+                    sm:max-h-[calc(100vh-3rem)]
+                    flex
+                    flex-col
+                    overflow-hidden
+                    rounded-2xl
+                    border
+                    border-slate-700/80
+                    bg-slate-900
+                    shadow-2xl
+                    shadow-black/60
+                `}
+                onMouseDown={(event) => event.stopPropagation()}
+            >
+                <div
+                    className="
+                        shrink-0
+                        flex
+                        items-center
+                        justify-between
+                        gap-4
+                        px-5
+                        py-4
+                        sm:px-6
+                        bg-slate-900
+                        border-b
+                        border-slate-800
+                    "
+                >
+                    <div className="min-w-0">
+                        <h3 className="text-base sm:text-lg font-semibold text-slate-100 truncate">
+                            {title}
+                        </h3>
+
+                        <p className="text-[11px] text-slate-500 mt-0.5">
+                            Recovery execution details
+                        </p>
+                    </div>
+
                     <button
+                        type="button"
                         onClick={onClose}
-                        className="p-1 text-slate-400 hover:text-slate-200 rounded-lg hover:bg-slate-800 transition-colors"
+                        className="
+                            shrink-0
+                            p-2
+                            rounded-lg
+                            text-slate-400
+                            hover:text-slate-100
+                            hover:bg-slate-800
+                            transition-colors
+                            cursor-pointer
+                        "
+                        aria-label="Close modal"
                     >
                         <X className="w-5 h-5" />
                     </button>
                 </div>
 
-                {/* Body */}
-                <div className="p-6 max-h-[80vh] overflow-y-auto">
+                <div
+                    ref={scrollContainerRef}
+                    className="
+                        flex-1
+                        min-h-0
+                        overflow-y-auto
+                        overscroll-contain
+                        px-4
+                        py-5
+                        sm:px-6
+                        sm:py-6
+                        scrollbar-thin
+                        scrollbar-thumb-slate-700
+                        scrollbar-track-slate-900
+                    "
+                >
                     {children}
                 </div>
+
+                {footer && (
+                    <div
+                        className="
+                            shrink-0
+                            px-4
+                            py-3
+                            sm:px-6
+                            sm:py-4
+                            bg-slate-900
+                            border-t
+                            border-slate-800
+                        "
+                    >
+                        {footer}
+                    </div>
+                )}
             </div>
         </div>
     );

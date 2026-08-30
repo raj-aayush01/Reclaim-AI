@@ -69,6 +69,9 @@ const agentRunSchema = new mongoose.Schema(
             enum: [
                 "RUNNING",
                 "RECOVERED",
+                "PENDING",
+                "COMPLETED",
+                "BLOCKED",
                 "ESCALATED",
                 "STOPPED",
                 "FAILED",

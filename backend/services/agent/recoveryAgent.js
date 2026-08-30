@@ -6,7 +6,6 @@ const crypto = require("crypto");
 const AgentRun = require("../../models/AgentRun");
 
 const {
-    toolDeclarations,
     executeTool
 } = require("./agentTools");
 
@@ -14,31 +13,44 @@ const ai = new GoogleGenAI({
     apiKey: process.env.GEMINI_API_KEY
 });
 
-const MAX_STEPS = 5;
+const MODEL = "gemini-3.6-flash";
 
 const SYSTEM_INSTRUCTION = `
 You are Reclaim-AI Recovery Agent.
 
-Your goal is to safely recover the specified failed payment.
+Your job is to analyze ONE failed payment and recommend ONE safe
+recovery action.
 
-You are an autonomous recovery agent operating inside a bounded financial recovery system.
+You are operating inside a bounded financial recovery system.
 
-You can inspect payment information, inspect customer history, retry payments, create payment links, escalate to a human, and stop recovery.
+You will receive:
+
+1. Payment information
+2. Customer payment history
+
+You must return ONLY valid JSON.
+
+Allowed actions:
+
+RETRY_PAYMENT
+CREATE_PAYMENT_LINK
+ESCALATE_TO_HUMAN
+STOP_RECOVERY
 
 Recovery strategy:
 
 1. TEMPORARY_FAILURE
-   - Retry the payment when retry attempts remain.
-   - Do not create a payment link for this scenario.
-   - If retries are exhausted, stop recovery.
+   - Retry when retry attempts remain.
+   - Do not create a payment link.
+   - If retry attempts are exhausted, stop recovery.
 
 2. CARD_DECLINED
-   - Do not retry the declined card.
-   - Create a payment link so the customer can use an alternative payment method.
+   - Do not retry the same card.
+   - Create a payment link for an alternative payment method.
 
 3. REPEATED_FAILURE
-   - Do not retry again when the retry limit has been reached.
-   - Stop recovery.
+   - If the retry limit has been reached, stop recovery.
+   - Do not continue retrying.
 
 4. HIGH_VALUE_FAILURE
    - Do not attempt automated payment recovery.
@@ -48,40 +60,69 @@ Recovery strategy:
    - Do not guess a recovery strategy.
    - Escalate to a human.
 
-Rules:
+Important rules:
 
-1. Always inspect the payment before taking a recovery action.
-2. Use customer history when it is relevant.
-3. Base decisions on the actual tool results.
-4. Never invent payment information or tool results.
-5. Never assume an action succeeded.
-6. After every recovery action, inspect the returned result.
-7. If an action fails, reconsider the next safe action.
-8. Never bypass or override the recovery policy.
-9. Never repeatedly perform the same failed action without justification.
-10. Stop when the payment is recovered.
-11. Escalate when automated recovery is unsafe or blocked.
-12. Stop recovery when no safe recovery path remains.
-13. Maximum recovery steps: 5.
+- Base the decision only on the supplied payment and customer data.
+- Never invent information.
+- Never recommend an action outside the allowed action list.
+- Consider attemptCount before recommending RETRY_PAYMENT.
+- Consider scenario before recommending an action.
+- Prefer the safest recovery path.
+- Confidence must be between 0 and 1.
 
-Your objective is to recover the payment safely, not merely recommend an action.
+User-facing explanation requirements:
 
-Every recovery action must include:
-- a confidence value between 0 and 1
-- a concise reason explaining the decision
+The explanation must be understandable to a non-technical business user.
+
+Do NOT use developer terminology such as:
+- risk model
+- deterministic engine
+- parameters
+- pipeline
+- executor
+- policy evaluation
+- model inference
+
+Explain the decision in business language.
+
+The explanation must answer:
+
+1. What happened to the payment?
+2. Why did the AI choose this action?
+3. What will happen next?
+
+Do not claim that money was recovered unless the supplied information proves
+that recovery actually happened.
+
+Return exactly this structure:
+
+{
+    "action": "RETRY_PAYMENT",
+    "confidence": 0.95,
+    "summary": "The customer attempted a payment, but it could not be completed because of a temporary payment issue.",
+    "whyThisDecision": "The failure appears temporary and the payment still has an allowed recovery attempt remaining.",
+    "whatHappensNext": "The system will make another payment attempt. If it succeeds, the payment will be recovered. If it fails again, the next permitted recovery step will be considered.",
+    "reason": "Temporary failure with a recovery attempt remaining."
+}
 `;
 
-const runRecoveryAgent = async (paymentId) => {
+const ALLOWED_ACTIONS = new Set([
+    "RETRY_PAYMENT",
+    "CREATE_PAYMENT_LINK",
+    "ESCALATE_TO_HUMAN",
+    "STOP_RECOVERY"
+]);
 
-    const runId = `run_${crypto.randomUUID()}`;
+const ACTION_TO_TOOL = {
+    RETRY_PAYMENT: "retry_payment",
+    CREATE_PAYMENT_LINK: "create_payment_link",
+    ESCALATE_TO_HUMAN: "escalate_to_human",
+    STOP_RECOVERY: "stop_recovery"
+};
 
-    const agentRun = await AgentRun.create({
-        runId,
-        paymentId,
-        status: "RUNNING"
-    });
-
-    const addStep = async ({
+const addStep = async (
+    agentRun,
+    {
         step,
         type,
         tool = null,
@@ -89,311 +130,572 @@ const runRecoveryAgent = async (paymentId) => {
         output = null,
         confidence = null,
         reason = null
-    }) => {
-
-        await agentRun.updateOne({
-            $push: {
-                steps: {
-                    step,
-                    type,
-                    tool,
-                    input,
-                    output,
-                    confidence,
-                    reason
-                }
+    }
+) => {
+    await agentRun.updateOne({
+        $push: {
+            steps: {
+                step,
+                type,
+                tool,
+                input,
+                output,
+                confidence,
+                reason
             }
-        });
-    };
+        }
+    });
+};
 
-    const markFailed = async (error, step) => {
-
-        await addStep({
+const markFailed = async (
+    agentRun,
+    error,
+    step
+) => {
+    await addStep(
+        agentRun,
+        {
             step,
             type: "TERMINAL",
             output: {
                 status: "FAILED",
                 error: error.message
             }
-        });
-
-        await agentRun.updateOne({
-            $set: {
-                status: "FAILED",
-                completedAt: new Date()
-            }
-        });
-    };
-
-    const contents = [
-        {
-            role: "user",
-            parts: [
-                {
-                    text: `
-Start a recovery run for payment ${paymentId}.
-
-Goal:
-Recover this payment safely.
-
-Begin by inspecting the payment state.
-`
-                }
-            ]
         }
-    ];
+    );
 
-    let step = 0;
+    await agentRun.updateOne({
+        $set: {
+            status: "FAILED",
+            completedAt: new Date()
+        }
+    });
+};
+
+const parseAIResponse = (text) => {
+    if (!text) {
+        throw new Error(
+            "Gemini returned an empty response."
+        );
+    }
+
+    let cleaned = text.trim();
+
+    if (cleaned.startsWith("```")) {
+        cleaned = cleaned
+            .replace(/^```json\s*/i, "")
+            .replace(/^```\s*/i, "")
+            .replace(/\s*```$/i, "")
+            .trim();
+    }
+
+    let parsed;
 
     try {
+        parsed = JSON.parse(cleaned);
+    } catch (error) {
+        throw new Error(
+            `Invalid Gemini JSON response: ${cleaned}`
+        );
+    }
 
-        while (step < MAX_STEPS) {
+    return parsed;
+};
 
-            step += 1;
+const validateAIDecision = (decision) => {
+    if (!decision || typeof decision !== "object") {
+        throw new Error(
+            "Gemini returned an invalid decision."
+        );
+    }
 
-            console.log(
-                `\n[Agent] Step ${step}/${MAX_STEPS}`
+    const action =
+        String(decision.action || "")
+            .trim()
+            .toUpperCase();
+
+    if (!ALLOWED_ACTIONS.has(action)) {
+        throw new Error(
+            `Gemini returned unsupported action: ${action}`
+        );
+    }
+
+    const confidence =
+        Number(decision.confidence);
+
+    if (
+        Number.isNaN(confidence) ||
+        confidence < 0 ||
+        confidence > 1
+    ) {
+        throw new Error(
+            "Gemini returned invalid confidence."
+        );
+    }
+
+    const summary =
+        String(decision.summary || "").trim();
+
+    const whyThisDecision =
+        String(decision.whyThisDecision || "").trim();
+
+    const whatHappensNext =
+        String(decision.whatHappensNext || "").trim();
+
+    const reason =
+        String(decision.reason || "").trim();
+
+    if (!summary) {
+        throw new Error(
+            "Gemini returned no payment summary."
+        );
+    }
+
+    if (!whyThisDecision) {
+        throw new Error(
+            "Gemini returned no decision explanation."
+        );
+    }
+
+    if (!whatHappensNext) {
+        throw new Error(
+            "Gemini returned no next-step explanation."
+        );
+    }
+
+    if (!reason) {
+        throw new Error(
+            "Gemini returned no recovery reason."
+        );
+    }
+
+    return {
+        action,
+        confidence,
+        summary,
+        whyThisDecision,
+        whatHappensNext,
+        reason
+    };
+};
+
+const runRecoveryAgent = async (paymentId) => {
+    const runId =
+        `run_${crypto.randomUUID()}`;
+
+    const agentRun =
+        await AgentRun.create({
+            runId,
+            paymentId,
+            status: "RUNNING"
+        });
+
+    let currentStep = 0;
+
+    try {
+        /* ---------------------------------------------------
+         * STEP 1 — PAYMENT INSPECTION
+         * --------------------------------------------------- */
+
+        currentStep = 1;
+
+        console.log(
+            `\n[Agent] Step 1/5 — Payment inspection`
+        );
+
+        const paymentResult =
+            await executeTool(
+                "get_payment",
+                {
+                    paymentId
+                }
             );
 
-            const response = await ai.models.generateContent({
-                model: "gemini-3.6-flash",
-
-                contents,
-
-                config: {
-                    systemInstruction: SYSTEM_INSTRUCTION,
-                    tools: toolDeclarations
-                }
-            });
-
-            const functionCalls =
-                response.functionCalls || [];
-
-            if (functionCalls.length === 0) {
-
-                await addStep({
-                    step,
-                    type: "TERMINAL",
-                    output: {
-                        status: "COMPLETED",
-                        message: response.text || null
-                    }
-                });
-
-                await agentRun.updateOne({
-                    $set: {
-                        status: "COMPLETED",
-                        completedAt: new Date()
-                    }
-                });
-
-                return {
-                    success: true,
-                    status: "COMPLETED",
-                    steps: step,
-                    message: response.text || null
-                };
-            }
-
-            contents.push(
-                response.candidates[0].content
+        if (!paymentResult.success) {
+            throw new Error(
+                paymentResult.error ||
+                "Unable to retrieve payment."
             );
-
-            const functionResponses = [];
-
-            for (const functionCall of functionCalls) {
-
-                const args =
-                    functionCall.args || {};
-
-                console.log(
-                    `[Agent] Tool: ${functionCall.name}`
-                );
-
-                console.log(
-                    `[Agent] Args:`,
-                    args
-                );
-
-                await addStep({
-                    step,
-                    type: "DECISION",
-                    tool: functionCall.name,
-                    input: args,
-                    confidence:
-                        args.confidence ?? null,
-                    reason:
-                        args.reason ?? null
-                });
-
-                let result;
-
-                try {
-
-                    result = await executeTool(
-                        functionCall.name,
-                        args
-                    );
-
-                } catch (error) {
-
-                    await addStep({
-                        step,
-                        type: "RESULT",
-                        tool: functionCall.name,
-                        output: {
-                            success: false,
-                            error: error.message
-                        }
-                    });
-
-                    throw error;
-                }
-
-                console.log(
-                    `[Agent] Result:`,
-                    result
-                );
-
-                if (result.policyDecision) {
-
-                    await addStep({
-                        step,
-                        type: "POLICY",
-                        tool: functionCall.name,
-                        input: args,
-                        output: result.policyDecision,
-                        confidence:
-                            args.confidence ?? null,
-                        reason:
-                            result.policyDecision.reason ||
-                            null
-                    });
-                }
-
-                await addStep({
-                    step,
-                    type: "ACTION",
-                    tool: functionCall.name,
-                    input: args,
-                    output: result,
-                    confidence:
-                        args.confidence ?? null,
-                    reason:
-                        args.reason ?? null
-                });
-
-                if (result.executionResult) {
-
-                    await addStep({
-                        step,
-                        type: "RESULT",
-                        tool: functionCall.name,
-                        output: result.executionResult
-                    });
-                }
-
-                if (
-                    functionCall.name === "get_payment" ||
-                    functionCall.name === "get_customer_history"
-                ) {
-
-                    await addStep({
-                        step,
-                        type: "OBSERVATION",
-                        tool: functionCall.name,
-                        input: args,
-                        output: result
-                    });
-                }
-
-                if (result.terminal === true) {
-
-                    const finalStatus =
-                        result.executionResult?.result ||
-                        "TERMINAL";
-
-                    await addStep({
-                        step,
-                        type: "TERMINAL",
-                        tool:
-                            result.actionExecuted ||
-                            functionCall.name,
-                        output: {
-                            status: finalStatus,
-                            message:
-                                result.message || null
-                        }
-                    });
-
-                    await agentRun.updateOne({
-                        $set: {
-                            status: finalStatus,
-                            completedAt: new Date()
-                        }
-                    });
-
-                    return {
-                        success: result.success,
-                        status: finalStatus,
-                        steps: step,
-                        action:
-                            result.actionExecuted ||
-                            functionCall.name,
-                        result
-                    };
-                }
-
-                functionResponses.push({
-                    functionResponse: {
-                        name: functionCall.name,
-
-                        response: {
-                            result
-                        },
-
-                        id: functionCall.id
-                    }
-                });
-            }
-
-            contents.push({
-                role: "user",
-                parts: functionResponses
-            });
         }
 
-        await addStep({
-            step: MAX_STEPS,
-            type: "TERMINAL",
-            output: {
-                status: "MAX_STEPS_REACHED"
+        const payment =
+            paymentResult.payment;
+
+        await addStep(
+            agentRun,
+            {
+                step: 1,
+                type: "OBSERVATION",
+                tool: "get_payment",
+                input: {
+                    paymentId
+                },
+                output: paymentResult
             }
-        });
+        );
+
+        /* ---------------------------------------------------
+         * STEP 2 — CUSTOMER HISTORY
+         * --------------------------------------------------- */
+
+        currentStep = 2;
+
+        console.log(
+            `[Agent] Step 2/5 — Customer history`
+        );
+
+        const customerResult =
+            await executeTool(
+                "get_customer_history",
+                {
+                    customerId:
+                        payment.customerId
+                }
+            );
+
+        if (!customerResult.success) {
+            throw new Error(
+                customerResult.error ||
+                "Unable to retrieve customer history."
+            );
+        }
+
+        await addStep(
+            agentRun,
+            {
+                step: 2,
+                type: "OBSERVATION",
+                tool: "get_customer_history",
+                input: {
+                    customerId:
+                        payment.customerId
+                },
+                output: customerResult
+            }
+        );
+
+        /* ---------------------------------------------------
+         * STEP 3 — GEMINI DECISION
+         * --------------------------------------------------- */
+
+        currentStep = 3;
+
+        console.log(
+            `[Agent] Step 3/5 — Gemini decision`
+        );
+
+        console.log(
+            `[Agent] Calling Gemini exactly once...`
+        );
+
+        const aiInput = {
+            payment,
+            customer:
+                customerResult.customer,
+            recentPayments:
+                customerResult.recentPayments
+        };
+
+        const response =
+            await ai.models.generateContent({
+                model: MODEL,
+
+                contents: [
+                    {
+                        role: "user",
+                        parts: [
+                            {
+                                text: `
+Analyze this failed payment and recommend the safest recovery action.
+
+Payment and customer information:
+
+${JSON.stringify(
+    aiInput,
+    null,
+    2
+)}
+
+Return ONLY the required JSON object.
+`
+                            }
+                        ]
+                    }
+                ],
+
+                config: {
+                    systemInstruction:
+                        SYSTEM_INSTRUCTION,
+
+                    responseMimeType:
+                        "application/json",
+
+                    temperature: 0
+                }
+            });
+
+        const aiDecision =
+            validateAIDecision(
+                parseAIResponse(
+                    response.text
+                )
+            );
+
+        console.log(
+            `[Agent] Gemini decision:`,
+            aiDecision
+        );
+
+        await addStep(
+            agentRun,
+            {
+                step: 3,
+                type: "DECISION",
+                tool: "gemini_recovery_decision",
+
+                input: {
+                    paymentId,
+                    scenario:
+                        payment.scenario,
+                    attemptCount:
+                        payment.attemptCount
+                },
+
+                output: aiDecision,
+
+                confidence:
+                    aiDecision.confidence,
+
+                reason:
+                    aiDecision.reason
+            }
+        );
+
+        /* ---------------------------------------------------
+         * STEP 4 — POLICY + EXECUTION
+         * --------------------------------------------------- */
+
+        currentStep = 4;
+
+        console.log(
+            `[Agent] Step 4/5 — Policy + execution`
+        );
+
+        const toolName =
+            ACTION_TO_TOOL[
+                aiDecision.action
+            ];
+
+        if (!toolName) {
+            throw new Error(
+                `No recovery tool mapped for action: ${aiDecision.action}`
+            );
+        }
+
+        const actionResult =
+            await executeTool(
+                toolName,
+                {
+                    paymentId,
+                    confidence:
+                        aiDecision.confidence,
+                    reason:
+                        aiDecision.reason
+                }
+            );
+
+        await addStep(
+            agentRun,
+            {
+                step: 4,
+                type: "ACTION",
+                tool: toolName,
+
+                input: {
+                    paymentId,
+                    requestedAction:
+                        aiDecision.action,
+                    confidence:
+                        aiDecision.confidence,
+                    reason:
+                        aiDecision.reason
+                },
+
+                output: {
+                    policyDecision:
+                        actionResult.policyDecision ||
+                        null,
+
+                    executionResult:
+                        actionResult.executionResult ||
+                        null,
+
+                    success:
+                        actionResult.success,
+
+                    blocked:
+                        actionResult.blocked ||
+                        false,
+
+                    actionExecuted:
+                        actionResult.actionExecuted ||
+                        null,
+
+                    message:
+                        actionResult.message ||
+                        actionResult
+                            ?.executionResult
+                            ?.message ||
+                        null
+                },
+
+                confidence:
+                    aiDecision.confidence,
+
+                reason:
+                    actionResult
+                        ?.policyDecision
+                        ?.reason ||
+                    aiDecision.reason
+            }
+        );
+
+        /* ---------------------------------------------------
+         * STEP 5 — FINAL OUTCOME
+         * --------------------------------------------------- */
+
+        currentStep = 5;
+
+        const executionResult =
+            actionResult.executionResult;
+
+        const finalStatus =
+            executionResult?.result ||
+            (
+                actionResult.blocked
+                    ? "BLOCKED"
+                    : actionResult.success
+                        ? "COMPLETED"
+                        : "FAILED"
+            );
+
+        console.log(
+            `[Agent] Step 5/5 — Final result: ${finalStatus}`
+        );
+
+        await addStep(
+            agentRun,
+            {
+                step: 5,
+                type: "TERMINAL",
+
+                tool:
+                    actionResult.actionExecuted ||
+                    aiDecision.action,
+
+                output: {
+                    status: finalStatus,
+
+                    requestedAction:
+                        aiDecision.action,
+
+                    executedAction:
+                        actionResult.actionExecuted ||
+                        aiDecision.action,
+
+                    blocked:
+                        actionResult.blocked ||
+                        false,
+
+                    success:
+                        actionResult.success,
+
+                    message:
+                        actionResult.message ||
+                        executionResult?.message ||
+                        null
+                },
+
+                confidence:
+                    aiDecision.confidence,
+
+                reason:
+                    aiDecision.reason
+            }
+        );
 
         await agentRun.updateOne({
             $set: {
-                status: "MAX_STEPS_REACHED",
+                status: finalStatus,
                 completedAt: new Date()
             }
         });
 
         return {
-            success: false,
-            status: "MAX_STEPS_REACHED",
-            steps: MAX_STEPS,
-            message:
-                "Agent reached the maximum recovery step limit."
+            success:
+                actionResult.success,
+
+            status:
+                finalStatus,
+
+            steps: 5,
+
+            aiDecision,
+
+            action:
+                actionResult.actionExecuted ||
+                aiDecision.action,
+
+            confidence:
+                aiDecision.confidence,
+
+            reason:
+                aiDecision.reason,
+
+            result:
+                actionResult
         };
 
     } catch (error) {
 
         console.error(
-            "[Agent] Recovery error:",
+            "\n========== AI RECOVERY ERROR =========="
+        );
+
+        console.error(
+            "[Agent] Payment ID:",
+            paymentId
+        );
+
+        console.error(
+            "[Agent] Failed at step:",
+            currentStep
+        );
+
+        console.error(
+            "[Agent] Error name:",
+            error?.name
+        );
+
+        console.error(
+            "[Agent] Error message:",
+            error?.message
+        );
+
+        console.error(
+            "[Agent] Full error:",
             error
         );
 
-        await markFailed(error, step);
+        console.error(
+            "=======================================\n"
+        );
+
+        await markFailed(
+            agentRun,
+            error,
+            currentStep
+        );
 
         throw error;
     }
