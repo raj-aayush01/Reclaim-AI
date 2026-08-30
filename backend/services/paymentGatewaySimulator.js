@@ -1,5 +1,10 @@
 const processPaymentRetry = async (payment) => {
 
+    console.log(
+        "[Simulator] FORCE_RETRY_FAILURE =",
+        process.env.FORCE_RETRY_FAILURE
+    );
+
     const forceFailure =
         process.env.FORCE_RETRY_FAILURE === "true";
 

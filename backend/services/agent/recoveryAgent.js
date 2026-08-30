@@ -15,6 +15,8 @@ const ai = new GoogleGenAI({
 
 const MODEL = "gemini-3.6-flash";
 
+const MAX_RETRY_ATTEMPTS = 3;
+
 const SYSTEM_INSTRUCTION = `
 You are Reclaim-AI Recovery Agent.
 
@@ -75,6 +77,7 @@ User-facing explanation requirements:
 The explanation must be understandable to a non-technical business user.
 
 Do NOT use developer terminology such as:
+
 - risk model
 - deterministic engine
 - parameters
@@ -293,6 +296,7 @@ const runRecoveryAgent = async (paymentId) => {
     let currentStep = 0;
 
     try {
+
         /* ---------------------------------------------------
          * STEP 1 — PAYMENT INSPECTION
          * --------------------------------------------------- */
@@ -300,7 +304,7 @@ const runRecoveryAgent = async (paymentId) => {
         currentStep = 1;
 
         console.log(
-            `\n[Agent] Step 1/5 — Payment inspection`
+            `\n[Agent] Step 1 — Payment inspection`
         );
 
         const paymentResult =
@@ -324,7 +328,7 @@ const runRecoveryAgent = async (paymentId) => {
         await addStep(
             agentRun,
             {
-                step: 1,
+                step: currentStep,
                 type: "OBSERVATION",
                 tool: "get_payment",
                 input: {
@@ -341,7 +345,7 @@ const runRecoveryAgent = async (paymentId) => {
         currentStep = 2;
 
         console.log(
-            `[Agent] Step 2/5 — Customer history`
+            `[Agent] Step 2 — Customer history`
         );
 
         const customerResult =
@@ -363,7 +367,7 @@ const runRecoveryAgent = async (paymentId) => {
         await addStep(
             agentRun,
             {
-                step: 2,
+                step: currentStep,
                 type: "OBSERVATION",
                 tool: "get_customer_history",
                 input: {
@@ -376,12 +380,13 @@ const runRecoveryAgent = async (paymentId) => {
 
         /* ---------------------------------------------------
          * STEP 3 — GEMINI DECISION
+         * IMPORTANT: GEMINI IS CALLED EXACTLY ONCE
          * --------------------------------------------------- */
 
         currentStep = 3;
 
         console.log(
-            `[Agent] Step 3/5 — Gemini decision`
+            `[Agent] Step 3 — Gemini decision`
         );
 
         console.log(
@@ -449,7 +454,7 @@ Return ONLY the required JSON object.
         await addStep(
             agentRun,
             {
-                step: 3,
+                step: currentStep,
                 type: "DECISION",
                 tool: "gemini_recovery_decision",
 
@@ -472,188 +477,537 @@ Return ONLY the required JSON object.
         );
 
         /* ---------------------------------------------------
-         * STEP 4 — POLICY + EXECUTION
+         * NON-RETRY ACTIONS
          * --------------------------------------------------- */
 
-        currentStep = 4;
+        if (
+            aiDecision.action !==
+            "RETRY_PAYMENT"
+        ) {
 
-        console.log(
-            `[Agent] Step 4/5 — Policy + execution`
-        );
+            currentStep += 1;
 
-        const toolName =
-            ACTION_TO_TOOL[
-                aiDecision.action
-            ];
-
-        if (!toolName) {
-            throw new Error(
-                `No recovery tool mapped for action: ${aiDecision.action}`
+            console.log(
+                `[Agent] Step ${currentStep} — Policy + execution`
             );
+
+            const toolName =
+                ACTION_TO_TOOL[
+                    aiDecision.action
+                ];
+
+            if (!toolName) {
+                throw new Error(
+                    `No recovery tool mapped for action: ${aiDecision.action}`
+                );
+            }
+
+            const actionResult =
+                await executeTool(
+                    toolName,
+                    {
+                        paymentId,
+                        confidence:
+                            aiDecision.confidence,
+                        reason:
+                            aiDecision.reason
+                    }
+                );
+
+            await addStep(
+                agentRun,
+                {
+                    step: currentStep,
+                    type: "ACTION",
+                    tool: toolName,
+
+                    input: {
+                        paymentId,
+                        requestedAction:
+                            aiDecision.action,
+                        confidence:
+                            aiDecision.confidence,
+                        reason:
+                            aiDecision.reason
+                    },
+
+                    output: {
+                        policyDecision:
+                            actionResult.policyDecision ||
+                            null,
+
+                        executionResult:
+                            actionResult.executionResult ||
+                            null,
+
+                        success:
+                            actionResult.success,
+
+                        blocked:
+                            actionResult.blocked ||
+                            false,
+
+                        actionExecuted:
+                            actionResult.actionExecuted ||
+                            null,
+
+                        message:
+                            actionResult.message ||
+                            actionResult
+                                ?.executionResult
+                                ?.message ||
+                            null
+                    },
+
+                    confidence:
+                        aiDecision.confidence,
+
+                    reason:
+                        actionResult
+                            ?.policyDecision
+                            ?.reason ||
+                        aiDecision.reason
+                }
+            );
+
+            const executionResult =
+                actionResult.executionResult;
+
+            const finalStatus =
+                executionResult?.result ||
+                (
+                    actionResult.blocked
+                        ? "BLOCKED"
+                        : actionResult.success
+                            ? "COMPLETED"
+                            : "FAILED"
+                );
+
+            currentStep += 1;
+
+            console.log(
+                `[Agent] Step ${currentStep} — Final result: ${finalStatus}`
+            );
+
+            await addStep(
+                agentRun,
+                {
+                    step: currentStep,
+                    type: "TERMINAL",
+
+                    tool:
+                        actionResult.actionExecuted ||
+                        aiDecision.action,
+
+                    output: {
+                        status: finalStatus,
+
+                        requestedAction:
+                            aiDecision.action,
+
+                        executedAction:
+                            actionResult.actionExecuted ||
+                            aiDecision.action,
+
+                        blocked:
+                            actionResult.blocked ||
+                            false,
+
+                        success:
+                            actionResult.success,
+
+                        message:
+                            actionResult.message ||
+                            executionResult?.message ||
+                            null
+                    },
+
+                    confidence:
+                        aiDecision.confidence,
+
+                    reason:
+                        actionResult
+                            ?.policyDecision
+                            ?.reason ||
+                        aiDecision.reason
+                }
+            );
+
+            await agentRun.updateOne({
+                $set: {
+                    status: finalStatus,
+                    completedAt: new Date()
+                }
+            });
+
+            return {
+                success:
+                    actionResult.success,
+
+                status:
+                    finalStatus,
+
+                steps:
+                    currentStep,
+
+                aiDecision,
+
+                action:
+                    actionResult.actionExecuted ||
+                    aiDecision.action,
+
+                confidence:
+                    aiDecision.confidence,
+
+                reason:
+                    aiDecision.reason,
+
+                result:
+                    actionResult
+            };
         }
 
-        const actionResult =
+        /* ---------------------------------------------------
+         * STEP 4 — RETRY POLICY + MULTI-ATTEMPT EXECUTION
+         * --------------------------------------------------- */
+
+        const retryStartStep =
+            currentStep + 1;
+
+        let latestActionResult = null;
+        let recovered = false;
+
+        console.log(
+            `[Agent] Retry strategy selected — maximum ${MAX_RETRY_ATTEMPTS} attempts`
+        );
+
+        /*
+         * The retry loop is deterministic.
+         * Gemini is NOT called again.
+         */
+        for (
+            let attempt = 1;
+            attempt <= MAX_RETRY_ATTEMPTS;
+            attempt++
+        ) {
+
+            currentStep =
+                retryStartStep +
+                (attempt - 1);
+
+            console.log(
+                `[Agent] Attempt ${attempt}/${MAX_RETRY_ATTEMPTS} — retrying payment`
+            );
+
+            const actionResult =
+                await executeTool(
+                    "retry_payment",
+                    {
+                        paymentId,
+                        confidence:
+                            aiDecision.confidence,
+                        reason:
+                            aiDecision.reason
+                    }
+                );
+
+            latestActionResult =
+                actionResult;
+
+            const executionResult =
+                actionResult.executionResult ||
+                {};
+
+            const attemptSuccess =
+                executionResult.result ===
+                "RECOVERED" ||
+                actionResult.success === true;
+
+            /*
+             * Important:
+             *
+             * executeRecoveryAction() returns success=true
+             * when the payment is actually recovered.
+             *
+             * For a failed retry it returns success=false.
+             */
+
+            await addStep(
+                agentRun,
+                {
+                    step: currentStep,
+                    type: "ACTION",
+                    tool: "retry_payment",
+
+                    input: {
+                        paymentId,
+                        attemptNumber:
+                            attempt,
+                        maxAttempts:
+                            MAX_RETRY_ATTEMPTS,
+                        requestedAction:
+                            aiDecision.action,
+                        confidence:
+                            aiDecision.confidence,
+                        reason:
+                            aiDecision.reason
+                    },
+
+                    output: {
+                        attemptNumber:
+                            attempt,
+
+                        maxAttempts:
+                            MAX_RETRY_ATTEMPTS,
+
+                        success:
+                            actionResult.success,
+
+                        result:
+                            executionResult.result ||
+                            null,
+
+                        transactionId:
+                            executionResult.transactionId ||
+                            null,
+
+                        gatewayStatus:
+                            executionResult.gatewayStatus ||
+                            null,
+
+                        recoveredAmount:
+                            executionResult.recoveredAmount ||
+                            0,
+
+                        message:
+                            actionResult.message ||
+                            executionResult.message ||
+                            null
+                    },
+
+                    confidence:
+                        aiDecision.confidence,
+
+                    reason:
+                        attemptSuccess
+                            ? "Payment recovery succeeded."
+                            : `Recovery attempt ${attempt} failed.`
+                }
+            );
+
+            if (attemptSuccess) {
+
+                recovered = true;
+
+                currentStep++;
+
+                console.log(
+                    `[Agent] Recovery succeeded on attempt ${attempt}/${MAX_RETRY_ATTEMPTS}`
+                );
+
+                await addStep(
+                    agentRun,
+                    {
+                        step: currentStep,
+                        type: "TERMINAL",
+                        tool: "retry_payment",
+
+                        output: {
+                            status: "RECOVERED",
+
+                            attemptNumber:
+                                attempt,
+
+                            maxAttempts:
+                                MAX_RETRY_ATTEMPTS,
+
+                            recoveredAmount:
+                                executionResult.recoveredAmount ||
+                                0,
+
+                            transactionId:
+                                executionResult.transactionId ||
+                                null,
+
+                            message:
+                                executionResult.message ||
+                                "Payment recovered successfully."
+                        },
+
+                        confidence:
+                            aiDecision.confidence,
+
+                        reason:
+                            `Payment recovered successfully on attempt ${attempt}.`
+                    }
+                );
+
+                await agentRun.updateOne({
+                    $set: {
+                        status: "RECOVERED",
+                        completedAt:
+                            new Date()
+                    }
+                });
+
+                return {
+                    success: true,
+                    status: "RECOVERED",
+                    steps: currentStep,
+
+                    aiDecision,
+
+                    action:
+                        "RETRY_PAYMENT",
+
+                    confidence:
+                        aiDecision.confidence,
+
+                    reason:
+                        aiDecision.reason,
+
+                    result:
+                        latestActionResult
+                };
+            }
+
+            /*
+             * If this wasn't the last attempt, continue.
+             */
+            if (
+                attempt <
+                MAX_RETRY_ATTEMPTS
+            ) {
+
+                console.log(
+                    `[Agent] Attempt ${attempt} failed — moving to attempt ${attempt + 1}`
+                );
+            }
+        }
+
+        /* ---------------------------------------------------
+         * CIRCUIT BREAKER — ALL RETRIES FAILED
+         * --------------------------------------------------- */
+
+        currentStep++;
+
+        console.log(
+            `[Agent] Maximum retry attempts reached — stopping recovery`
+        );
+
+        const stopResult =
             await executeTool(
-                toolName,
+                "stop_recovery",
                 {
                     paymentId,
                     confidence:
                         aiDecision.confidence,
                     reason:
-                        aiDecision.reason
+                        `Maximum retry limit of ${MAX_RETRY_ATTEMPTS} attempts reached after repeated recovery failures.`
                 }
             );
 
         await addStep(
             agentRun,
             {
-                step: 4,
-                type: "ACTION",
-                tool: toolName,
+                step: currentStep,
+                type: "POLICY",
+                tool: "stop_recovery",
 
                 input: {
                     paymentId,
-                    requestedAction:
-                        aiDecision.action,
-                    confidence:
-                        aiDecision.confidence,
+
+                    attemptsMade:
+                        MAX_RETRY_ATTEMPTS,
+
+                    maxAttempts:
+                        MAX_RETRY_ATTEMPTS,
+
                     reason:
-                        aiDecision.reason
+                        `All ${MAX_RETRY_ATTEMPTS} recovery attempts failed.`
                 },
 
                 output: {
-                    policyDecision:
-                        actionResult.policyDecision ||
-                        null,
+                    circuitBreakerTriggered:
+                        true,
 
-                    executionResult:
-                        actionResult.executionResult ||
-                        null,
+                    attemptsMade:
+                        MAX_RETRY_ATTEMPTS,
 
-                    success:
-                        actionResult.success,
-
-                    blocked:
-                        actionResult.blocked ||
-                        false,
-
-                    actionExecuted:
-                        actionResult.actionExecuted ||
-                        null,
-
-                    message:
-                        actionResult.message ||
-                        actionResult
-                            ?.executionResult
-                            ?.message ||
-                        null
+                    stopResult
                 },
 
                 confidence:
                     aiDecision.confidence,
 
                 reason:
-                    actionResult
-                        ?.policyDecision
-                        ?.reason ||
-                    aiDecision.reason
+                    `Recovery stopped after ${MAX_RETRY_ATTEMPTS} failed attempts.`
             }
         );
 
-        /* ---------------------------------------------------
-         * STEP 5 — FINAL OUTCOME
-         * --------------------------------------------------- */
-
-        currentStep = 5;
-
-        const executionResult =
-            actionResult.executionResult;
-
-        const finalStatus =
-            executionResult?.result ||
-            (
-                actionResult.blocked
-                    ? "BLOCKED"
-                    : actionResult.success
-                        ? "COMPLETED"
-                        : "FAILED"
-            );
-
-        console.log(
-            `[Agent] Step 5/5 — Final result: ${finalStatus}`
-        );
+        currentStep++;
 
         await addStep(
             agentRun,
             {
-                step: 5,
+                step: currentStep,
                 type: "TERMINAL",
-
-                tool:
-                    actionResult.actionExecuted ||
-                    aiDecision.action,
+                tool: "stop_recovery",
 
                 output: {
-                    status: finalStatus,
+                    status: "STOPPED",
 
-                    requestedAction:
-                        aiDecision.action,
+                    attemptsMade:
+                        MAX_RETRY_ATTEMPTS,
 
-                    executedAction:
-                        actionResult.actionExecuted ||
-                        aiDecision.action,
+                    maxAttempts:
+                        MAX_RETRY_ATTEMPTS,
 
-                    blocked:
-                        actionResult.blocked ||
-                        false,
-
-                    success:
-                        actionResult.success,
+                    success: false,
 
                     message:
-                        actionResult.message ||
-                        executionResult?.message ||
-                        null
+                        `Recovery stopped after ${MAX_RETRY_ATTEMPTS} unsuccessful payment attempts.`
                 },
 
                 confidence:
                     aiDecision.confidence,
 
                 reason:
-                    aiDecision.reason
+                    `Maximum retry limit reached without successful recovery.`
             }
         );
 
         await agentRun.updateOne({
             $set: {
-                status: finalStatus,
-                completedAt: new Date()
+                status: "STOPPED",
+                completedAt:
+                    new Date()
             }
         });
 
         return {
-            success:
-                actionResult.success,
+            success: false,
 
-            status:
-                finalStatus,
+            status: "STOPPED",
 
-            steps: 5,
+            steps: currentStep,
 
             aiDecision,
 
             action:
-                actionResult.actionExecuted ||
-                aiDecision.action,
+                "STOP_RECOVERY",
 
             confidence:
                 aiDecision.confidence,
 
             reason:
-                aiDecision.reason,
+                `Maximum retry limit of ${MAX_RETRY_ATTEMPTS} attempts reached.`,
+
+            attemptsMade:
+                MAX_RETRY_ATTEMPTS,
 
             result:
-                actionResult
+                stopResult
         };
 
     } catch (error) {
