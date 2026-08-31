@@ -12,10 +12,18 @@ export const PaymentTable = ({
     executingId,
     onPageChange
 }) => {
+    /*
+     * Display the loader only when the table does not
+     * currently contain any payment records.
+     */
     if (loading && payments.length === 0) {
         return <Loader text="Fetching payments..." />;
     }
 
+    /*
+     * Display an empty state when the current filters
+     * return no payment records.
+     */
     if (!loading && payments.length === 0) {
         return (
             <EmptyState
@@ -25,6 +33,33 @@ export const PaymentTable = ({
         );
     }
 
+    /*
+     * Normalize pagination values so the UI remains safe
+     * even if the backend omits a pagination field.
+     */
+    const currentPage = Number(pagination?.page) || 1;
+    const totalPages = Number(pagination?.pages) || 1;
+    const totalPayments = Number(pagination?.total) || 0;
+
+    const isFirstPage = currentPage <= 1;
+    const isLastPage = currentPage >= totalPages;
+
+    const handlePreviousPage = () => {
+        if (isFirstPage || !onPageChange) {
+            return;
+        }
+
+        onPageChange(currentPage - 1);
+    };
+
+    const handleNextPage = () => {
+        if (isLastPage || !onPageChange) {
+            return;
+        }
+
+        onPageChange(currentPage + 1);
+    };
+
     return (
         <div
             className="panel"
@@ -32,6 +67,10 @@ export const PaymentTable = ({
                 overflow: "hidden"
             }}
         >
+            {/* =================================================
+                PAYMENT TABLE
+            ================================================== */}
+
             <div
                 style={{
                     overflowX: "auto"
@@ -56,11 +95,15 @@ export const PaymentTable = ({
                     <tbody>
                         {payments.map((payment) => (
                             <PaymentRow
-                                key={payment._id || payment.paymentId}
+                                key={
+                                    payment._id ||
+                                    payment.paymentId
+                                }
                                 payment={payment}
                                 onRunRecovery={onRunRecovery}
                                 isExecuting={
-                                    executingId === payment.paymentId
+                                    executingId ===
+                                    payment.paymentId
                                 }
                             />
                         ))}
@@ -68,7 +111,11 @@ export const PaymentTable = ({
                 </table>
             </div>
 
-            {pagination && pagination.pages > 1 && (
+            {/* =================================================
+                PAGINATION
+            ================================================== */}
+
+            {totalPages > 1 && (
                 <div
                     style={{
                         padding: "0.875rem 1.25rem",
@@ -76,11 +123,16 @@ export const PaymentTable = ({
                         display: "flex",
                         alignItems: "center",
                         justifyContent: "space-between",
+                        gap: "1rem",
+                        flexWrap: "wrap",
                         fontSize: "0.75rem",
                         color: "var(--mute)",
-                        fontFamily: "'JetBrains Mono', monospace"
+                        fontFamily:
+                            "'JetBrains Mono', monospace"
                     }}
                 >
+                    {/* Page information */}
+
                     <div>
                         Showing page{" "}
                         <span
@@ -89,7 +141,7 @@ export const PaymentTable = ({
                                 color: "var(--ink)"
                             }}
                         >
-                            {pagination.page}
+                            {currentPage}
                         </span>{" "}
                         of{" "}
                         <span
@@ -98,10 +150,12 @@ export const PaymentTable = ({
                                 color: "var(--ink)"
                             }}
                         >
-                            {pagination.pages}
+                            {totalPages}
                         </span>{" "}
-                        ({pagination.total} total payments)
+                        ({totalPayments} total payments)
                     </div>
+
+                    {/* Navigation controls */}
 
                     <div
                         style={{
@@ -111,56 +165,92 @@ export const PaymentTable = ({
                         }}
                     >
                         <button
-                            disabled={pagination.page <= 1}
-                            onClick={() =>
-                                onPageChange(pagination.page - 1)
-                            }
+                            type="button"
+                            disabled={isFirstPage}
+                            onClick={handlePreviousPage}
+                            aria-label="Go to previous page"
                             style={{
-                                padding: "0.3125rem",
-                                borderRadius: "0.375rem",
-                                border: "1px solid var(--line)",
-                                background: "var(--surface-solid)",
-                                color: "var(--mute)",
-                                cursor:
-                                    pagination.page <= 1
-                                        ? "not-allowed"
-                                        : "pointer",
-                                opacity:
-                                    pagination.page <= 1 ? 0.4 : 1,
-                                display: "flex",
+                                display: "inline-flex",
                                 alignItems: "center",
-                                transition: "all 150ms ease"
+                                justifyContent: "center",
+                                gap: "0.35rem",
+                                padding:
+                                    "0.45rem 0.7rem",
+                                borderRadius: "0.375rem",
+                                border:
+                                    "1px solid var(--line)",
+                                background:
+                                    "var(--surface-solid)",
+                                color: isFirstPage
+                                    ? "var(--mute)"
+                                    : "var(--ink)",
+                                cursor: isFirstPage
+                                    ? "not-allowed"
+                                    : "pointer",
+                                opacity: isFirstPage
+                                    ? 0.4
+                                    : 1,
+                                transition:
+                                    "all 150ms ease"
                             }}
                         >
                             <ChevronLeft size={14} />
+
+                            <span
+                                style={{
+                                    fontFamily:
+                                        "inherit",
+                                    fontSize:
+                                        "0.6875rem",
+                                    fontWeight: 600
+                                }}
+                            >
+                                Previous
+                            </span>
                         </button>
 
                         <button
-                            disabled={
-                                pagination.page >= pagination.pages
-                            }
-                            onClick={() =>
-                                onPageChange(pagination.page + 1)
-                            }
+                            type="button"
+                            disabled={isLastPage}
+                            onClick={handleNextPage}
+                            aria-label="Go to next page"
                             style={{
-                                padding: "0.3125rem",
-                                borderRadius: "0.375rem",
-                                border: "1px solid var(--line)",
-                                background: "var(--surface-solid)",
-                                color: "var(--mute)",
-                                cursor:
-                                    pagination.page >= pagination.pages
-                                        ? "not-allowed"
-                                        : "pointer",
-                                opacity:
-                                    pagination.page >= pagination.pages
-                                        ? 0.4
-                                        : 1,
-                                display: "flex",
+                                display: "inline-flex",
                                 alignItems: "center",
-                                transition: "all 150ms ease"
+                                justifyContent: "center",
+                                gap: "0.35rem",
+                                padding:
+                                    "0.45rem 0.7rem",
+                                borderRadius: "0.375rem",
+                                border:
+                                    "1px solid var(--line)",
+                                background:
+                                    "var(--surface-solid)",
+                                color: isLastPage
+                                    ? "var(--mute)"
+                                    : "var(--ink)",
+                                cursor: isLastPage
+                                    ? "not-allowed"
+                                    : "pointer",
+                                opacity: isLastPage
+                                    ? 0.4
+                                    : 1,
+                                transition:
+                                    "all 150ms ease"
                             }}
                         >
+                            <span
+                                style={{
+                                    fontFamily:
+                                        "inherit",
+                                    fontSize:
+                                        "0.6875rem",
+                                    fontWeight: 600
+                                }}
+                            >
+                                Next
+                            </span>
+
                             <ChevronRight size={14} />
                         </button>
                     </div>

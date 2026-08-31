@@ -1,16 +1,8 @@
 const express = require("express");
 
-const {
-    getAgentRun
-} = require("../controllers/agentController");
-
-const {
-    runRecovery
-} = require("../services/aiRecoveryOrchestrator");
-
-const {
-    runAgentBatch
-} = require("../services/agent/agentBatchRunner");
+const { runRecovery } = require("../services/aiRecoveryOrchestrator");
+const { runAgentBatch } = require("../services/agent/agentBatchRunner");
+const { getAgentRun, getControlRoom } = require("../controllers/agentController");
 
 const router = express.Router();
 
@@ -25,7 +17,14 @@ router.post("/ai/:paymentId", async (req, res) => {
 
         res.status(200).json({
             message: "AI recovery executed successfully",
-            result
+            result,
+            payment: result?.payment || null,
+            run: {
+                runId: result?.runId || null,
+                paymentId,
+                status: result?.status || "COMPLETED",
+                steps: result?.steps || []
+            }
         });
 
     } catch (error) {
@@ -81,6 +80,7 @@ router.post("/batch", async (req, res) => {
     }
 });
 
+router.get("/control-room", getControlRoom);
 router.get("/runs/:paymentId", getAgentRun);
 
 module.exports = router;

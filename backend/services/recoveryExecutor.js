@@ -3,7 +3,30 @@ const {
     createPaymentLink
 } = require("./paymentGatewaySimulator");
 
-const executeRecoveryAction = async (payment, action) => {
+const MAX_RECOVERY_ATTEMPTS = 3;
+
+/*
+ * Count one automated recovery action.
+ *
+ * RETRY_PAYMENT, CREATE_PAYMENT_LINK and ESCALATE_TO_HUMAN
+ * each consume one recovery attempt.
+ *
+ * STOP_RECOVERY does not consume an attempt.
+ */
+const incrementRecoveryAttempt = (payment) => {
+    const currentCount =
+        Number(payment.attemptCount) || 0;
+
+    payment.attemptCount = Math.min(
+        currentCount + 1,
+        MAX_RECOVERY_ATTEMPTS
+    );
+};
+
+const executeRecoveryAction = async (
+    payment,
+    action
+) => {
 
     payment.recoveryAction = action;
 
@@ -11,7 +34,30 @@ const executeRecoveryAction = async (payment, action) => {
 
         case "RETRY_PAYMENT": {
 
-            payment.attemptCount += 1;
+            const currentAttemptCount =
+                Number(payment.attemptCount) || 0;
+
+            if (
+                currentAttemptCount >=
+                MAX_RECOVERY_ATTEMPTS
+            ) {
+
+                payment.status = "stopped";
+                payment.recoveryResult =
+                    "STOPPED";
+
+                return {
+                    success: false,
+                    result: "STOPPED",
+                    recoveredAmount: 0,
+                    blocked: true,
+                    actionExecuted: "STOP_RECOVERY",
+                    message:
+                        `Recovery stopped because the maximum of ${MAX_RECOVERY_ATTEMPTS} automated recovery attempts has been reached.`
+                };
+            }
+
+            incrementRecoveryAttempt(payment);
 
             const gatewayResult =
                 await processPaymentRetry(payment);
@@ -19,13 +65,18 @@ const executeRecoveryAction = async (payment, action) => {
             if (gatewayResult.success) {
 
                 payment.status = "recovered";
-                payment.recoveredAmount = payment.amount;
-                payment.recoveryResult = "RECOVERED";
+
+                payment.recoveredAmount =
+                    payment.amount;
+
+                payment.recoveryResult =
+                    "RECOVERED";
 
                 return {
                     success: true,
                     result: "RECOVERED",
-                    recoveredAmount: payment.amount,
+                    recoveredAmount:
+                        payment.amount,
                     transactionId:
                         gatewayResult.transactionId,
                     gatewayStatus:
@@ -36,7 +87,9 @@ const executeRecoveryAction = async (payment, action) => {
             }
 
             payment.status = "failed";
-            payment.recoveryResult = "FAILED";
+
+            payment.recoveryResult =
+                "FAILED";
 
             return {
                 success: false,
@@ -53,6 +106,32 @@ const executeRecoveryAction = async (payment, action) => {
 
         case "CREATE_PAYMENT_LINK": {
 
+            const currentAttemptCount =
+                Number(payment.attemptCount) || 0;
+
+            if (
+                currentAttemptCount >=
+                MAX_RECOVERY_ATTEMPTS
+            ) {
+
+                payment.status = "stopped";
+
+                payment.recoveryResult =
+                    "STOPPED";
+
+                return {
+                    success: false,
+                    result: "STOPPED",
+                    recoveredAmount: 0,
+                    blocked: true,
+                    actionExecuted: "STOP_RECOVERY",
+                    message:
+                        `Recovery stopped because the maximum of ${MAX_RECOVERY_ATTEMPTS} automated recovery attempts has been reached.`
+                };
+            }
+
+            incrementRecoveryAttempt(payment);
+
             const gatewayResult =
                 await createPaymentLink(payment);
 
@@ -63,7 +142,9 @@ const executeRecoveryAction = async (payment, action) => {
                 gatewayResult.paymentLinkUrl;
 
             payment.status = "pending";
-            payment.recoveryResult = "PENDING";
+
+            payment.recoveryResult =
+                "PENDING";
 
             return {
                 success: true,
@@ -79,23 +160,63 @@ const executeRecoveryAction = async (payment, action) => {
 
         case "ESCALATE_TO_HUMAN": {
 
+            const currentAttemptCount =
+                Number(payment.attemptCount) || 0;
+
+            if (
+                currentAttemptCount >=
+                MAX_RECOVERY_ATTEMPTS
+            ) {
+
+                payment.status = "stopped";
+
+                payment.recoveryResult =
+                    "STOPPED";
+
+                return {
+                    success: false,
+                    result: "STOPPED",
+                    recoveredAmount: 0,
+                    blocked: true,
+                    actionExecuted: "STOP_RECOVERY",
+                    message:
+                        `Recovery stopped because the maximum of ${MAX_RECOVERY_ATTEMPTS} automated recovery attempts has been reached.`
+                };
+            }
+
+            incrementRecoveryAttempt(payment);
+
             payment.status = "escalated";
-            payment.recoveryResult = "ESCALATED";
+
+            payment.recoveryResult =
+                "ESCALATED";
 
             return {
                 success: true,
-                result: "ESCALATED"
+                result: "ESCALATED",
+                recoveredAmount: 0,
+                message:
+                    "The payment was sent for human review."
             };
         }
 
         case "STOP_RECOVERY": {
 
+            /*
+             * Stopping recovery does not consume
+             * another recovery attempt.
+             */
             payment.status = "stopped";
-            payment.recoveryResult = "STOPPED";
+
+            payment.recoveryResult =
+                "STOPPED";
 
             return {
                 success: true,
-                result: "STOPPED"
+                result: "STOPPED",
+                recoveredAmount: 0,
+                message:
+                    "No further automated recovery will be attempted."
             };
         }
 

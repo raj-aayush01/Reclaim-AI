@@ -6,7 +6,8 @@ import {
     AlertCircle,
     ShieldCheck,
     AlertOctagon,
-    Zap
+    Zap,
+    Bot
 } from "lucide-react";
 
 export const Sidebar = () => {
@@ -24,6 +25,11 @@ export const Sidebar = () => {
             altPath: "/payments",
             label: "Ledger",
             icon: CreditCard
+        },
+        {
+            path: "/control-room",
+            label: "AI Control Room",
+            icon: Bot
         },
         {
             path: "/failed-payments",

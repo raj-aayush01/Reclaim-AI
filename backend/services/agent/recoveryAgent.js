@@ -4,10 +4,23 @@ const { GoogleGenAI } = require("@google/genai");
 const crypto = require("crypto");
 
 const AgentRun = require("../../models/AgentRun");
+const Payment = require("../../models/Payment");
 
 const {
     executeTool
 } = require("./agentTools");
+
+const getFinalRunAndPayment = async (runId, paymentId) => {
+    const [finalRun, finalPayment] = await Promise.all([
+        AgentRun.findOne({ runId }).lean(),
+        Payment.findOne({ paymentId }).lean()
+    ]);
+
+    return {
+        steps: finalRun?.steps || [],
+        payment: finalPayment || null
+    };
+};
 
 const ai = new GoogleGenAI({
     apiKey: process.env.GEMINI_API_KEY
@@ -297,9 +310,7 @@ const runRecoveryAgent = async (paymentId) => {
 
     try {
 
-        /* ---------------------------------------------------
-         * STEP 1 — PAYMENT INSPECTION
-         * --------------------------------------------------- */
+        // Step 1: Inspect the failed payment.
 
         currentStep = 1;
 
@@ -338,9 +349,7 @@ const runRecoveryAgent = async (paymentId) => {
             }
         );
 
-        /* ---------------------------------------------------
-         * STEP 2 — CUSTOMER HISTORY
-         * --------------------------------------------------- */
+        // Step 2: Retrieve customer payment history.
 
         currentStep = 2;
 
@@ -378,10 +387,7 @@ const runRecoveryAgent = async (paymentId) => {
             }
         );
 
-        /* ---------------------------------------------------
-         * STEP 3 — GEMINI DECISION
-         * IMPORTANT: GEMINI IS CALLED EXACTLY ONCE
-         * --------------------------------------------------- */
+        // Step 3: Ask Gemini for one recovery recommendation.
 
         currentStep = 3;
 
@@ -476,16 +482,166 @@ Return ONLY the required JSON object.
             }
         );
 
-        /* ---------------------------------------------------
-         * NON-RETRY ACTIONS
-         * --------------------------------------------------- */
+        // Enforce the retry limit independently of the AI decision.
+
+        const existingAttemptCount =
+            Math.max(
+                0,
+                Number(payment.attemptCount) || 0
+            );
+
+        const remainingAttempts =
+            Math.max(
+                0,
+                MAX_RETRY_ATTEMPTS -
+                existingAttemptCount
+            );
+
+        console.log(
+            `[Agent] Existing retry attempts: ${existingAttemptCount}/${MAX_RETRY_ATTEMPTS}`
+        );
+
+        console.log(
+            `[Agent] Remaining retry attempts: ${remainingAttempts}`
+        );
+
+        // Stop immediately when no retry attempts remain.
+
+        if (
+            aiDecision.action === "RETRY_PAYMENT" &&
+            remainingAttempts === 0
+        ) {
+
+            console.log(
+                `[Agent] Retry limit already reached — forcing STOP_RECOVERY`
+            );
+
+            currentStep++;
+
+            const stopReason =
+                `The payment has already used all ${MAX_RETRY_ATTEMPTS} allowed retry attempts.`;
+
+            const stopResult =
+                await executeTool(
+                    "stop_recovery",
+                    {
+                        paymentId,
+                        confidence:
+                            aiDecision.confidence,
+                        reason:
+                            stopReason
+                    }
+                );
+
+            await addStep(
+                agentRun,
+                {
+                    step: currentStep,
+                    type: "POLICY",
+                    tool: "stop_recovery",
+
+                    input: {
+                        paymentId,
+                        requestedAction:
+                            aiDecision.action,
+                        existingAttempts:
+                            existingAttemptCount,
+                        maxAttempts:
+                            MAX_RETRY_ATTEMPTS,
+                        remainingAttempts: 0,
+                        reason:
+                            stopReason
+                    },
+
+                    output: {
+                        retryLimitReached:
+                            true,
+                        attemptsMade:
+                            existingAttemptCount,
+                        maxAttempts:
+                            MAX_RETRY_ATTEMPTS,
+                        stopResult
+                    },
+
+                    confidence:
+                        aiDecision.confidence,
+
+                    reason:
+                        stopReason
+                }
+            );
+
+            currentStep++;
+
+            await addStep(
+                agentRun,
+                {
+                    step: currentStep,
+                    type: "TERMINAL",
+                    tool: "stop_recovery",
+
+                    output: {
+                        status: "STOPPED",
+                        attemptsMade:
+                            existingAttemptCount,
+                        maxAttempts:
+                            MAX_RETRY_ATTEMPTS,
+                        payment:
+                            stopResult?.payment || null,
+                        success: false,
+                        message:
+                            stopReason
+                    },
+
+                    confidence:
+                        aiDecision.confidence,
+
+                    reason:
+                        stopReason
+                }
+            );
+
+            await agentRun.updateOne({
+                $set: {
+                    status: "STOPPED",
+                    completedAt:
+                        new Date()
+                }
+            });
+
+            const { steps: finalSteps, payment: finalPayment } =
+                await getFinalRunAndPayment(runId, paymentId);
+
+            return {
+                success: false,
+                status: "STOPPED",
+                runId,
+                steps: finalSteps,
+                payment: finalPayment || stopResult?.payment || null,
+                aiDecision,
+                action:
+                    "STOP_RECOVERY",
+                confidence:
+                    aiDecision.confidence,
+                reason:
+                    stopReason,
+                attemptsMade:
+                    finalPayment?.attemptCount ?? existingAttemptCount,
+                maxAttempts:
+                    MAX_RETRY_ATTEMPTS,
+                result:
+                    stopResult
+            };
+        }
+
+        // Execute non-retry recovery actions once.
 
         if (
             aiDecision.action !==
             "RETRY_PAYMENT"
         ) {
 
-            currentStep += 1;
+            currentStep++;
 
             console.log(
                 `[Agent] Step ${currentStep} — Policy + execution`
@@ -583,7 +739,7 @@ Return ONLY the required JSON object.
                             : "FAILED"
                 );
 
-            currentStep += 1;
+            currentStep++;
 
             console.log(
                 `[Agent] Step ${currentStep} — Final result: ${finalStatus}`
@@ -601,21 +757,20 @@ Return ONLY the required JSON object.
 
                     output: {
                         status: finalStatus,
-
                         requestedAction:
                             aiDecision.action,
-
                         executedAction:
                             actionResult.actionExecuted ||
                             aiDecision.action,
-
                         blocked:
                             actionResult.blocked ||
                             false,
-
                         success:
                             actionResult.success,
-
+                        payment:
+                            actionResult.payment || null,
+                        attemptsMade:
+                            actionResult.payment?.attemptCount ?? null,
                         message:
                             actionResult.message ||
                             executionResult?.message ||
@@ -636,67 +791,80 @@ Return ONLY the required JSON object.
             await agentRun.updateOne({
                 $set: {
                     status: finalStatus,
-                    completedAt: new Date()
+                    completedAt:
+                        new Date()
                 }
             });
+
+            const { steps: finalSteps, payment: finalPayment } =
+                await getFinalRunAndPayment(runId, paymentId);
 
             return {
                 success:
                     actionResult.success,
-
                 status:
                     finalStatus,
-
+                runId,
                 steps:
-                    currentStep,
-
+                    finalSteps,
+                payment:
+                    finalPayment || actionResult?.payment || null,
                 aiDecision,
-
                 action:
                     actionResult.actionExecuted ||
                     aiDecision.action,
-
                 confidence:
                     aiDecision.confidence,
-
                 reason:
                     aiDecision.reason,
-
+                attemptsMade:
+                    finalPayment?.attemptCount,
+                maxAttempts:
+                    MAX_RETRY_ATTEMPTS,
                 result:
                     actionResult
             };
         }
 
-        /* ---------------------------------------------------
-         * STEP 4 — RETRY POLICY + MULTI-ATTEMPT EXECUTION
-         * --------------------------------------------------- */
+        // Execute only the retry attempts that remain.
 
         const retryStartStep =
             currentStep + 1;
 
         let latestActionResult = null;
-        let recovered = false;
 
         console.log(
-            `[Agent] Retry strategy selected — maximum ${MAX_RETRY_ATTEMPTS} attempts`
+            `[Agent] Retry strategy selected`
         );
 
-        /*
-         * The retry loop is deterministic.
-         * Gemini is NOT called again.
-         */
+        console.log(
+            `[Agent] Maximum total retries: ${MAX_RETRY_ATTEMPTS}`
+        );
+
+        console.log(
+            `[Agent] Existing retries: ${existingAttemptCount}`
+        );
+
+        console.log(
+            `[Agent] Retries remaining: ${remainingAttempts}`
+        );
+
         for (
-            let attempt = 1;
-            attempt <= MAX_RETRY_ATTEMPTS;
-            attempt++
+            let attemptIndex = 1;
+            attemptIndex <= remainingAttempts;
+            attemptIndex++
         ) {
 
             currentStep =
                 retryStartStep +
-                (attempt - 1);
+                (attemptIndex - 1);
+
+            const actualAttemptNumber =
+                existingAttemptCount +
+                attemptIndex;
 
             console.log(
-                `[Agent] Attempt ${attempt}/${MAX_RETRY_ATTEMPTS} — retrying payment`
+                `[Agent] Retry ${actualAttemptNumber}/${MAX_RETRY_ATTEMPTS}`
             );
 
             const actionResult =
@@ -723,15 +891,6 @@ Return ONLY the required JSON object.
                 "RECOVERED" ||
                 actionResult.success === true;
 
-            /*
-             * Important:
-             *
-             * executeRecoveryAction() returns success=true
-             * when the payment is actually recovered.
-             *
-             * For a failed retry it returns success=false.
-             */
-
             await addStep(
                 agentRun,
                 {
@@ -742,9 +901,16 @@ Return ONLY the required JSON object.
                     input: {
                         paymentId,
                         attemptNumber:
-                            attempt,
+                            actualAttemptNumber,
                         maxAttempts:
                             MAX_RETRY_ATTEMPTS,
+                        previousAttempts:
+                            actualAttemptNumber - 1,
+                        remainingBeforeAttempt:
+                            MAX_RETRY_ATTEMPTS -
+                            (
+                                actualAttemptNumber - 1
+                            ),
                         requestedAction:
                             aiDecision.action,
                         confidence:
@@ -755,30 +921,31 @@ Return ONLY the required JSON object.
 
                     output: {
                         attemptNumber:
-                            attempt,
-
+                            actualAttemptNumber,
                         maxAttempts:
                             MAX_RETRY_ATTEMPTS,
-
+                        attemptsMade:
+                            actualAttemptNumber,
+                        attemptsRemaining:
+                            Math.max(
+                                0,
+                                MAX_RETRY_ATTEMPTS -
+                                actualAttemptNumber
+                            ),
                         success:
                             actionResult.success,
-
                         result:
                             executionResult.result ||
                             null,
-
                         transactionId:
                             executionResult.transactionId ||
                             null,
-
                         gatewayStatus:
                             executionResult.gatewayStatus ||
                             null,
-
                         recoveredAmount:
                             executionResult.recoveredAmount ||
                             0,
-
                         message:
                             actionResult.message ||
                             executionResult.message ||
@@ -790,19 +957,17 @@ Return ONLY the required JSON object.
 
                     reason:
                         attemptSuccess
-                            ? "Payment recovery succeeded."
-                            : `Recovery attempt ${attempt} failed.`
+                            ? `Payment recovered successfully on retry ${actualAttemptNumber}.`
+                            : `Retry ${actualAttemptNumber} failed.`
                 }
             );
 
             if (attemptSuccess) {
 
-                recovered = true;
-
                 currentStep++;
 
                 console.log(
-                    `[Agent] Recovery succeeded on attempt ${attempt}/${MAX_RETRY_ATTEMPTS}`
+                    `[Agent] Recovery succeeded on retry ${actualAttemptNumber}/${MAX_RETRY_ATTEMPTS}`
                 );
 
                 await addStep(
@@ -814,21 +979,26 @@ Return ONLY the required JSON object.
 
                         output: {
                             status: "RECOVERED",
-
                             attemptNumber:
-                                attempt,
-
+                                actualAttemptNumber,
                             maxAttempts:
                                 MAX_RETRY_ATTEMPTS,
-
+                            attemptsMade:
+                                actualAttemptNumber,
+                            attemptsRemaining:
+                                Math.max(
+                                    0,
+                                    MAX_RETRY_ATTEMPTS -
+                                    actualAttemptNumber
+                                ),
+                            payment:
+                                latestActionResult?.payment || null,
                             recoveredAmount:
                                 executionResult.recoveredAmount ||
                                 0,
-
                             transactionId:
                                 executionResult.transactionId ||
                                 null,
-
                             message:
                                 executionResult.message ||
                                 "Payment recovered successfully."
@@ -838,7 +1008,7 @@ Return ONLY the required JSON object.
                             aiDecision.confidence,
 
                         reason:
-                            `Payment recovered successfully on attempt ${attempt}.`
+                            `Payment recovered successfully on retry ${actualAttemptNumber}.`
                     }
                 );
 
@@ -850,49 +1020,60 @@ Return ONLY the required JSON object.
                     }
                 });
 
+                const { steps: finalSteps, payment: finalPayment } =
+                    await getFinalRunAndPayment(runId, paymentId);
+
                 return {
                     success: true,
                     status: "RECOVERED",
-                    steps: currentStep,
-
+                    runId,
+                    steps:
+                        finalSteps,
+                    payment:
+                        finalPayment || latestActionResult?.payment || null,
                     aiDecision,
-
                     action:
                         "RETRY_PAYMENT",
-
                     confidence:
                         aiDecision.confidence,
-
                     reason:
                         aiDecision.reason,
-
+                    attemptsMade:
+                        finalPayment?.attemptCount ?? actualAttemptNumber,
+                    maxAttempts:
+                        MAX_RETRY_ATTEMPTS,
                     result:
                         latestActionResult
                 };
             }
 
-            /*
-             * If this wasn't the last attempt, continue.
-             */
             if (
-                attempt <
-                MAX_RETRY_ATTEMPTS
+                attemptIndex <
+                remainingAttempts
             ) {
 
                 console.log(
-                    `[Agent] Attempt ${attempt} failed — moving to attempt ${attempt + 1}`
+                    `[Agent] Retry ${actualAttemptNumber} failed — continuing`
                 );
             }
         }
 
-        /* ---------------------------------------------------
-         * CIRCUIT BREAKER — ALL RETRIES FAILED
-         * --------------------------------------------------- */
+        // Stop recovery after all permitted retries fail.
 
         currentStep++;
 
+        const attemptsMade =
+            Math.min(
+                MAX_RETRY_ATTEMPTS,
+                existingAttemptCount +
+                remainingAttempts
+            );
+
+        const stopReason =
+            `Recovery stopped after ${attemptsMade} unsuccessful payment retries.`;
+
         console.log(
-            `[Agent] Maximum retry attempts reached — stopping recovery`
+            `[Agent] Maximum retry limit reached — stopping recovery`
         );
 
         const stopResult =
@@ -903,7 +1084,7 @@ Return ONLY the required JSON object.
                     confidence:
                         aiDecision.confidence,
                     reason:
-                        `Maximum retry limit of ${MAX_RETRY_ATTEMPTS} attempts reached after repeated recovery failures.`
+                        stopReason
                 }
             );
 
@@ -916,24 +1097,23 @@ Return ONLY the required JSON object.
 
                 input: {
                     paymentId,
-
                     attemptsMade:
-                        MAX_RETRY_ATTEMPTS,
-
+                        attemptsMade,
                     maxAttempts:
                         MAX_RETRY_ATTEMPTS,
-
                     reason:
-                        `All ${MAX_RETRY_ATTEMPTS} recovery attempts failed.`
+                        "All permitted payment retries failed."
                 },
 
                 output: {
-                    circuitBreakerTriggered:
+                    retryLimitReached:
                         true,
-
                     attemptsMade:
+                        attemptsMade,
+                    maxAttempts:
                         MAX_RETRY_ATTEMPTS,
-
+                    payment:
+                        stopResult?.payment || null,
                     stopResult
                 },
 
@@ -941,7 +1121,7 @@ Return ONLY the required JSON object.
                     aiDecision.confidence,
 
                 reason:
-                    `Recovery stopped after ${MAX_RETRY_ATTEMPTS} failed attempts.`
+                    stopReason
             }
         );
 
@@ -956,24 +1136,22 @@ Return ONLY the required JSON object.
 
                 output: {
                     status: "STOPPED",
-
                     attemptsMade:
-                        MAX_RETRY_ATTEMPTS,
-
+                        attemptsMade,
                     maxAttempts:
                         MAX_RETRY_ATTEMPTS,
-
+                    payment:
+                        stopResult?.payment || null,
                     success: false,
-
                     message:
-                        `Recovery stopped after ${MAX_RETRY_ATTEMPTS} unsuccessful payment attempts.`
+                        stopReason
                 },
 
                 confidence:
                     aiDecision.confidence,
 
                 reason:
-                    `Maximum retry limit reached without successful recovery.`
+                    "Maximum retry limit reached without successful recovery."
             }
         );
 
@@ -985,27 +1163,28 @@ Return ONLY the required JSON object.
             }
         });
 
+        const { steps: finalSteps, payment: finalPayment } =
+            await getFinalRunAndPayment(runId, paymentId);
+
         return {
             success: false,
-
             status: "STOPPED",
-
-            steps: currentStep,
-
+            runId,
+            steps:
+                finalSteps,
+            payment:
+                finalPayment || stopResult?.payment || null,
             aiDecision,
-
             action:
                 "STOP_RECOVERY",
-
             confidence:
                 aiDecision.confidence,
-
             reason:
-                `Maximum retry limit of ${MAX_RETRY_ATTEMPTS} attempts reached.`,
-
+                `Maximum retry limit of ${MAX_RETRY_ATTEMPTS} reached.`,
             attemptsMade:
+                finalPayment?.attemptCount ?? attemptsMade,
+            maxAttempts:
                 MAX_RETRY_ATTEMPTS,
-
             result:
                 stopResult
         };

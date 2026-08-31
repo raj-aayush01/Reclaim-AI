@@ -7,6 +7,7 @@ const paymentRoutes = require("./routes/paymentRoutes");
 const agentRoutes = require("./routes/agentRoutes");
 const paymentLinkRoutes = require("./routes/paymentLinkRoutes");
 const testRecoveryRoutes = require("./routes/testRecoveryRoutes");
+const recoveryRoutes = require("./routes/recoveryRoutes");
 
 const app = express();
 
@@ -20,6 +21,7 @@ app.use("/api/payments", paymentRoutes);
 app.use("/api/agent", agentRoutes);
 app.use("/api/payment-links", paymentLinkRoutes);
 app.use("/api/test", testRecoveryRoutes);
+app.use("/api/recovery", recoveryRoutes);
 
 app.get("/api/health", (req, res) => {
     res.json({

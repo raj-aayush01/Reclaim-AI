@@ -1,47 +1,108 @@
 import api from "./api";
 
 /**
- * Triggers autonomous AI recovery agent for a specific failed payment
+ * Triggers autonomous AI recovery for a specific failed payment.
  * Calls POST /api/agent/ai/:paymentId
  */
 export const runAIRecovery = async (paymentId) => {
     try {
-        const response = await api.post(`/agent/ai/${paymentId}`);
+        const response = await api.post(
+            `/agent/ai/${paymentId}`
+        );
+
         return response.data;
     } catch (error) {
-        console.error("runAIRecovery error:", error);
+        console.error(
+            "runAIRecovery error:",
+            error
+        );
+
         throw new Error(
-            error.response?.data?.message || "Failed to execute AI recovery"
+            error.response?.data?.message ||
+            "Failed to execute AI recovery"
         );
     }
 };
 
 /**
- * Fetches the dynamic AgentRun history & step logs for a payment
+ * Fetches the latest AgentRun history for a payment.
  * Calls GET /api/agent/runs/:paymentId
  */
 export const getAgentRun = async (paymentId) => {
     try {
-        const response = await api.get(`/agent/runs/${paymentId}`);
+        const response = await api.get(
+            `/agent/runs/${paymentId}`
+        );
+
         return response.data;
     } catch (error) {
-        console.error("getAgentRun error:", error);
+        console.error(
+            "getAgentRun error:",
+            error
+        );
+
         throw new Error(
-            error.response?.data?.message || "Failed to fetch agent run history"
+            error.response?.data?.message ||
+            "Failed to fetch agent run history"
         );
     }
 };
 
-// Evaluates policy rules against AI decision before execution
-
-export const evaluatePolicy = async (paymentId, decisionData) => {
+/**
+ * Evaluates a recovery decision against the policy engine.
+ * Calls POST /api/recovery/policy/:paymentId
+ */
+export const evaluatePolicy = async (
+    paymentId,
+    decisionData
+) => {
     try {
-        const response = await api.post(`/recovery/policy/${paymentId}`, decisionData);
+        const response = await api.post(
+            `/recovery/policy/${paymentId}`,
+            decisionData
+        );
+
         return response.data;
     } catch (error) {
-        console.error("evaluatePolicy error:", error);
+        console.error(
+            "evaluatePolicy error:",
+            error
+        );
+
         throw new Error(
-            error.response?.data?.message || "Failed to evaluate recovery policy"
+            error.response?.data?.message ||
+            "Failed to evaluate recovery policy"
+        );
+    }
+};
+
+/**
+ * Fetches recent recovery events where a policy rule
+ * rejected or overrode an AI recommendation.
+ *
+ * Calls GET /api/recovery/policy-firings
+ */
+export const getPolicyFirings = async (
+    params = {}
+) => {
+    try {
+        const response = await api.get(
+            "/recovery/policy-firings",
+            {
+                params
+            }
+        );
+
+        return response.data;
+    } catch (error) {
+        console.error(
+            "getPolicyFirings error:",
+            error
+        );
+
+        throw new Error(
+            error.response?.data?.message ||
+            "Failed to fetch policy firings"
         );
     }
 };
