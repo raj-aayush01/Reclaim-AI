@@ -40,24 +40,10 @@ export const FailedPayments = () => {
         setModalOpen(true);
 
         try {
-            /*
-             * IMPORTANT:
-             * Do NOT call getAgentRun() before recovery.
-             *
-             * A payment that has never been processed by the agent
-             * naturally has no AgentRun in MongoDB, which previously
-             * caused the 404 error and unnecessary request.
-             */
-
             const recoveryRes = await runAIRecovery(
                 payment.paymentId
             );
 
-            /*
-             * The recovery endpoint already returns the result.
-             * Use that response directly instead of making another
-             * GET /agent/runs/:paymentId request.
-             */
             const result =
                 recoveryRes?.result ||
                 recoveryRes?.run ||
@@ -69,10 +55,6 @@ export const FailedPayments = () => {
 
             setExecuting(false);
 
-            /*
-             * Refresh the failed-payment list so the payment status
-             * reflects whatever the recovery agent actually did.
-             */
             try {
                 await refetch();
             } catch (refreshError) {
@@ -108,86 +90,39 @@ export const FailedPayments = () => {
     };
 
     return (
-        /*
-         * IMPORTANT:
-         * Do NOT put animate-fade-in here.
-         *
-         * animate-fade-in uses transform: scale(...)
-         * and a transformed parent breaks position: fixed
-         * behavior for the Modal.
-         */
-        <div className="space-y-6 font-sans">
-
-            {/* Header */}
-            <div
-                className="
-                    glass-panel
-                    p-6
-                    rounded-2xl
-                    border
-                    border-amber-500/30
-                    flex
-                    flex-col
-                    md:flex-row
-                    md:items-center
-                    md:justify-between
-                    gap-4
-                "
-            >
+        <div className="page-stack">
+            <div className="panel page-header-panel panel-accent-warn">
                 <div>
                     <span
-                        className="
-                            text-[10px]
-                            font-bold
-                            uppercase
-                            tracking-widest
-                            text-amber-400
-                            block
-                            mb-0.5
-                        "
+                        className="eyebrow"
+                        style={{
+                            color: "var(--warn)",
+                            display: "block",
+                            marginBottom: "4px"
+                        }}
                     >
-                        DEDICATED AGENT WORKFLOW
+                        Dedicated Agent Workflow
                     </span>
 
-                    <h1
-                        className="
-                            text-xl
-                            font-bold
-                            text-slate-100
-                            flex
-                            items-center
-                            gap-2
-                        "
-                    >
-                        <AlertOctagon className="w-5 h-5 text-amber-400" />
-
+                    <h1 className="page-title">
+                        <AlertOctagon
+                            size={20}
+                            style={{ color: "var(--warn)" }}
+                        />
                         Failed Payments Workflow Desk
                     </h1>
 
-                    <p className="text-xs text-slate-400 mt-1">
+                    <p className="page-desc">
                         Choose one failed payment, trigger the agent,
                         and inspect the recovery decision.
                     </p>
                 </div>
 
-                <div
-                    className="
-                        px-3.5
-                        py-1.5
-                        rounded-full
-                        bg-amber-950/60
-                        text-amber-300
-                        border
-                        border-amber-800/80
-                        text-xs
-                        font-bold
-                    "
-                >
+                <span className="count-pill count-pill-warn">
                     {pagination?.total ?? payments.length} FAILED PAYMENTS
-                </div>
+                </span>
             </div>
 
-            {/* Error */}
             {error && !loading && (
                 <ErrorMessage
                     message={error}
@@ -195,95 +130,41 @@ export const FailedPayments = () => {
                 />
             )}
 
-            {/* Payments */}
             {loading && payments.length === 0 ? (
                 <Loader
                     text="Fetching failed payment transactions..."
                 />
             ) : !error ? (
                 <div
-                    className="
-                        glass-panel
-                        rounded-2xl
-                        overflow-hidden
-                        border
-                        border-slate-800
-                    "
+                    className="panel"
+                    style={{ overflow: "hidden" }}
                 >
-                    <div className="overflow-x-auto">
-                        <table
-                            className="
-                                w-full
-                                text-left
-                                border-collapse
-                            "
-                        >
+                    <div style={{ overflowX: "auto" }}>
+                        <table className="tf-table">
                             <thead>
-                                <tr
-                                    className="
-                                        bg-slate-900/80
-                                        border-b
-                                        border-slate-800
-                                        text-[10px]
-                                        font-bold
-                                        uppercase
-                                        tracking-wider
-                                        text-slate-400
-                                    "
-                                >
-                                    <th className="px-5 py-4">
-                                        PAYMENT ID
-                                    </th>
-
-                                    <th className="px-5 py-4">
-                                        CUSTOMER ID
-                                    </th>
-
-                                    <th className="px-5 py-4">
-                                        AMOUNT
-                                    </th>
-
-                                    <th className="px-5 py-4">
-                                        SCENARIO
-                                    </th>
-
-                                    <th className="px-5 py-4">
-                                        STATUS
-                                    </th>
-
-                                    <th className="px-5 py-4">
-                                        CREATED AT
-                                    </th>
-
-                                    <th
-                                        className="
-                                            px-5
-                                            py-4
-                                            text-right
-                                        "
-                                    >
-                                        ACTIONS
+                                <tr>
+                                    <th>Payment ID</th>
+                                    <th>Customer ID</th>
+                                    <th>Amount</th>
+                                    <th>Scenario</th>
+                                    <th>Status</th>
+                                    <th>Created At</th>
+                                    <th style={{ textAlign: "right" }}>
+                                        Actions
                                     </th>
                                 </tr>
                             </thead>
 
-                            <tbody
-                                className="
-                                    divide-y
-                                    divide-slate-800/60
-                                    text-xs
-                                "
-                            >
+                            <tbody>
                                 {payments.length === 0 ? (
                                     <tr>
                                         <td
                                             colSpan={7}
-                                            className="
-                                                px-6
-                                                py-12
-                                                text-center
-                                                text-slate-400
-                                            "
+                                            style={{
+                                                padding: "3rem",
+                                                textAlign: "center",
+                                                color: "var(--mute)"
+                                            }}
                                         >
                                             No failed payments found
                                             in the system.
@@ -299,66 +180,42 @@ export const FailedPayments = () => {
                                         return (
                                             <tr
                                                 key={payment.paymentId}
-                                                className="
-                                                    hover:bg-slate-800/40
-                                                    transition-colors
-                                                "
+                                                className="row-hover"
                                             >
                                                 <td
-                                                    className="
-                                                        px-5
-                                                        py-4
-                                                        font-mono
-                                                        font-bold
-                                                        text-slate-100
-                                                    "
+                                                    style={{
+                                                        fontWeight: 600,
+                                                        color: "var(--ink)"
+                                                    }}
                                                 >
                                                     {payment.paymentId}
                                                 </td>
 
                                                 <td
-                                                    className="
-                                                        px-5
-                                                        py-4
-                                                        font-mono
-                                                        text-slate-400
-                                                    "
+                                                    style={{
+                                                        color: "var(--mute)"
+                                                    }}
                                                 >
                                                     {payment.customerId}
                                                 </td>
 
                                                 <td
-                                                    className="
-                                                        px-5
-                                                        py-4
-                                                        font-bold
-                                                        text-slate-100
-                                                    "
+                                                    style={{
+                                                        fontWeight: 700
+                                                    }}
                                                 >
                                                     {formatCurrency(
                                                         payment.amount
                                                     )}
                                                 </td>
 
-                                                <td className="px-5 py-4">
-                                                    <span
-                                                        className="
-                                                            px-2
-                                                            py-0.5
-                                                            rounded
-                                                            bg-slate-800
-                                                            text-slate-300
-                                                            text-[10px]
-                                                            font-bold
-                                                            border
-                                                            border-slate-700
-                                                        "
-                                                    >
+                                                <td>
+                                                    <span className="chip">
                                                         {payment.scenario}
                                                     </span>
                                                 </td>
 
-                                                <td className="px-5 py-4">
+                                                <td>
                                                     <PaymentStatusBadge
                                                         status={
                                                             payment.status
@@ -367,12 +224,10 @@ export const FailedPayments = () => {
                                                 </td>
 
                                                 <td
-                                                    className="
-                                                        px-5
-                                                        py-4
-                                                        text-slate-400
-                                                        text-[11px]
-                                                    "
+                                                    style={{
+                                                        color: "var(--mute)",
+                                                        fontSize: "0.6875rem"
+                                                    }}
                                                 >
                                                     {formatDate(
                                                         payment.createdAt
@@ -380,11 +235,9 @@ export const FailedPayments = () => {
                                                 </td>
 
                                                 <td
-                                                    className="
-                                                        px-5
-                                                        py-4
-                                                        text-right
-                                                    "
+                                                    style={{
+                                                        textAlign: "right"
+                                                    }}
                                                 >
                                                     <Button
                                                         variant="glow"
@@ -400,26 +253,11 @@ export const FailedPayments = () => {
                                                                 payment
                                                             )
                                                         }
-                                                        className="
-                                                            inline-flex
-                                                            items-center
-                                                            gap-1.5
-                                                        "
+                                                        icon={Zap}
                                                     >
-                                                        <Zap
-                                                            className="
-                                                                w-3.5
-                                                                h-3.5
-                                                            "
-                                                        />
-
-                                                        <span>
-                                                            {
-                                                                isCurrentPaymentExecuting
-                                                                    ? "Checking..."
-                                                                    : "AI Recovery"
-                                                            }
-                                                        </span>
+                                                        {isCurrentPaymentExecuting
+                                                            ? "Checking..."
+                                                            : "AI Recovery"}
                                                     </Button>
                                                 </td>
                                             </tr>
@@ -430,29 +268,23 @@ export const FailedPayments = () => {
                         </table>
                     </div>
 
-                    {/* Pagination */}
                     {pagination?.pages > 1 && (
-                        <div
-                            className="
-                                px-5
-                                py-4
-                                border-t
-                                border-slate-800
-                                bg-slate-900/60
-                                flex
-                                items-center
-                                justify-between
-                                text-xs
-                                text-slate-400
-                            "
-                        >
+                        <div className="table-footer">
                             <span>
                                 Page{" "}
-                                <strong className="text-slate-200">
+                                <strong
+                                    style={{
+                                        color: "var(--ink)"
+                                    }}
+                                >
                                     {pagination.page}
                                 </strong>{" "}
                                 of{" "}
-                                <strong className="text-slate-200">
+                                <strong
+                                    style={{
+                                        color: "var(--ink)"
+                                    }}
+                                >
                                     {pagination.pages}
                                 </strong>
                             </span>
@@ -465,7 +297,6 @@ export const FailedPayments = () => {
                 </div>
             ) : null}
 
-            {/* AI Recovery Modal */}
             <Modal
                 isOpen={modalOpen}
                 maxWidth="max-w-4xl"
@@ -476,21 +307,20 @@ export const FailedPayments = () => {
             >
                 {executing ? (
                     <div
-                        className="
-                            py-12
-                            text-center
-                            space-y-4
-                        "
+                        style={{
+                            padding: "3rem 0",
+                            textAlign: "center"
+                        }}
                     >
-                        <Loader
-                            text="Running AI recovery..."
-                        />
+                        <Loader text="Running AI recovery..." />
 
                         <p
-                            className="
-                                text-xs
-                                text-slate-400
-                            "
+                            style={{
+                                fontSize: "0.75rem",
+                                color: "var(--mute)",
+                                marginTop: "1rem",
+                                lineHeight: 1.6
+                            }}
                         >
                             The system is reviewing the payment,
                             evaluating the recovery decision,
@@ -512,12 +342,12 @@ export const FailedPayments = () => {
                     />
                 ) : (
                     <div
-                        className="
-                            py-12
-                            text-center
-                            text-sm
-                            text-slate-400
-                        "
+                        style={{
+                            padding: "3rem 0",
+                            textAlign: "center",
+                            fontSize: "0.875rem",
+                            color: "var(--mute)"
+                        }}
                     >
                         Recovery completed, but no recovery details
                         were returned.

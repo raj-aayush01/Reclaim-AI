@@ -11,7 +11,8 @@ export const RecoveryActions = ({ actions = {} }) => {
             count: actions.retryCount || 0,
             desc: "Temporary failures automatically retried",
             icon: RefreshCw,
-            color: "border-indigo-500/30 hover:border-indigo-500/60 bg-indigo-950/20 text-indigo-400",
+            accentClass: "icon-box-primary",
+            accentColor: "var(--primary)",
             path: "/payments?action=RETRY_PAYMENT"
         },
         {
@@ -19,7 +20,8 @@ export const RecoveryActions = ({ actions = {} }) => {
             count: actions.paymentLinkCount || 0,
             desc: "Custom recovery payment links sent",
             icon: LinkIcon,
-            color: "border-cyan-500/30 hover:border-cyan-500/60 bg-cyan-950/20 text-cyan-400",
+            accentClass: "icon-box-up",
+            accentColor: "var(--up)",
             path: "/payments?action=CREATE_PAYMENT_LINK"
         },
         {
@@ -27,7 +29,8 @@ export const RecoveryActions = ({ actions = {} }) => {
             count: actions.escalatedCount || 0,
             desc: "High value payments flagged for review",
             icon: AlertTriangle,
-            color: "border-amber-500/30 hover:border-amber-500/60 bg-amber-950/20 text-amber-400",
+            accentClass: "icon-box-warn",
+            accentColor: "var(--warn)",
             path: "/payments?action=ESCALATE_TO_HUMAN"
         }
     ];
@@ -40,14 +43,49 @@ export const RecoveryActions = ({ actions = {} }) => {
                     <div
                         key={idx}
                         onClick={() => navigate(card.path)}
-                        className={`glass-panel p-4 rounded-2xl border transition-all duration-200 cursor-pointer ${card.color}`}
+                        className="panel p-4 rounded-xl cursor-pointer hover:translate-y-[-2px] transition-all duration-200"
+                        style={{
+                            display: "flex",
+                            flexDirection: "column",
+                            justifyContent: "space-between"
+                        }}
                     >
-                        <div className="flex items-center justify-between mb-2">
-                            <Icon className="w-5 h-5" />
-                            <span className="text-xl font-extrabold text-slate-100">{card.count}</span>
+                        <div className="flex items-center justify-between mb-3">
+                            <div className={`icon-box icon-box-sm ${card.accentClass}`}>
+                                <Icon className="w-4 h-4" />
+                            </div>
+                            <span
+                                style={{
+                                    fontSize: "1.25rem",
+                                    fontWeight: 800,
+                                    fontFamily: "'JetBrains Mono', monospace",
+                                    color: "var(--ink)"
+                                }}
+                            >
+                                {card.count}
+                            </span>
                         </div>
-                        <h4 className="text-xs font-bold text-slate-200 mb-0.5">{card.title}</h4>
-                        <p className="text-[11px] text-slate-400 leading-tight">{card.desc}</p>
+                        <div>
+                            <h4
+                                style={{
+                                    fontSize: "0.8125rem",
+                                    fontWeight: 600,
+                                    color: "var(--ink)",
+                                    marginBottom: "0.25rem"
+                                }}
+                            >
+                                {card.title}
+                            </h4>
+                            <p
+                                style={{
+                                    fontSize: "0.6875rem",
+                                    color: "var(--mute)",
+                                    lineHeight: 1.4
+                                }}
+                            >
+                                {card.desc}
+                            </p>
+                        </div>
                     </div>
                 );
             })}

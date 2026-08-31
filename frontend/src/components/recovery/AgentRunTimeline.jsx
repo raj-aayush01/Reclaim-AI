@@ -469,8 +469,9 @@ export const AgentRunTimeline = ({
                     description:
                         "The payment was successfully recovered and the outstanding amount was collected.",
                     className:
-                        "border-emerald-500/30 bg-emerald-950/20",
-                    iconClass: "text-emerald-400",
+                        "panel panel-accent-up",
+                    iconClass: "status-up",
+                    iconBoxClass: "icon-box-up",
                     icon: CheckCircle2
                 };
 
@@ -480,8 +481,9 @@ export const AgentRunTimeline = ({
                     description:
                         "The original payment was not completed, but a recovery path is still open. The payment remains pending until the customer completes the next step.",
                     className:
-                        "border-amber-500/30 bg-amber-950/20",
-                    iconClass: "text-amber-400",
+                        "panel panel-accent-warn",
+                    iconClass: "status-warn",
+                    iconBoxClass: "icon-box-warn",
                     icon: Clock
                 };
 
@@ -491,8 +493,9 @@ export const AgentRunTimeline = ({
                     description:
                         "Automated recovery was not allowed to continue. The payment has been escalated so a human can review it.",
                     className:
-                        "border-purple-500/30 bg-purple-950/20",
-                    iconClass: "text-purple-400",
+                        "panel panel-accent-warn",
+                    iconClass: "status-warn",
+                    iconBoxClass: "icon-box-warn",
                     icon: ShieldAlert
                 };
 
@@ -502,8 +505,9 @@ export const AgentRunTimeline = ({
                     description:
                         "No further automated recovery was performed. The payment remains unrecovered and will not receive another automatic attempt.",
                     className:
-                        "border-rose-500/30 bg-rose-950/20",
-                    iconClass: "text-rose-400",
+                        "panel panel-accent-down",
+                    iconClass: "status-down",
+                    iconBoxClass: "icon-box-down",
                     icon: XOctagon
                 };
 
@@ -513,8 +517,9 @@ export const AgentRunTimeline = ({
                     description:
                         "ReclaimAI attempted the selected recovery action, but the payment could not be recovered.",
                     className:
-                        "border-rose-500/30 bg-rose-950/20",
-                    iconClass: "text-rose-400",
+                        "panel panel-accent-down",
+                    iconClass: "status-down",
+                    iconBoxClass: "icon-box-down",
                     icon: XCircle
                 };
 
@@ -524,8 +529,9 @@ export const AgentRunTimeline = ({
                     description:
                         "The recovery workflow completed. Review the details below for the AI decision and final payment status.",
                     className:
-                        "border-slate-700 bg-slate-900/70",
-                    iconClass: "text-slate-300",
+                        "panel panel-accent-primary",
+                    iconClass: "status-primary",
+                    iconBoxClass: "icon-box-primary",
                     icon: CheckCircle2
                 };
         }
@@ -642,34 +648,49 @@ export const AgentRunTimeline = ({
      */
 
     return (
-        <div className="space-y-5 text-slate-200 pb-10">
+        <div className="space-y-5 pb-10">
 
             {/* =================================================
                 1. FINAL OUTCOME
             ================================================== */}
 
             <div
-                className={`rounded-2xl border p-5 ${outcome.className}`}
+                className={`p-5 rounded-xl ${outcome.className}`}
             >
                 <div className="flex items-start gap-3">
 
-                    <div className="w-11 h-11 shrink-0 rounded-xl bg-slate-950/40 flex items-center justify-center">
+                    <div className={`icon-box icon-box-lg ${outcome.iconBoxClass}`}>
                         <OutcomeIcon
-                            className={`w-6 h-6 ${outcome.iconClass}`}
+                            className="w-5 h-5"
                         />
                     </div>
 
                     <div className="min-w-0 flex-1">
 
-                        <span className="text-[10px] uppercase tracking-widest font-bold opacity-70">
+                        <span className="eyebrow" style={{ display: "block", marginBottom: "2px" }}>
                             Final Outcome
                         </span>
 
-                        <h2 className="text-xl font-bold mt-1 text-slate-100">
+                        <h2
+                            style={{
+                                fontSize: "1.125rem",
+                                fontWeight: 700,
+                                color: "var(--ink)",
+                                fontFamily: "'Inter', sans-serif"
+                            }}
+                        >
                             {outcome.label}
                         </h2>
 
-                        <p className="text-xs text-slate-300 mt-2 leading-relaxed max-w-2xl">
+                        <p
+                            style={{
+                                fontSize: "0.75rem",
+                                color: "var(--mute)",
+                                marginTop: "0.25rem",
+                                lineHeight: 1.5,
+                                maxWidth: "42rem"
+                            }}
+                        >
                             {outcome.description}
                         </p>
 
@@ -678,24 +699,24 @@ export const AgentRunTimeline = ({
 
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mt-5">
 
-                    <div className="rounded-xl bg-slate-950/40 border border-white/5 p-3">
-                        <span className="text-[9px] uppercase tracking-wider font-bold text-slate-500 block mb-1">
+                    <div className="sub-card">
+                        <span className="meta-label" style={{ marginBottom: "2px" }}>
                             Amount
                         </span>
 
-                        <span className="text-sm font-bold text-slate-100">
+                        <span className="meta-value">
                             {amount !== undefined
                                 ? formatCurrency(amount)
                                 : "Not available"}
                         </span>
                     </div>
 
-                    <div className="rounded-xl bg-slate-950/40 border border-white/5 p-3">
-                        <span className="text-[9px] uppercase tracking-wider font-bold text-slate-500 block mb-1">
+                    <div className="sub-card">
+                        <span className="meta-label" style={{ marginBottom: "2px" }}>
                             Customer
                         </span>
 
-                        <span className="text-sm font-bold text-slate-100 truncate block">
+                        <span className="meta-value truncate block">
                             {customer?.name ||
                                 customer?.customerId ||
                                 payment?.customerId ||
@@ -703,24 +724,24 @@ export const AgentRunTimeline = ({
                         </span>
                     </div>
 
-                    <div className="rounded-xl bg-slate-950/40 border border-white/5 p-3">
-                        <span className="text-[9px] uppercase tracking-wider font-bold text-slate-500 block mb-1">
+                    <div className="sub-card">
+                        <span className="meta-label" style={{ marginBottom: "2px" }}>
                             Attempts
                         </span>
 
-                        <span className="text-sm font-bold text-slate-100">
+                        <span className="meta-value">
                             {attemptCount !== null
                                 ? `${attemptCount} / 3`
                                 : "Not available"}
                         </span>
                     </div>
 
-                    <div className="rounded-xl bg-slate-950/40 border border-white/5 p-3">
-                        <span className="text-[9px] uppercase tracking-wider font-bold text-slate-500 block mb-1">
+                    <div className="sub-card">
+                        <span className="meta-label" style={{ marginBottom: "2px" }}>
                             Payment Status
                         </span>
 
-                        <span className="text-sm font-bold text-slate-100 capitalize">
+                        <span className="meta-value capitalize">
                             {payment?.status ||
                                 finalResult.toLowerCase() ||
                                 "Unknown"}
@@ -734,49 +755,51 @@ export const AgentRunTimeline = ({
                 2. PAYMENT ISSUE
             ================================================== */}
 
-            <div className="rounded-2xl border border-slate-800 bg-slate-900/60 overflow-hidden">
+            <div className="panel rounded-xl overflow-hidden">
 
-                <div className="px-5 py-4 border-b border-slate-800 flex items-center gap-3">
+                <div className="panel-header">
 
-                    <div className="w-9 h-9 rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-400 flex items-center justify-center">
-                        <AlertTriangle className="w-4 h-4" />
-                    </div>
+                    <div className="flex items-center gap-3">
+                        <div className="icon-box icon-box-sm icon-box-warn">
+                            <AlertTriangle className="w-4 h-4" />
+                        </div>
 
-                    <div>
-                        <h3 className="text-sm font-semibold text-slate-100">
-                            What Went Wrong
-                        </h3>
+                        <div>
+                            <h3 className="panel-section-title">
+                                What Went Wrong
+                            </h3>
 
-                        <p className="text-[11px] text-slate-500 mt-0.5">
-                            The payment issue ReclaimAI investigated
-                        </p>
+                            <p className="panel-section-desc">
+                                The payment issue ReclaimAI investigated
+                            </p>
+                        </div>
                     </div>
 
                 </div>
 
-                <div className="p-5">
+                <div className="panel-body">
 
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
 
-                        <div className="rounded-xl bg-slate-950/50 border border-slate-800 p-4">
+                        <div className="sub-card">
 
-                            <span className="text-[9px] uppercase tracking-wider font-bold text-slate-500 block mb-1">
+                            <span className="meta-label" style={{ marginBottom: "2px" }}>
                                 Failure Type
                             </span>
 
-                            <span className="text-sm font-semibold text-amber-300">
+                            <span style={{ fontSize: "0.8125rem", fontWeight: 600, color: "var(--warn)" }}>
                                 {formatScenario(scenario)}
                             </span>
 
                         </div>
 
-                        <div className="rounded-xl bg-slate-950/50 border border-slate-800 p-4">
+                        <div className="sub-card">
 
-                            <span className="text-[9px] uppercase tracking-wider font-bold text-slate-500 block mb-1">
+                            <span className="meta-label" style={{ marginBottom: "2px" }}>
                                 Reason
                             </span>
 
-                            <span className="text-sm font-semibold text-slate-200">
+                            <span style={{ fontSize: "0.8125rem", fontWeight: 600, color: "var(--ink)" }}>
                                 {formatFailureReason(failureReason)}
                             </span>
 
@@ -785,13 +808,13 @@ export const AgentRunTimeline = ({
                     </div>
 
                     {payment?.paymentId && (
-                        <div className="mt-3 rounded-xl bg-slate-950/50 border border-slate-800 p-4">
+                        <div className="mt-3 sub-card">
 
-                            <span className="text-[9px] uppercase tracking-wider font-bold text-slate-500 block mb-1">
+                            <span className="meta-label" style={{ marginBottom: "2px" }}>
                                 Payment ID
                             </span>
 
-                            <span className="text-xs font-mono text-slate-300 break-all">
+                            <span className="font-mono text-xs break-all" style={{ color: "var(--ink)" }}>
                                 {payment.paymentId}
                             </span>
 
@@ -805,37 +828,39 @@ export const AgentRunTimeline = ({
                 3. AI DECISION
             ================================================== */}
 
-            <div className="rounded-2xl border border-indigo-500/20 bg-slate-900/60 overflow-hidden">
+            <div className="panel panel-accent-primary rounded-xl overflow-hidden">
 
-                <div className="px-5 py-4 border-b border-slate-800 flex items-center gap-3">
+                <div className="panel-header">
 
-                    <div className="w-9 h-9 rounded-xl bg-indigo-500/10 border border-indigo-500/20 text-indigo-400 flex items-center justify-center">
-                        <Bot className="w-4 h-4" />
-                    </div>
+                    <div className="flex items-center gap-3">
+                        <div className="icon-box icon-box-sm icon-box-primary">
+                            <Bot className="w-4 h-4" />
+                        </div>
 
-                    <div>
-                        <h3 className="text-sm font-semibold text-slate-100">
-                            What AI Decided
-                        </h3>
+                        <div>
+                            <h3 className="panel-section-title">
+                                What AI Decided
+                            </h3>
 
-                        <p className="text-[11px] text-slate-500 mt-0.5">
-                            Gemini's recommended recovery strategy
-                        </p>
+                            <p className="panel-section-desc">
+                                Gemini's recommended recovery strategy
+                            </p>
+                        </div>
                     </div>
 
                 </div>
 
-                <div className="p-5">
+                <div className="panel-body">
 
                     <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
 
                         <div>
 
-                            <span className="text-[9px] uppercase tracking-wider font-bold text-slate-500 block mb-1">
+                            <span className="meta-label" style={{ marginBottom: "2px" }}>
                                 Recommended Action
                             </span>
 
-                            <span className="text-lg font-bold text-indigo-300">
+                            <span style={{ fontSize: "1rem", fontWeight: 700, color: "var(--primary)" }}>
                                 {formatActionName(
                                     recommendedAction
                                 )}
@@ -844,51 +869,47 @@ export const AgentRunTimeline = ({
                         </div>
 
                         {confidencePercent !== null && (
-                            <div className="rounded-lg bg-indigo-500/10 border border-indigo-500/20 px-3 py-2">
-
-                                <span className="text-[10px] text-indigo-300 font-bold">
-                                    {confidencePercent}% confidence
-                                </span>
-
+                            <div className="count-pill count-pill-primary">
+                                {confidencePercent}% confidence
                             </div>
                         )}
 
                     </div>
 
                     {aiSummary && (
-                        <div className="mt-4 rounded-xl bg-slate-950/50 border border-slate-800 p-4">
+                        <div className="mt-4 sub-card">
 
-                            <span className="text-[9px] uppercase tracking-wider font-bold text-slate-500 block mb-1.5">
+                            <span className="meta-label" style={{ marginBottom: "4px" }}>
                                 AI Summary
                             </span>
 
-                            <p className="text-xs text-slate-300 leading-relaxed">
+                            <p style={{ fontSize: "0.75rem", color: "var(--mute)", lineHeight: 1.6 }}>
                                 {aiSummary}
                             </p>
 
                         </div>
                     )}
 
-                    <div className="mt-4 rounded-xl bg-indigo-950/20 border border-indigo-800/30 p-4">
+                    <div className="mt-4 sub-card-primary">
 
-                        <span className="text-[9px] uppercase tracking-wider font-bold text-indigo-400 block mb-1.5">
+                        <span className="eyebrow-primary" style={{ display: "block", marginBottom: "4px" }}>
                             Why AI Chose This
                         </span>
 
-                        <p className="text-xs text-slate-300 leading-relaxed">
+                        <p style={{ fontSize: "0.75rem", color: "var(--ink)", lineHeight: 1.6 }}>
                             {getAIExplanation()}
                         </p>
 
                     </div>
 
                     {aiNextStep && (
-                        <div className="mt-3 rounded-xl bg-slate-950/50 border border-slate-800 p-4">
+                        <div className="mt-3 sub-card">
 
-                            <span className="text-[9px] uppercase tracking-wider font-bold text-slate-500 block mb-1.5">
+                            <span className="meta-label" style={{ marginBottom: "4px" }}>
                                 What Happens Next
                             </span>
 
-                            <p className="text-xs text-slate-300 leading-relaxed">
+                            <p style={{ fontSize: "0.75rem", color: "var(--mute)", lineHeight: 1.6 }}>
                                 {aiNextStep}
                             </p>
 
@@ -902,39 +923,41 @@ export const AgentRunTimeline = ({
                 4. POLICY CHECK
             ================================================== */}
 
-            <div className="rounded-2xl border border-slate-800 bg-slate-900/60 overflow-hidden">
+            <div className="panel rounded-xl overflow-hidden">
 
-                <div className="px-5 py-4 border-b border-slate-800 flex items-center gap-3">
+                <div className="panel-header">
 
-                    <div
-                        className={`w-9 h-9 rounded-xl border flex items-center justify-center ${
-                            policyAllowed === false
-                                ? "bg-rose-500/10 border-rose-500/20 text-rose-400"
-                                : "bg-emerald-500/10 border-emerald-500/20 text-emerald-400"
-                        }`}
-                    >
-                        {policyAllowed === false ? (
-                            <ShieldAlert className="w-4 h-4" />
-                        ) : (
-                            <ShieldCheck className="w-4 h-4" />
-                        )}
-                    </div>
+                    <div className="flex items-center gap-3">
+                        <div
+                            className={`icon-box icon-box-sm ${
+                                policyAllowed === false
+                                    ? "icon-box-down"
+                                    : "icon-box-up"
+                            }`}
+                        >
+                            {policyAllowed === false ? (
+                                <ShieldAlert className="w-4 h-4" />
+                            ) : (
+                                <ShieldCheck className="w-4 h-4" />
+                            )}
+                        </div>
 
-                    <div>
+                        <div>
 
-                        <h3 className="text-sm font-semibold text-slate-100">
-                            Safety Check
-                        </h3>
+                            <h3 className="panel-section-title">
+                                Safety Check
+                            </h3>
 
-                        <p className="text-[11px] text-slate-500 mt-0.5">
-                            Backend rules that protect the payment recovery process
-                        </p>
+                            <p className="panel-section-desc">
+                                Backend rules that protect the payment recovery process
+                            </p>
 
+                        </div>
                     </div>
 
                 </div>
 
-                <div className="p-5">
+                <div className="panel-body">
 
                     {policyInfo ? (
                         <>
@@ -942,16 +965,17 @@ export const AgentRunTimeline = ({
 
                                 <div>
 
-                                    <span className="text-[9px] uppercase tracking-wider font-bold text-slate-500 block mb-1">
+                                    <span className="meta-label" style={{ marginBottom: "2px" }}>
                                         Decision
                                     </span>
 
                                     <span
-                                        className={`text-sm font-bold ${
+                                        className={
                                             policyAllowed === false
-                                                ? "text-rose-400"
-                                                : "text-emerald-400"
-                                        }`}
+                                                ? "status-down"
+                                                : "status-up"
+                                        }
+                                        style={{ fontSize: "0.8125rem", fontWeight: 700 }}
                                     >
                                         {policyAllowed === false
                                             ? "AI recommendation blocked"
@@ -962,11 +986,11 @@ export const AgentRunTimeline = ({
 
                                 <div>
 
-                                    <span className="text-[9px] uppercase tracking-wider font-bold text-slate-500 block mb-1">
+                                    <span className="meta-label" style={{ marginBottom: "2px" }}>
                                         Safe Action
                                     </span>
 
-                                    <span className="text-sm font-semibold text-slate-200">
+                                    <span style={{ fontSize: "0.8125rem", fontWeight: 600, color: "var(--ink)" }}>
                                         {formatActionName(
                                             policyInfo.finalAction ||
                                             executedAction ||
@@ -978,22 +1002,22 @@ export const AgentRunTimeline = ({
 
                             </div>
 
-                            <div className="mt-4 rounded-xl bg-slate-950/50 border border-slate-800 p-4">
+                            <div className="mt-4 sub-card">
 
-                                <span className="text-[9px] uppercase tracking-wider font-bold text-slate-500 block mb-1.5">
+                                <span className="meta-label" style={{ marginBottom: "4px" }}>
                                     Why
                                 </span>
 
-                                <p className="text-xs text-slate-300 leading-relaxed">
+                                <p style={{ fontSize: "0.75rem", color: "var(--mute)", lineHeight: 1.6 }}>
                                     {getPolicyExplanation()}
                                 </p>
 
                             </div>
 
                             {isPolicyOverridden && (
-                                <div className="mt-3 rounded-xl bg-amber-950/20 border border-amber-800/30 p-4">
+                                <div className="mt-3 sub-card" style={{ borderLeft: "3px solid var(--warn)" }}>
 
-                                    <p className="text-xs text-amber-300 leading-relaxed">
+                                    <p style={{ fontSize: "0.75rem", color: "var(--warn)", lineHeight: 1.6 }}>
                                         The AI recommendation was not safe to execute under the backend rules, so the system selected a safer action instead.
                                     </p>
 
@@ -1001,9 +1025,9 @@ export const AgentRunTimeline = ({
                             )}
                         </>
                     ) : (
-                        <div className="rounded-xl bg-slate-950/50 border border-slate-800 p-4">
+                        <div className="sub-card">
 
-                            <span className="text-xs text-slate-400">
+                            <span style={{ fontSize: "0.75rem", color: "var(--mute)" }}>
                                 No policy decision was returned for this recovery run.
                             </span>
 
@@ -1017,39 +1041,41 @@ export const AgentRunTimeline = ({
                 5. WHAT THE SYSTEM ACTUALLY DID
             ================================================== */}
 
-            <div className="rounded-2xl border border-cyan-500/20 bg-slate-900/60 overflow-hidden">
+            <div className="panel rounded-xl overflow-hidden">
 
-                <div className="px-5 py-4 border-b border-slate-800 flex items-center gap-3">
+                <div className="panel-header">
 
-                    <div className="w-9 h-9 rounded-xl bg-cyan-500/10 border border-cyan-500/20 text-cyan-400 flex items-center justify-center">
-                        <CreditCard className="w-4 h-4" />
-                    </div>
+                    <div className="flex items-center gap-3">
+                        <div className="icon-box icon-box-sm icon-box-primary">
+                            <CreditCard className="w-4 h-4" />
+                        </div>
 
-                    <div>
+                        <div>
 
-                        <h3 className="text-sm font-semibold text-slate-100">
-                            What the System Did
-                        </h3>
+                            <h3 className="panel-section-title">
+                                What the System Did
+                            </h3>
 
-                        <p className="text-[11px] text-slate-500 mt-0.5">
-                            The actual recovery action and its result
-                        </p>
+                            <p className="panel-section-desc">
+                                The actual recovery action and its result
+                            </p>
 
+                        </div>
                     </div>
 
                 </div>
 
-                <div className="p-5">
+                <div className="panel-body">
 
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
 
-                        <div className="rounded-xl bg-slate-950/50 border border-slate-800 p-4">
+                        <div className="sub-card">
 
-                            <span className="text-[9px] uppercase tracking-wider font-bold text-slate-500 block mb-1">
+                            <span className="meta-label" style={{ marginBottom: "2px" }}>
                                 Action Taken
                             </span>
 
-                            <span className="text-sm font-bold text-cyan-300">
+                            <span style={{ fontSize: "0.8125rem", fontWeight: 700, color: "var(--primary)" }}>
                                 {formatActionName(
                                     executedAction ||
                                     recommendedAction
@@ -1058,13 +1084,13 @@ export const AgentRunTimeline = ({
 
                         </div>
 
-                        <div className="rounded-xl bg-slate-950/50 border border-slate-800 p-4">
+                        <div className="sub-card">
 
-                            <span className="text-[9px] uppercase tracking-wider font-bold text-slate-500 block mb-1">
+                            <span className="meta-label" style={{ marginBottom: "2px" }}>
                                 Result
                             </span>
 
-                            <span className="text-sm font-bold text-slate-100">
+                            <span style={{ fontSize: "0.8125rem", fontWeight: 700, color: "var(--ink)" }}>
                                 {finalResult === "RECOVERED"
                                     ? "Payment recovered"
                                     : finalResult === "PENDING"
@@ -1082,13 +1108,13 @@ export const AgentRunTimeline = ({
 
                     </div>
 
-                    <div className="mt-4 rounded-xl bg-slate-950/50 border border-slate-800 p-4">
+                    <div className="mt-4 sub-card">
 
-                        <span className="text-[9px] uppercase tracking-wider font-bold text-slate-500 block mb-1.5">
+                        <span className="meta-label" style={{ marginBottom: "4px" }}>
                             Outcome Explanation
                         </span>
 
-                        <p className="text-xs text-slate-300 leading-relaxed">
+                        <p style={{ fontSize: "0.75rem", color: "var(--mute)", lineHeight: 1.6 }}>
                             {getExecutionExplanation()}
                         </p>
 
@@ -1097,13 +1123,13 @@ export const AgentRunTimeline = ({
                     {executionResult?.recoveredAmount !== undefined &&
                         Number(executionResult.recoveredAmount) > 0 && (
 
-                        <div className="mt-3 rounded-xl bg-emerald-500/5 border border-emerald-500/20 p-4">
+                        <div className="mt-3 sub-card-soft" style={{ borderLeft: "3px solid var(--up)" }}>
 
-                            <span className="text-[9px] uppercase tracking-wider font-bold text-emerald-500 block mb-1">
+                            <span className="meta-label" style={{ color: "var(--up)", marginBottom: "2px" }}>
                                 Amount Recovered
                             </span>
 
-                            <span className="text-base font-bold text-emerald-400">
+                            <span style={{ fontSize: "1rem", fontWeight: 700, color: "var(--up)", fontFamily: "'JetBrains Mono', monospace" }}>
                                 {formatCurrency(
                                     executionResult.recoveredAmount
                                 )}
@@ -1113,13 +1139,13 @@ export const AgentRunTimeline = ({
                     )}
 
                     {executionResult?.transactionId && (
-                        <div className="mt-3 rounded-xl bg-slate-950/50 border border-slate-800 p-4">
+                        <div className="mt-3 sub-card">
 
-                            <span className="text-[9px] uppercase tracking-wider font-bold text-slate-500 block mb-1">
+                            <span className="meta-label" style={{ marginBottom: "2px" }}>
                                 Transaction Reference
                             </span>
 
-                            <span className="text-xs font-mono text-slate-300 break-all">
+                            <span className="font-mono text-xs break-all" style={{ color: "var(--ink)" }}>
                                 {executionResult.transactionId}
                             </span>
 
@@ -1127,9 +1153,9 @@ export const AgentRunTimeline = ({
                     )}
 
                     {executionResult?.paymentLinkUrl && (
-                        <div className="mt-3 rounded-xl bg-cyan-950/20 border border-cyan-800/30 p-4">
+                        <div className="mt-3 sub-card-primary">
 
-                            <span className="text-[9px] uppercase tracking-wider font-bold text-cyan-400 block mb-1">
+                            <span className="eyebrow-primary" style={{ display: "block", marginBottom: "2px" }}>
                                 Recovery Payment Link
                             </span>
 
@@ -1137,7 +1163,7 @@ export const AgentRunTimeline = ({
                                 href={executionResult.paymentLinkUrl}
                                 target="_blank"
                                 rel="noreferrer"
-                                className="text-xs text-cyan-300 hover:text-cyan-200 underline break-all"
+                                style={{ fontSize: "0.75rem", color: "var(--primary)", textDecoration: "underline", wordBreak: "break-all" }}
                             >
                                 {executionResult.paymentLinkUrl}
                             </a>
@@ -1153,39 +1179,41 @@ export const AgentRunTimeline = ({
             ================================================== */}
 
             {customer && (
-                <div className="rounded-2xl border border-slate-800 bg-slate-900/60 overflow-hidden">
+                <div className="panel rounded-xl overflow-hidden">
 
-                    <div className="px-5 py-4 border-b border-slate-800 flex items-center gap-3">
+                    <div className="panel-header">
 
-                        <div className="w-9 h-9 rounded-xl bg-slate-800 text-slate-300 flex items-center justify-center">
-                            <User className="w-4 h-4" />
-                        </div>
+                        <div className="flex items-center gap-3">
+                            <div className="icon-box icon-box-sm icon-box-neutral">
+                                <User className="w-4 h-4" />
+                            </div>
 
-                        <div>
+                            <div>
 
-                            <h3 className="text-sm font-semibold text-slate-100">
-                                Customer Context
-                            </h3>
+                                <h3 className="panel-section-title">
+                                    Customer Context
+                                </h3>
 
-                            <p className="text-[11px] text-slate-500 mt-0.5">
-                                Customer information considered during the decision
-                            </p>
+                                <p className="panel-section-desc">
+                                    Customer information considered during the decision
+                                </p>
 
+                            </div>
                         </div>
 
                     </div>
 
-                    <div className="p-5">
+                    <div className="panel-body">
 
                         <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
 
-                            <div className="rounded-xl bg-slate-950/50 border border-slate-800 p-3">
+                            <div className="sub-card">
 
-                                <span className="text-[9px] uppercase tracking-wider font-bold text-slate-500 block mb-1">
+                                <span className="meta-label" style={{ marginBottom: "2px" }}>
                                     Customer
                                 </span>
 
-                                <span className="text-sm font-semibold text-slate-200">
+                                <span style={{ fontSize: "0.8125rem", fontWeight: 600, color: "var(--ink)" }}>
                                     {customer.name ||
                                         customer.customerId ||
                                         "Customer"}
@@ -1193,26 +1221,26 @@ export const AgentRunTimeline = ({
 
                             </div>
 
-                            <div className="rounded-xl bg-slate-950/50 border border-slate-800 p-3">
+                            <div className="sub-card">
 
-                                <span className="text-[9px] uppercase tracking-wider font-bold text-slate-500 block mb-1">
+                                <span className="meta-label" style={{ marginBottom: "2px" }}>
                                     Successful Payments
                                 </span>
 
-                                <span className="text-sm font-bold text-emerald-400">
+                                <span style={{ fontSize: "0.8125rem", fontWeight: 700, color: "var(--up)", fontFamily: "'JetBrains Mono', monospace" }}>
                                     {customer.successfulPayments ??
                                         "—"}
                                 </span>
 
                             </div>
 
-                            <div className="rounded-xl bg-slate-950/50 border border-slate-800 p-3">
+                            <div className="sub-card">
 
-                                <span className="text-[9px] uppercase tracking-wider font-bold text-slate-500 block mb-1">
+                                <span className="meta-label" style={{ marginBottom: "2px" }}>
                                     Failed Payments
                                 </span>
 
-                                <span className="text-sm font-bold text-rose-400">
+                                <span style={{ fontSize: "0.8125rem", fontWeight: 700, color: "var(--down)", fontFamily: "'JetBrains Mono', monospace" }}>
                                     {customer.failedPayments ??
                                         "—"}
                                 </span>
@@ -1229,13 +1257,13 @@ export const AgentRunTimeline = ({
                 7. SIMPLE FLOW
             ================================================== */}
 
-            <div className="rounded-2xl border border-slate-800 bg-slate-900/40 p-5">
+            <div className="panel p-5 rounded-xl">
 
                 <div className="flex items-center gap-2 mb-4">
 
-                    <ArrowDown className="w-4 h-4 text-indigo-400" />
+                    <ArrowDown className="w-4 h-4" style={{ color: "var(--primary)" }} />
 
-                    <h3 className="text-sm font-semibold text-slate-100">
+                    <h3 className="panel-section-title">
                         Recovery Flow
                     </h3>
 
@@ -1243,39 +1271,39 @@ export const AgentRunTimeline = ({
 
                 <div className="flex flex-col md:flex-row md:items-center gap-2 text-xs">
 
-                    <div className="px-3 py-2 rounded-lg bg-slate-800 border border-slate-700 text-slate-300">
+                    <div className="chip">
                         Payment failed
                     </div>
 
-                    <span className="hidden md:block text-slate-600">
+                    <span className="hidden md:block" style={{ color: "var(--mute)" }}>
                         →
                     </span>
 
-                    <div className="px-3 py-2 rounded-lg bg-indigo-950/40 border border-indigo-800/40 text-indigo-300">
+                    <div className="count-pill count-pill-primary">
                         AI analyzed
                     </div>
 
-                    <span className="hidden md:block text-slate-600">
+                    <span className="hidden md:block" style={{ color: "var(--mute)" }}>
                         →
                     </span>
 
-                    <div className="px-3 py-2 rounded-lg bg-slate-800 border border-slate-700 text-slate-300">
+                    <div className="chip">
                         Safety rules checked
                     </div>
 
-                    <span className="hidden md:block text-slate-600">
+                    <span className="hidden md:block" style={{ color: "var(--mute)" }}>
                         →
                     </span>
 
                     <div
-                        className={`px-3 py-2 rounded-lg border ${
+                        className={`count-pill ${
                             finalResult === "RECOVERED"
-                                ? "bg-emerald-950/40 border-emerald-800/40 text-emerald-300"
+                                ? "count-pill-up"
                                 : finalResult === "PENDING"
-                                    ? "bg-amber-950/40 border-amber-800/40 text-amber-300"
+                                    ? "count-pill-warn"
                                     : finalResult === "ESCALATED"
-                                        ? "bg-purple-950/40 border-purple-800/40 text-purple-300"
-                                        : "bg-rose-950/40 border-rose-800/40 text-rose-300"
+                                        ? "count-pill-warn"
+                                        : "count-pill-down"
                         }`}
                     >
                         {outcome.label}

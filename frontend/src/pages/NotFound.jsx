@@ -5,16 +5,50 @@ import Button from "../components/common/Button";
 
 export const NotFound = () => {
     return (
-        <div className="min-h-[70vh] flex flex-col items-center justify-center text-center p-6">
-            <div className="p-4 rounded-2xl bg-rose-950/40 border border-rose-800/40 text-rose-400 mb-4">
-                <AlertCircle className="w-12 h-12" />
+        <div className="center-state animate-rise">
+            <div
+                className="icon-box icon-box-lg icon-box-down"
+                style={{ marginBottom: "1rem" }}
+            >
+                <AlertCircle size={28} />
             </div>
-            <h1 className="text-4xl font-extrabold text-slate-100 mb-2">404</h1>
-            <h3 className="text-lg font-bold text-slate-300 mb-2">Page Not Found</h3>
-            <p className="text-sm text-slate-400 max-w-sm mb-6">
+
+            <h1
+                style={{
+                    fontSize: "2.5rem",
+                    fontWeight: 800,
+                    color: "var(--ink)",
+                    marginBottom: "0.5rem",
+                    letterSpacing: "-0.03em"
+                }}
+            >
+                404
+            </h1>
+
+            <h3
+                style={{
+                    fontSize: "1.125rem",
+                    fontWeight: 700,
+                    color: "var(--ink)",
+                    marginBottom: "0.5rem"
+                }}
+            >
+                Page Not Found
+            </h3>
+
+            <p
+                style={{
+                    fontSize: "0.875rem",
+                    color: "var(--mute)",
+                    maxWidth: "24rem",
+                    marginBottom: "1.5rem",
+                    lineHeight: 1.6
+                }}
+            >
                 The page or route you are looking for does not exist or has been moved.
             </p>
-            <Link to="/">
+
+            <Link to="/" style={{ textDecoration: "none" }}>
                 <Button variant="primary" icon={ArrowLeft}>
                     Return to Dashboard
                 </Button>

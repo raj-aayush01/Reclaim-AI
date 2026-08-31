@@ -40,7 +40,7 @@ const getOutcome = ({
                     : "The payment"
             } has been successfully recovered.`,
             icon: CheckCircle2,
-            color: "text-emerald-400 border-emerald-500/30 bg-emerald-950/40"
+            dotClass: "timeline-dot-up"
         };
     }
 
@@ -50,7 +50,7 @@ const getOutcome = ({
             desc:
                 "A recovery payment link was created. The money will be recovered when the customer completes the payment.",
             icon: Clock,
-            color: "text-amber-400 border-amber-500/30 bg-amber-950/40"
+            dotClass: "timeline-dot-warn"
         };
     }
 
@@ -60,7 +60,7 @@ const getOutcome = ({
             desc:
                 "Automatic recovery was not continued. The payment has been moved for human review.",
             icon: UserCheck,
-            color: "text-purple-400 border-purple-500/30 bg-purple-950/40"
+            dotClass: "timeline-dot-primary"
         };
     }
 
@@ -70,7 +70,7 @@ const getOutcome = ({
             desc:
                 "No further automatic payment attempt will be made. The payment remains unrecovered.",
             icon: AlertTriangle,
-            color: "text-slate-400 border-slate-500/30 bg-slate-950/40"
+            dotClass: "timeline-dot-warn"
         };
     }
 
@@ -83,7 +83,7 @@ const getOutcome = ({
             desc:
                 "The additional payment attempt failed, so the money remains unrecovered.",
             icon: XCircle,
-            color: "text-rose-400 border-rose-500/30 bg-rose-950/40"
+            dotClass: "timeline-dot-down"
         };
     }
 
@@ -92,7 +92,7 @@ const getOutcome = ({
         desc:
             "The payment remains unrecovered.",
         icon: XCircle,
-        color: "text-rose-400 border-rose-500/30 bg-rose-950/40"
+        dotClass: "timeline-dot-down"
     };
 };
 
@@ -129,8 +129,7 @@ export const RecoveryTimeline = ({
                 `The ${failureType.toLowerCase()} prevented the payment from being completed.`,
             status: "completed",
             icon: XCircle,
-            color:
-                "text-rose-400 border-rose-500/30 bg-rose-950/40"
+            dotClass: "timeline-dot-down"
         },
         {
             title: "AI reviewed the payment",
@@ -139,8 +138,7 @@ export const RecoveryTimeline = ({
                 : "Waiting for AI to review the payment.",
             status: hasAI ? "completed" : "pending",
             icon: Bot,
-            color:
-                "text-indigo-400 border-indigo-500/30 bg-indigo-950/40"
+            dotClass: "timeline-dot-primary"
         },
         {
             title: "Recovery strategy selected",
@@ -149,8 +147,7 @@ export const RecoveryTimeline = ({
                 : "No recovery strategy has been selected yet.",
             status: hasAI ? "completed" : "pending",
             icon: ShieldCheck,
-            color:
-                "text-purple-400 border-purple-500/30 bg-purple-950/40"
+            dotClass: "timeline-dot-primary"
         },
         {
             title: "Safety check completed",
@@ -161,10 +158,10 @@ export const RecoveryTimeline = ({
                 : "Waiting for the recovery safety check.",
             status: hasPolicy ? "completed" : "pending",
             icon: ShieldCheck,
-            color:
+            dotClass:
                 hasPolicy && policyDecision.allowed === false
-                    ? "text-rose-400 border-rose-500/30 bg-rose-950/40"
-                    : "text-emerald-400 border-emerald-500/30 bg-emerald-950/40"
+                    ? "timeline-dot-down"
+                    : "timeline-dot-up"
         },
         {
             title: hasExecution
@@ -175,111 +172,78 @@ export const RecoveryTimeline = ({
                 : "Waiting for the recovery action to be processed.",
             status: hasExecution ? "completed" : "pending",
             icon: Zap,
-            color:
-                "text-cyan-400 border-cyan-500/30 bg-cyan-950/40"
+            dotClass: "timeline-dot-primary"
         },
         {
             title: outcome.title,
             desc: outcome.desc,
             status: hasExecution ? "completed" : "pending",
             icon: outcome.icon,
-            color: outcome.color
+            dotClass: outcome.dotClass
         }
     ];
 
     return (
-        <div className="
-            glass-panel
-            p-6
-            rounded-2xl
-        ">
-
-            <div className="
-                flex
-                items-center
-                gap-2
-                mb-6
-            ">
-                <Clock className="
-                    w-5
-                    h-5
-                    text-indigo-400
-                " />
+        <div className="panel recovery-card">
+            <div
+                style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "0.5rem",
+                    marginBottom: "1.5rem"
+                }}
+            >
+                <Clock
+                    className="status-primary"
+                    style={{ width: "1.25rem", height: "1.25rem" }}
+                />
 
                 <div>
-                    <h4 className="
-                        text-base
-                        font-bold
-                        text-slate-100
-                    ">
+                    <h4 className="recovery-card-title">
                         Recovery Journey
                     </h4>
 
-                    <p className="
-                        text-[11px]
-                        text-slate-400
-                        mt-0.5
-                    ">
+                    <p className="recovery-card-subtitle">
                         What happened to this payment
                     </p>
                 </div>
             </div>
 
-            <div className="
-                relative
-                pl-7
-                space-y-7
-                before:absolute
-                before:left-3.5
-                before:top-3
-                before:bottom-3
-                before:w-px
-                before:bg-slate-800
-            ">
-
+            <div className="timeline-track">
                 {steps.map((step, index) => {
                     const Icon = step.icon;
 
                     return (
                         <div
                             key={`${step.title}-${index}`}
-                            className="
-                                relative
-                                flex
-                                items-start
-                                gap-4
-                            "
+                            className="timeline-step"
                         >
-                            <div className={`
-                                absolute
-                                -left-7
-                                p-1.5
-                                rounded-full
-                                border
-                                shadow-md
-                                ${step.color}
-                            `}>
-                                <Icon className="
-                                    w-3.5
-                                    h-3.5
-                                " />
+                            <div
+                                className={`timeline-dot ${step.dotClass}`}
+                                style={{ opacity: step.status === "pending" ? 0.5 : 1 }}
+                            >
+                                <Icon style={{ width: "0.875rem", height: "0.875rem" }} />
                             </div>
 
-                            <div className="min-w-0">
-                                <h5 className="
-                                    text-sm
-                                    font-bold
-                                    text-slate-200
-                                ">
+                            <div style={{ minWidth: 0 }}>
+                                <h5
+                                    style={{
+                                        fontSize: "0.8125rem",
+                                        fontWeight: 700,
+                                        color: "var(--ink)"
+                                    }}
+                                >
                                     {step.title}
                                 </h5>
 
-                                <p className="
-                                    text-xs
-                                    text-slate-400
-                                    mt-1
-                                    leading-relaxed
-                                ">
+                                <p
+                                    style={{
+                                        fontSize: "0.75rem",
+                                        color: "var(--mute)",
+                                        marginTop: "0.25rem",
+                                        lineHeight: 1.6
+                                    }}
+                                >
                                     {step.desc}
                                 </p>
                             </div>

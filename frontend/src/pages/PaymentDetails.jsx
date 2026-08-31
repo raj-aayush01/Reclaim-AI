@@ -487,1348 +487,488 @@ export const PaymentDetails = () => {
                 HEADER
             ================================================= */}
 
-            <div className="
-                flex
-                flex-col
-                sm:flex-row
-                sm:items-center
-                sm:justify-between
-                gap-4
-            ">
-
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
                 <button
                     onClick={() => navigate("/payments")}
-                    className="
-                        inline-flex
-                        items-center
-                        gap-2
-                        text-xs
-                        font-semibold
-                        text-slate-400
-                        hover:text-slate-200
-                        transition-colors
-                        cursor-pointer
-                    "
+                    className="back-link"
                 >
-
-                    <ArrowLeft className="w-4 h-4" />
-
-                    <span>
-                        Back to Payments List
-                    </span>
-
+                    <ArrowLeft size={15} />
+                    <span>Back to Payments List</span>
                 </button>
 
-
                 <div className="flex items-center gap-3">
-
-                    <PaymentStatusBadge
-                        status={payment.status}
-                    />
+                    <PaymentStatusBadge status={payment.status} />
 
                     {payment.status !== "recovered" && (
-
                         <Button
                             variant="glow"
                             size="md"
                             icon={Zap}
                             loading={executing}
-                            onClick={
-                                handleTriggerAIRecovery
-                            }
+                            onClick={handleTriggerAIRecovery}
                         >
                             Run AI Recovery
                         </Button>
-
                     )}
-
                 </div>
-
             </div>
-
 
             {/* =================================================
                 EXECUTION ERROR
             ================================================= */}
 
             {executionError && (
-
-                <div className="
-                    glass-panel
-                    rounded-2xl
-                    border
-                    border-rose-500/30
-                    bg-rose-950/10
-                    p-5
-                ">
-
-                    <div className="
-                        flex
-                        items-start
-                        gap-3
-                    ">
-
-                        <div className="
-                            shrink-0
-                            p-2
-                            rounded-xl
-                            bg-rose-500/10
-                            border
-                            border-rose-500/20
-                        ">
-
-                            <Zap className="
-                                w-5
-                                h-5
-                                text-rose-400
-                            " />
-
-                        </div>
-
-
-                        <div>
-
-                            <h3 className="
-                                text-sm
-                                font-bold
-                                text-rose-200
-                            ">
-                                AI Recovery Could Not Be Completed
-                            </h3>
-
-
-                            <p className="
-                                text-sm
-                                text-rose-300/80
-                                mt-1
-                                leading-relaxed
-                            ">
-                                The payment was not automatically
-                                recovered because the AI decision
-                                could not be completed. No recovery
-                                action was executed.
-                            </p>
-
-
-                            <p className="
-                                text-xs
-                                text-slate-500
-                                mt-3
-                                break-words
-                            ">
-                                {executionError}
-                            </p>
-
-                        </div>
-
+                <div className="banner-down">
+                    <div className="icon-box icon-box-sm icon-box-down">
+                        <Zap className="w-4 h-4" />
                     </div>
 
+                    <div>
+                        <h3 className="banner-down-title">
+                            AI Recovery Could Not Be Completed
+                        </h3>
+
+                        <p className="banner-down-text">
+                            The payment was not automatically recovered because the AI decision could not be completed. No recovery action was executed.
+                        </p>
+
+                        <p className="font-mono text-xs mt-2" style={{ color: "var(--down)" }}>
+                            {executionError}
+                        </p>
+                    </div>
                 </div>
-
             )}
-
 
             {/* =================================================
                 PAYMENT OVERVIEW
             ================================================= */}
 
-            <div className="
-                glass-panel
-                p-6
-                rounded-2xl
-                border
-                border-indigo-500/20
-                bg-gradient-to-r
-                from-slate-900/90
-                to-indigo-950/20
-            ">
-
-                <div className="
-                    flex
-                    flex-col
-                    xl:flex-row
-                    xl:items-center
-                    xl:justify-between
-                    gap-6
-                ">
-
-
+            <div className="panel panel-accent-primary p-6 rounded-xl">
+                <div className="flex flex-col xl:flex-row xl:items-center xl:justify-between gap-6">
                     <div className="min-w-0">
-
-                        <span className="
-                            text-[11px]
-                            uppercase
-                            tracking-wider
-                            font-bold
-                            text-indigo-400
-                            block
-                            mb-1
-                        ">
+                        <span className="eyebrow-primary" style={{ display: "block", marginBottom: "4px" }}>
                             Transaction Overview
                         </span>
 
-
-                        <h2 className="
-                            text-xl
-                            sm:text-2xl
-                            font-extrabold
-                            text-slate-100
-                            font-mono
-                            break-all
-                        ">
+                        <h2
+                            style={{
+                                fontSize: "1.25rem",
+                                fontWeight: 800,
+                                fontFamily: "'JetBrains Mono', monospace",
+                                color: "var(--ink)",
+                                wordBreak: "break-all"
+                            }}
+                        >
                             {payment.paymentId}
                         </h2>
 
-
                         {payment.orderId && (
-
-                            <p className="
-                                text-xs
-                                text-slate-400
-                                mt-2
-                            ">
+                            <p style={{ fontSize: "0.75rem", color: "var(--mute)", marginTop: "0.5rem" }}>
                                 Order ID:{" "}
-
-                                <span className="
-                                    text-slate-300
-                                    font-mono
-                                ">
+                                <span className="font-mono" style={{ color: "var(--ink)", fontWeight: 500 }}>
                                     {payment.orderId}
                                 </span>
                             </p>
-
                         )}
-
                     </div>
 
-
-                    <div className="
-                        grid
-                        grid-cols-2
-                        sm:grid-cols-3
-                        gap-6
-                        xl:min-w-[420px]
-                    ">
-
-
+                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-6 xl:min-w-[420px]">
                         <div>
-
-                            <span className="
-                                text-[10px]
-                                uppercase
-                                tracking-wider
-                                text-slate-400
-                                block
-                            ">
-                                Amount
+                            <span className="meta-label">Amount</span>
+                            <span
+                                style={{
+                                    fontSize: "1.25rem",
+                                    fontWeight: 700,
+                                    fontFamily: "'JetBrains Mono', monospace",
+                                    color: "var(--ink)"
+                                }}
+                            >
+                                {formatCurrency(payment.amount)}
                             </span>
-
-
-                            <span className="
-                                text-xl
-                                font-bold
-                                text-slate-100
-                            ">
-                                {formatCurrency(
-                                    payment.amount
-                                )}
-                            </span>
-
                         </div>
 
-
                         <div>
-
-                            <span className="
-                                text-[10px]
-                                uppercase
-                                tracking-wider
-                                text-slate-400
-                                block
-                            ">
-                                Failure Type
+                            <span className="meta-label">Failure Type</span>
+                            <span
+                                style={{
+                                    fontSize: "0.8125rem",
+                                    fontWeight: 600,
+                                    color: "var(--primary)",
+                                    display: "block",
+                                    marginTop: "2px"
+                                }}
+                            >
+                                {payment.scenario ? formatScenario(payment.scenario) : "Not available"}
                             </span>
-
-
-                            <span className="
-                                text-xs
-                                font-semibold
-                                text-indigo-300
-                                block
-                                mt-1
-                            ">
-                                {payment.scenario
-                                    ? formatScenario(
-                                        payment.scenario
-                                    )
-                                    : "Not available"}
-                            </span>
-
                         </div>
 
-
                         <div>
-
-                            <span className="
-                                text-[10px]
-                                uppercase
-                                tracking-wider
-                                text-slate-400
-                                block
-                            ">
-                                Attempts
-                            </span>
-
-
-                            <span className="
-                                text-sm
-                                font-bold
-                                text-slate-200
-                            ">
+                            <span className="meta-label">Attempts</span>
+                            <span
+                                style={{
+                                    fontSize: "0.875rem",
+                                    fontWeight: 700,
+                                    fontFamily: "'JetBrains Mono', monospace",
+                                    color: "var(--ink)",
+                                    display: "block",
+                                    marginTop: "2px"
+                                }}
+                            >
                                 {payment.attemptCount ?? 0}
                             </span>
-
                         </div>
-
                     </div>
-
                 </div>
-
             </div>
-
 
             {/* =================================================
                 CUSTOMER INFORMATION
             ================================================= */}
 
             {customer && customer.name && (
-
-                <div className="
-                    glass-panel
-                    p-5
-                    rounded-2xl
-                    flex
-                    flex-col
-                    lg:flex-row
-                    lg:items-center
-                    lg:justify-between
-                    gap-5
-                ">
-
-
-                    <div className="
-                        flex
-                        items-center
-                        gap-3
-                    ">
-
-                        <div className="
-                            p-3
-                            rounded-xl
-                            bg-slate-800
-                            text-indigo-400
-                            border
-                            border-slate-700
-                        ">
-
+                <div className="panel p-5 rounded-xl flex flex-col lg:flex-row lg:items-center lg:justify-between gap-5">
+                    <div className="flex items-center gap-3">
+                        <div className="icon-box icon-box-md icon-box-neutral">
                             <User className="w-5 h-5" />
-
                         </div>
 
-
                         <div>
-
-                            <h4 className="
-                                text-sm
-                                font-bold
-                                text-slate-200
-                            ">
+                            <h4 style={{ fontSize: "0.875rem", fontWeight: 700, color: "var(--ink)" }}>
                                 {customer.name}
                             </h4>
 
-
-                            <p className="
-                                text-xs
-                                text-slate-400
-                                font-mono
-                            ">
-                                {customer.email ||
-                                    "No email"}
-
+                            <p style={{ fontSize: "0.75rem", color: "var(--mute)", fontFamily: "'JetBrains Mono', monospace", marginTop: "2px" }}>
+                                {customer.email || "No email"}
                                 {" • "}
-
-                                {customer.phone ||
-                                    "No phone"}
+                                {customer.phone || "No phone"}
                             </p>
-
                         </div>
-
                     </div>
 
-
-                    <div className="
-                        text-left
-                        lg:text-right
-                        text-xs
-                        text-slate-400
-                    ">
-
+                    <div className="text-left lg:text-right" style={{ fontSize: "0.75rem", color: "var(--mute)" }}>
                         <span className="block">
-
                             Customer ID:{" "}
-
-                            <strong className="
-                                text-slate-200
-                                font-mono
-                            ">
-                                {customer.customerId ||
-                                    payment.customerId ||
-                                    "Not available"}
+                            <strong className="font-mono" style={{ color: "var(--ink)" }}>
+                                {customer.customerId || payment.customerId || "Not available"}
                             </strong>
-
                         </span>
 
-
-                        <span className="
-                            block
-                            mt-1
-                        ">
-
+                        <span className="block mt-1">
                             Customer Segment:{" "}
-
-                            <strong className="
-                                text-indigo-400
-                            ">
-                                {customer.segment ||
-                                    "STANDARD"}
+                            <strong style={{ color: "var(--primary)" }}>
+                                {customer.segment || "STANDARD"}
                             </strong>
-
                         </span>
-
                     </div>
-
                 </div>
-
             )}
-
 
             {/* =================================================
                 NO RECOVERY YET
             ================================================= */}
 
             {!hasRunRecovery && (
-
-                <div className="
-                    glass-panel
-                    rounded-2xl
-                    border
-                    border-indigo-500/20
-                    bg-gradient-to-br
-                    from-slate-900
-                    to-indigo-950/20
-                    p-8
-                ">
-
-                    <div className="
-                        flex
-                        flex-col
-                        items-center
-                        text-center
-                        max-w-2xl
-                        mx-auto
-                    ">
-
-                        <div className="
-                            p-4
-                            rounded-2xl
-                            bg-indigo-500/10
-                            border
-                            border-indigo-500/20
-                            text-indigo-400
-                            mb-4
-                        ">
-
-                            <Brain className="w-8 h-8" />
-
+                <div className="panel p-8 rounded-xl">
+                    <div className="flex flex-col items-center text-center max-w-2xl mx-auto">
+                        <div className="icon-box icon-box-lg icon-box-primary mb-4">
+                            <Brain className="w-6 h-6" />
                         </div>
 
-
-                        <h3 className="
-                            text-lg
-                            font-bold
-                            text-slate-100
-                        ">
+                        <h3 style={{ fontSize: "1.125rem", fontWeight: 700, color: "var(--ink)" }}>
                             Ready for AI Recovery
                         </h3>
 
-
-                        <p className="
-                            text-sm
-                            text-slate-400
-                            mt-2
-                            leading-relaxed
-                        ">
-                            This payment has been inspected,
-                            but AI has not made a recovery decision
-                            yet. Run AI Recovery to analyze the
-                            failure, review customer history, choose
-                            a recovery strategy, and execute the
-                            permitted action.
+                        <p style={{ fontSize: "0.8125rem", color: "var(--mute)", marginTop: "0.5rem", lineHeight: 1.6 }}>
+                            This payment has been inspected, but AI has not made a recovery decision yet. Run AI Recovery to analyze the failure, review customer history, choose a recovery strategy, and execute the permitted action.
                         </p>
 
-
-                        <div className="
-                            flex
-                            items-center
-                            gap-2
-                            mt-5
-                            text-xs
-                            text-slate-500
-                        ">
-
+                        <div className="flex items-center gap-2 mt-5" style={{ fontSize: "0.75rem", color: "var(--mute)" }}>
                             <Clock className="w-4 h-4" />
-
-                            <span>
-                                No automatic recovery action
-                                has been executed.
-                            </span>
-
+                            <span>No automatic recovery action has been executed.</span>
                         </div>
-
                     </div>
-
                 </div>
-
             )}
-
 
             {/* =================================================
                 RECOVERY RESULTS
             ================================================= */}
 
             {hasRunRecovery && (
-
-                <div className="
-                    grid
-                    grid-cols-1
-                    lg:grid-cols-12
-                    gap-6
-                ">
-
-
-                    {/* =================================================
-                        LEFT SIDE — EXPLANATION
-                    ================================================= */}
-
-                    <div className="
-                        lg:col-span-7
-                        space-y-6
-                    ">
-
-
+                <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+                    {/* LEFT SIDE — EXPLANATION */}
+                    <div className="lg:col-span-7 space-y-6">
                         {currentAIDecision && (
-
                             <AIDecisionCard
-                                aiDecision={
-                                    currentAIDecision
-                                }
+                                aiDecision={currentAIDecision}
                                 payment={payment}
                                 customer={customer}
                             />
-
                         )}
-
 
                         {currentPolicyDecision && (
-
                             <PolicyDecision
-                                policyDecision={
-                                    currentPolicyDecision
-                                }
+                                policyDecision={currentPolicyDecision}
                                 payment={payment}
                             />
-
                         )}
-
 
                         {currentExecutionResult && (
-
                             <ExecutionResult
-                                executionResult={
-                                    currentExecutionResult
-                                }
+                                executionResult={currentExecutionResult}
                                 payment={payment}
                             />
-
                         )}
-
                     </div>
 
-
-                    {/* =================================================
-                        RIGHT SIDE — RECOVERY JOURNEY
-                    ================================================= */}
-
+                    {/* RIGHT SIDE — RECOVERY JOURNEY */}
                     <div className="lg:col-span-5">
-
                         <RecoveryTimeline
                             payment={payment}
-                            aiDecision={
-                                currentAIDecision
-                            }
-                            policyDecision={
-                                currentPolicyDecision
-                            }
-                            executionResult={
-                                currentExecutionResult
-                            }
+                            aiDecision={currentAIDecision}
+                            policyDecision={currentPolicyDecision}
+                            executionResult={currentExecutionResult}
                         />
-
                     </div>
-
                 </div>
-
             )}
-
 
             {/* =================================================
                 HIGH LEVEL RECOVERY SUMMARY
             ================================================= */}
 
             {hasRunRecovery && (
-
-                <div className="
-                    glass-panel
-                    rounded-2xl
-                    border
-                    border-slate-800
-                    overflow-hidden
-                ">
-
-
-                    <div className="
-                        px-6
-                        py-5
-                        border-b
-                        border-slate-800
-                    ">
-
-                        <div className="
-                            flex
-                            flex-col
-                            sm:flex-row
-                            sm:items-center
-                            sm:justify-between
-                            gap-3
-                        ">
-
-                            <div className="
-                                flex
-                                items-center
-                                gap-3
-                            ">
-
-                                <div className="
-                                    p-2.5
-                                    rounded-xl
-                                    bg-indigo-500/10
-                                    border
-                                    border-indigo-500/20
-                                ">
-
-                                    <CheckCircle2 className="
-                                        w-5
-                                        h-5
-                                        text-indigo-400
-                                    " />
-
-                                </div>
-
-
-                                <div>
-
-                                    <h3 className="
-                                        text-base
-                                        font-bold
-                                        text-slate-100
-                                    ">
-                                        Recovery Summary
-                                    </h3>
-
-
-                                    <p className="
-                                        text-xs
-                                        text-slate-500
-                                        mt-0.5
-                                    ">
-                                        What the system decided
-                                        and what happened next
-                                    </p>
-
-                                </div>
-
+                <div className="panel rounded-xl overflow-hidden">
+                    <div className="panel-header">
+                        <div className="flex items-center gap-3">
+                            <div className="icon-box icon-box-sm icon-box-primary">
+                                <CheckCircle2 className="w-4 h-4" />
                             </div>
 
+                            <div>
+                                <h3 className="panel-section-title">
+                                    Recovery Summary
+                                </h3>
 
-                            {isRecovered && (
-
-                                <span className="
-                                    inline-flex
-                                    items-center
-                                    gap-1.5
-                                    px-3
-                                    py-1.5
-                                    rounded-full
-                                    text-[11px]
-                                    font-bold
-                                    bg-emerald-950/60
-                                    text-emerald-300
-                                    border
-                                    border-emerald-800/60
-                                ">
-
-                                    <CheckCircle2
-                                        className="w-3.5 h-3.5"
-                                    />
-
-                                    Money Recovered
-
-                                </span>
-
-                            )}
-
+                                <p className="panel-section-desc">
+                                    What the system decided and what happened next
+                                </p>
+                            </div>
                         </div>
 
+                        {isRecovered && (
+                            <span className="count-pill count-pill-up">
+                                <CheckCircle2 className="w-3.5 h-3.5" />
+                                Money Recovered
+                            </span>
+                        )}
                     </div>
 
-
-                    <div className="
-                        p-6
-                        grid
-                        grid-cols-1
-                        md:grid-cols-3
-                        gap-4
-                    ">
-
-
+                    <div className="panel-body grid grid-cols-1 md:grid-cols-3 gap-4">
                         {/* AI DECISION */}
+                        <div className="sub-card">
+                            <span className="meta-label">AI Decision</span>
 
-                        <div className="
-                            rounded-xl
-                            border
-                            border-slate-800
-                            bg-slate-950/40
-                            p-5
-                        ">
-
-                            <span className="
-                                text-[10px]
-                                uppercase
-                                tracking-wider
-                                font-bold
-                                text-slate-500
-                            ">
-                                AI Decision
-                            </span>
-
-
-                            <div className="
-                                mt-2
-                                text-sm
-                                font-bold
-                                text-indigo-300
-                            ">
+                            <div style={{ marginTop: "0.5rem", fontSize: "0.875rem", fontWeight: 700, color: "var(--primary)" }}>
                                 {currentAIDecision?.action
-                                    ? formatRecoveryAction(
-                                        currentAIDecision.action
-                                    )
+                                    ? formatRecoveryAction(currentAIDecision.action)
                                     : "Not available"}
                             </div>
 
-
-                            {currentAIDecision?.confidence !==
-                                null &&
-                                currentAIDecision?.confidence !==
-                                undefined && (
-
-                                    <div className="
-                                        mt-2
-                                        text-xs
-                                        text-slate-500
-                                    ">
-                                        Confidence:{" "}
-
-                                        <span className="
-                                            text-slate-300
-                                            font-semibold
-                                        ">
-                                            {
-                                                Math.round(
-                                                    currentAIDecision
-                                                        .confidence <= 1
-                                                        ? currentAIDecision
-                                                            .confidence * 100
-                                                        : currentAIDecision
-                                                            .confidence
-                                                )
-                                            }%
-                                        </span>
-                                    </div>
-
-                                )}
-
+                            {currentAIDecision?.confidence !== null && currentAIDecision?.confidence !== undefined && (
+                                <div style={{ marginTop: "0.375rem", fontSize: "0.75rem", color: "var(--mute)" }}>
+                                    Confidence:{" "}
+                                    <span style={{ color: "var(--ink)", fontWeight: 600 }}>
+                                        {Math.round(
+                                            currentAIDecision.confidence <= 1
+                                                ? currentAIDecision.confidence * 100
+                                                : currentAIDecision.confidence
+                                        )}%
+                                    </span>
+                                </div>
+                            )}
                         </div>
 
-
                         {/* SAFETY */}
+                        <div className="sub-card">
+                            <span className="meta-label">Safety Check</span>
 
-                        <div className="
-                            rounded-xl
-                            border
-                            border-slate-800
-                            bg-slate-950/40
-                            p-5
-                        ">
-
-                            <span className="
-                                text-[10px]
-                                uppercase
-                                tracking-wider
-                                font-bold
-                                text-slate-500
-                            ">
-                                Safety Check
-                            </span>
-
-
-                            <div className="
-                                mt-2
-                                flex
-                                items-center
-                                gap-2
-                            ">
-
+                            <div style={{ marginTop: "0.5rem", display: "flex", alignItems: "center", gap: "0.5rem" }}>
                                 {currentPolicyDecision?.allowed ? (
-
                                     <>
-                                        <ShieldCheck className="
-                                            w-4
-                                            h-4
-                                            text-emerald-400
-                                        " />
-
-                                        <span className="
-                                            text-sm
-                                            font-bold
-                                            text-emerald-300
-                                        ">
+                                        <ShieldCheck className="w-4 h-4 status-up" />
+                                        <span style={{ fontSize: "0.875rem", fontWeight: 700, color: "var(--up)" }}>
                                             Approved
                                         </span>
                                     </>
-
                                 ) : (
-
                                     <>
-                                        <XCircle className="
-                                            w-4
-                                            h-4
-                                            text-rose-400
-                                        " />
-
-                                        <span className="
-                                            text-sm
-                                            font-bold
-                                            text-rose-300
-                                        ">
+                                        <XCircle className="w-4 h-4 status-down" />
+                                        <span style={{ fontSize: "0.875rem", fontWeight: 700, color: "var(--down)" }}>
                                             Blocked
                                         </span>
                                     </>
-
                                 )}
-
                             </div>
 
-
-                            <p className="
-                                mt-2
-                                text-xs
-                                text-slate-500
-                                leading-relaxed
-                            ">
-                                {currentPolicyDecision?.reason ||
-                                    "No policy explanation available."}
+                            <p style={{ marginTop: "0.375rem", fontSize: "0.75rem", color: "var(--mute)", lineHeight: 1.5 }}>
+                                {currentPolicyDecision?.reason || "No policy explanation available."}
                             </p>
-
                         </div>
-
 
                         {/* OUTCOME */}
+                        <div className="sub-card">
+                            <span className="meta-label">Outcome</span>
 
-                        <div className="
-                            rounded-xl
-                            border
-                            border-slate-800
-                            bg-slate-950/40
-                            p-5
-                        ">
-
-                            <span className="
-                                text-[10px]
-                                uppercase
-                                tracking-wider
-                                font-bold
-                                text-slate-500
-                            ">
-                                Outcome
-                            </span>
-
-
-                            <div className="
-                                mt-2
-                                text-sm
-                                font-bold
-                                text-slate-100
-                            ">
-                                {currentExecutionResult?.result ||
-                                    "Processed"}
+                            <div style={{ marginTop: "0.5rem", fontSize: "0.875rem", fontWeight: 700, color: "var(--ink)" }}>
+                                {currentExecutionResult?.result || "Processed"}
                             </div>
 
-
                             {recoveredAmount > 0 && (
-
-                                <div className="
-                                    mt-2
-                                    text-xs
-                                    text-emerald-400
-                                    font-semibold
-                                ">
-                                    {formatCurrency(
-                                        recoveredAmount
-                                    )} recovered
+                                <div style={{ marginTop: "0.375rem", fontSize: "0.75rem", fontWeight: 600, color: "var(--up)" }}>
+                                    {formatCurrency(recoveredAmount)} recovered
                                 </div>
-
                             )}
-
                         </div>
-
                     </div>
 
-
                     {/* Simple human-readable explanation */}
-
-                    <div className="
-                        mx-6
-                        mb-6
-                        rounded-xl
-                        border
-                        border-indigo-500/10
-                        bg-indigo-950/10
-                        p-5
-                    ">
-
-                        <div className="
-                            flex
-                            items-start
-                            gap-3
-                        ">
-
-                            <Brain className="
-                                w-5
-                                h-5
-                                shrink-0
-                                text-indigo-400
-                                mt-0.5
-                            " />
-
+                    <div className="sub-card-primary" style={{ margin: "0 1.25rem 1.25rem" }}>
+                        <div className="flex items-start gap-3">
+                            <Brain className="w-5 h-5 shrink-0 status-primary mt-0.5" />
 
                             <div>
-
-                                <h4 className="
-                                    text-sm
-                                    font-bold
-                                    text-slate-200
-                                ">
+                                <h4 style={{ fontSize: "0.8125rem", fontWeight: 700, color: "var(--ink)" }}>
                                     In simple terms
                                 </h4>
 
-
-                                <p className="
-                                    text-sm
-                                    text-slate-400
-                                    mt-1
-                                    leading-relaxed
-                                ">
-
+                                <p style={{ fontSize: "0.75rem", color: "var(--mute)", marginTop: "0.25rem", lineHeight: 1.6 }}>
                                     {currentAIDecision?.whyThisDecision ||
                                         currentAIDecision?.reason ||
                                         latestLog?.aiReason ||
                                         "The system evaluated the payment and selected a recovery strategy."}
-
                                     {" "}
-
-                                    {currentExecutionResult?.result ===
-                                        "RECOVERED"
+                                    {currentExecutionResult?.result === "RECOVERED"
                                         ? "The selected recovery action was executed successfully and the payment was recovered."
                                         : currentPolicyDecision?.allowed === false
                                             ? "The recommended action was not allowed by the system safety policy."
                                             : "The selected recovery strategy was processed by the recovery system."}
-
                                 </p>
-
                             </div>
-
                         </div>
-
                     </div>
-
                 </div>
-
             )}
-
 
             {/* =================================================
                 AUDIT LOGS
             ================================================= */}
 
             {uniqueLogs.length > 0 && (
-
-                <div className="
-                    glass-panel
-                    rounded-2xl
-                    overflow-hidden
-                    border
-                    border-slate-800
-                ">
-
-
-                    <div className="
-                        px-6
-                        py-4
-                        border-b
-                        border-slate-800
-                        flex
-                        items-center
-                        justify-between
-                        gap-4
-                    ">
-
-                        <div className="
-                            flex
-                            items-center
-                            gap-2.5
-                        ">
-
-                            <FileText className="
-                                w-4
-                                h-4
-                                text-indigo-400
-                            " />
-
-
+                <div className="panel rounded-xl overflow-hidden">
+                    <div className="panel-header">
+                        <div className="flex items-center gap-2.5">
+                            <FileText className="w-4 h-4 status-primary" />
                             <div>
-
-                                <h3 className="
-                                    text-sm
-                                    font-bold
-                                    text-slate-100
-                                ">
+                                <h3 className="panel-section-title">
                                     Recovery Execution Audit
                                 </h3>
-
-
-                                <p className="
-                                    text-[11px]
-                                    text-slate-500
-                                    mt-0.5
-                                ">
+                                <p className="panel-section-desc">
                                     Recorded recovery events
                                 </p>
-
                             </div>
-
                         </div>
 
-
-                        <span className="
-                            text-[11px]
-                            font-semibold
-                            text-slate-400
-                            whitespace-nowrap
-                        ">
-                            {uniqueLogs.length}{" "}
-                            {uniqueLogs.length === 1
-                                ? "event"
-                                : "events"}
+                        <span style={{ fontSize: "0.6875rem", fontWeight: 600, color: "var(--mute)", whiteSpace: "nowrap" }}>
+                            {uniqueLogs.length} {uniqueLogs.length === 1 ? "event" : "events"}
                         </span>
-
                     </div>
-
 
                     <div className="overflow-x-auto">
-
-                        <table className="
-                            w-full
-                            text-left
-                            border-collapse
-                            text-xs
-                        ">
-
+                        <table className="tf-table">
                             <thead>
-
-                                <tr className="
-                                    bg-slate-900/80
-                                    border-b
-                                    border-slate-800
-                                    text-[10px]
-                                    font-bold
-                                    uppercase
-                                    tracking-wider
-                                    text-slate-400
-                                ">
-
-                                    <th className="px-4 py-3">
-                                        Time
-                                    </th>
-
-                                    <th className="px-4 py-3">
-                                        AI Decision
-                                    </th>
-
-                                    <th className="px-4 py-3">
-                                        Confidence
-                                    </th>
-
-                                    <th className="px-4 py-3">
-                                        Safety
-                                    </th>
-
-                                    <th className="px-4 py-3">
-                                        Action Taken
-                                    </th>
-
-                                    <th className="px-4 py-3">
-                                        Result
-                                    </th>
-
-                                    <th className="px-4 py-3">
-                                        Amount
-                                    </th>
-
+                                <tr>
+                                    <th>Time</th>
+                                    <th>AI Decision</th>
+                                    <th>Confidence</th>
+                                    <th>Safety</th>
+                                    <th>Action Taken</th>
+                                    <th>Result</th>
+                                    <th>Amount</th>
                                 </tr>
-
                             </thead>
 
+                            <tbody>
+                                {uniqueLogs.map((log, index) => (
+                                    <tr
+                                        key={log._id || `${log.createdAt}-${index}`}
+                                        className="row-hover"
+                                    >
+                                        <td className="font-mono text-xs" style={{ color: "var(--mute)", whiteSpace: "nowrap" }}>
+                                            {formatDate(log.createdAt)}
+                                        </td>
 
-                            <tbody className="
-                                divide-y
-                                divide-slate-800/60
-                            ">
+                                        <td className="font-semibold status-primary" style={{ whiteSpace: "nowrap" }}>
+                                            {formatRecoveryAction(log.aiAction)}
+                                        </td>
 
-                                {uniqueLogs.map(
-                                    (log, index) => (
+                                        <td className="font-mono text-xs">
+                                            {log.aiConfidence !== null && log.aiConfidence !== undefined
+                                                ? `${Math.round(
+                                                    log.aiConfidence <= 1
+                                                        ? log.aiConfidence * 100
+                                                        : log.aiConfidence
+                                                )}%`
+                                                : "—"}
+                                        </td>
 
-                                        <tr
-                                            key={
-                                                log._id ||
-                                                `${log.createdAt}-${index}`
-                                            }
-                                            className="
-                                                hover:bg-slate-800/40
-                                                transition-colors
-                                            "
-                                        >
-
-                                            <td className="
-                                                px-4
-                                                py-3
-                                                text-slate-400
-                                                whitespace-nowrap
-                                                text-[11px]
-                                            ">
-                                                {formatDate(
-                                                    log.createdAt
-                                                )}
-                                            </td>
-
-
-                                            <td className="
-                                                px-4
-                                                py-3
-                                                font-semibold
-                                                text-indigo-300
-                                                whitespace-nowrap
-                                            ">
-                                                {formatRecoveryAction(
-                                                    log.aiAction
-                                                )}
-                                            </td>
-
-
-                                            <td className="
-                                                px-4
-                                                py-3
-                                                text-slate-300
-                                            ">
-
-                                                {log.aiConfidence !==
-                                                    null &&
-                                                    log.aiConfidence !==
-                                                    undefined
-                                                    ? `${Math.round(
-                                                        log.aiConfidence <= 1
-                                                            ? log.aiConfidence * 100
-                                                            : log.aiConfidence
-                                                    )}%`
-                                                    : "—"}
-
-                                            </td>
-
-
-                                            <td className="px-4 py-3">
-
-                                                {log.policyAllowed ? (
-
-                                                    <span className="
-                                                        inline-flex
-                                                        items-center
-                                                        gap-1
-                                                        px-2
-                                                        py-0.5
-                                                        rounded
-                                                        text-[10px]
-                                                        font-bold
-                                                        bg-emerald-950/60
-                                                        text-emerald-300
-                                                        border
-                                                        border-emerald-800/60
-                                                    ">
-
-                                                        <ShieldCheck className="
-                                                            w-3
-                                                            h-3
-                                                        " />
-
-                                                        Approved
-
-                                                    </span>
-
-                                                ) : (
-
-                                                    <span className="
-                                                        inline-flex
-                                                        items-center
-                                                        gap-1
-                                                        px-2
-                                                        py-0.5
-                                                        rounded
-                                                        text-[10px]
-                                                        font-bold
-                                                        bg-rose-950/60
-                                                        text-rose-300
-                                                        border
-                                                        border-rose-800/60
-                                                    ">
-
-                                                        <XCircle className="
-                                                            w-3
-                                                            h-3
-                                                        " />
-
-                                                        Blocked
-
-                                                    </span>
-
-                                                )}
-
-                                            </td>
-
-
-                                            <td className="
-                                                px-4
-                                                py-3
-                                                font-bold
-                                                text-slate-200
-                                                whitespace-nowrap
-                                            ">
-                                                {formatRecoveryAction(
-                                                    log.finalAction
-                                                )}
-                                            </td>
-
-
-                                            <td className="px-4 py-3">
-
-                                                <span className={`
-                                                    inline-flex
-                                                    items-center
-                                                    px-2
-                                                    py-0.5
-                                                    rounded
-                                                    text-[10px]
-                                                    font-bold
-                                                    border
-
-                                                    ${
-                                                        log.executionResult ===
-                                                        "RECOVERED"
-
-                                                            ? "bg-emerald-950/80 text-emerald-400 border-emerald-800/60"
-
-                                                            : log.executionResult ===
-                                                                "PENDING"
-
-                                                                ? "bg-amber-950/80 text-amber-400 border-amber-800/60"
-
-                                                                : log.executionResult ===
-                                                                    "ESCALATED"
-
-                                                                    ? "bg-purple-950/80 text-purple-400 border-purple-800/60"
-
-                                                                    : "bg-rose-950/80 text-rose-400 border-rose-800/60"
-                                                    }
-                                                `}>
-
-                                                    {log.executionResult ||
-                                                        "—"}
-
+                                        <td>
+                                            {log.policyAllowed ? (
+                                                <span className="badge-up" style={{ display: "inline-flex", alignItems: "center", gap: "3px", padding: "2px 6px", borderRadius: "4px", fontSize: "0.625rem", fontWeight: 700 }}>
+                                                    <ShieldCheck className="w-3 h-3" />
+                                                    Approved
                                                 </span>
+                                            ) : (
+                                                <span className="badge-down" style={{ display: "inline-flex", alignItems: "center", gap: "3px", padding: "2px 6px", borderRadius: "4px", fontSize: "0.625rem", fontWeight: 700 }}>
+                                                    <XCircle className="w-3 h-3" />
+                                                    Blocked
+                                                </span>
+                                            )}
+                                        </td>
 
-                                            </td>
+                                        <td style={{ fontWeight: 700, color: "var(--ink)", whiteSpace: "nowrap" }}>
+                                            {formatRecoveryAction(log.finalAction)}
+                                        </td>
 
+                                        <td>
+                                            <span className={
+                                                log.executionResult === "RECOVERED"
+                                                    ? "badge-up"
+                                                    : log.executionResult === "PENDING"
+                                                        ? "badge-warn"
+                                                        : log.executionResult === "ESCALATED"
+                                                            ? "badge-warn"
+                                                            : "badge-down"
+                                            } style={{ display: "inline-flex", padding: "2px 6px", borderRadius: "4px", fontSize: "0.625rem", fontWeight: 700 }}>
+                                                {log.executionResult || "—"}
+                                            </span>
+                                        </td>
 
-                                            <td className="
-                                                px-4
-                                                py-3
-                                                font-semibold
-                                                text-slate-200
-                                            ">
-
-                                                {log.recoveredAmount > 0
-                                                    ? formatCurrency(
-                                                        log.recoveredAmount
-                                                    )
-                                                    : "—"}
-
-                                            </td>
-
-                                        </tr>
-
-                                    )
-                                )}
-
+                                        <td className="font-mono" style={{ fontWeight: 600, color: "var(--ink)" }}>
+                                            {log.recoveredAmount > 0
+                                                ? formatCurrency(log.recoveredAmount)
+                                                : "—"}
+                                        </td>
+                                    </tr>
+                                ))}
                             </tbody>
-
                         </table>
-
                     </div>
-
                 </div>
-
             )}
 
         </div>
     );
 };
-
 
 export default PaymentDetails;

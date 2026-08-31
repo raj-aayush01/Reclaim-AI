@@ -1,238 +1,1102 @@
-import React from "react";
+import React, { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { Sparkles, ArrowRight, ShieldCheck, Zap, Activity, BookOpen, Check, X } from "lucide-react";
+import { ArrowRight, ShieldCheck, Zap, Activity, BookOpen, Check, X, Sun, Moon } from "lucide-react";
 
-export const LandingPage = () => {
-    const navigate = useNavigate();
+/* ─── Recovery Ledger Demo Data ─────────────────────────── */
+const ledgerRows = [
+    { id: "inv_8f21c", amount: "$2,480.00", status: "Recovered", statusKey: "recovered", agent: "retry 1" },
+    { id: "inv_a39e0", amount: "$1,120.00", status: "Recovered", statusKey: "recovered", agent: "retry 2" },
+    { id: "inv_51b77", amount: "$960.00",   status: "Retrying",  statusKey: "retrying",  agent: "next 1.4h" },
+    { id: "inv_c04d2", amount: "$3,300.00", status: "Failed",    statusKey: "failed",    agent: "3 attempts" },
+];
 
-    const tickerItems = [
-        { id: "pay_3ea0af54", action: "escalate", status: "ESCALATED", conf: "78%", color: "text-amber-400 border-amber-800/60 bg-amber-950/30" },
-        { id: "pay_913ff981", action: "stop", status: "BLOCKED", conf: "94%", color: "text-rose-400 border-rose-800/60 bg-rose-950/30" },
-        { id: "pay_c1de2405", action: "retry", status: "RECOVERED", conf: "87%", color: "text-emerald-400 border-emerald-800/60 bg-emerald-950/30" },
-        { id: "pay_78aa9912", action: "link", status: "RECOVERED", conf: "89%", color: "text-cyan-400 border-cyan-800/60 bg-cyan-950/30" },
-        { id: "pay_b4cb3162", action: "retry", status: "RECOVERED", conf: "82%", color: "text-emerald-400 border-emerald-800/60 bg-emerald-950/30" }
-    ];
+const statusStyles = {
+    recovered: { color: "var(--up)" },
+    retrying:  { color: "var(--primary)" },
+    failed:    { color: "var(--down)" },
+};
 
+/* ─── Recovery Ledger Panel ─────────────────────────────── */
+function RecoveryLedger() {
     return (
-        <div className="min-h-screen bg-[#060910] text-slate-100 font-sans flex flex-col justify-between selection:bg-emerald-500 selection:text-slate-950">
-            {/* Top Navigation */}
-            <header className="h-20 px-8 max-w-7xl w-full mx-auto flex items-center justify-between border-b border-slate-800/40">
-                <div className="flex items-center gap-3">
-                    <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse" />
-                    <span className="text-lg font-extrabold tracking-tight font-mono">
-                        Reclaim<span className="text-emerald-400">.AI</span>
-                    </span>
-                </div>
-
-                <div className="flex items-center gap-8 text-xs font-semibold text-slate-400">
-                    <a href="#how" className="hover:text-slate-200 transition-colors">How It Works</a>
-                    <a href="#guardrails" className="hover:text-slate-200 transition-colors">Guardrails</a>
-                    <a href="https://github.com" target="_blank" rel="noreferrer" className="hover:text-slate-200 transition-colors">GitHub</a>
-                </div>
-
-                <Link to="/overview">
-                    <button className="px-4 py-2 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold text-xs shadow-lg shadow-emerald-500/20 transition-all cursor-pointer flex items-center gap-2">
-                        <span>Open Dashboard</span>
-                        <ArrowRight className="w-3.5 h-3.5" />
-                    </button>
-                </Link>
-            </header>
-
-            {/* Hero Section */}
-            <main className="flex-1 max-w-5xl w-full mx-auto px-6 py-16 flex flex-col items-center justify-center text-center">
-                {/* Buildathon Tag */}
-                <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-emerald-950/40 border border-emerald-800/50 text-[11px] font-bold text-emerald-400 mb-8 uppercase tracking-widest">
-                    <span className="w-2 h-2 rounded-full bg-emerald-400" />
-                    <span>RAZORPAY AI BUILDATHON · TRACK 03 · REVENUE RECOVERY</span>
-                </div>
-
-                {/* Main Headline */}
-                <h1 className="text-5xl md:text-7xl font-extrabold tracking-tight text-slate-100 max-w-4xl leading-[1.08] mb-6">
-                    Every rupee lost has a{" "}
-                    <span className="bg-gradient-to-r from-emerald-400 via-teal-300 to-cyan-400 bg-clip-text text-transparent">
-                        recovery path.
-                    </span>
-                </h1>
-
-                {/* Subtitle */}
-                <p className="text-base md:text-lg text-slate-400 max-w-2xl font-normal leading-relaxed mb-10">
-                    Reclaim.AI detects revenue at risk, diagnoses the root cause, and executes a bounded, auditable recovery workflow — automatically.
-                </p>
-
-                {/* CTA Action Buttons */}
-                <div className="flex items-center gap-4 mb-16">
-                    <button
-                        onClick={() => navigate("/overview")}
-                        className="px-6 py-3 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold text-sm shadow-xl shadow-emerald-500/25 transition-all cursor-pointer flex items-center gap-2"
-                    >
-                        <span>See Live Recovery</span>
-                        <ArrowRight className="w-4 h-4" />
-                    </button>
-
-                    <a href="#guardrails">
-                        <button className="px-6 py-3 rounded-xl bg-slate-900 hover:bg-slate-800 text-slate-300 border border-slate-800 font-semibold text-sm transition-all cursor-pointer flex items-center gap-2">
-                            <ShieldCheck className="w-4 h-4 text-emerald-400" />
-                            <span>View Guardrails</span>
-                        </button>
-                    </a>
-                </div>
-
-                {/* Metric Pills */}
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 w-full max-w-2xl mb-12">
-                    <div className="p-4 rounded-2xl bg-slate-900/60 border border-slate-800/80 text-center">
-                        <span className="text-2xl font-extrabold text-emerald-400 font-mono block">₹4.86L</span>
-                        <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500">RECOVERED · LATEST BATCH</span>
-                    </div>
-
-                    <div className="p-4 rounded-2xl bg-slate-900/60 border border-slate-800/80 text-center">
-                        <span className="text-2xl font-extrabold text-teal-300 font-mono block">68.7%</span>
-                        <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500">RECOVERY RATE</span>
-                    </div>
-
-                    <div className="p-4 rounded-2xl bg-slate-900/60 border border-slate-800/80 text-center">
-                        <span className="text-2xl font-extrabold text-cyan-400 font-mono block">247</span>
-                        <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500">ACTIVE INTERVENTIONS</span>
-                    </div>
-                </div>
-            </main>
-
-            {/* Live Ticker Bar */}
-            <div className="w-full bg-[#080c14] border-y border-slate-800/60 py-3 overflow-x-auto whitespace-nowrap">
-                <div className="max-w-7xl mx-auto px-6 flex items-center gap-6 text-xs font-mono">
-                    {tickerItems.map((item, idx) => (
-                        <div key={idx} className="flex items-center gap-2 shrink-0">
-                            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
-                            <span className="text-slate-400">{item.id}</span>
-                            <span className="text-slate-500">→ {item.action}</span>
-                            <span className={`px-2 py-0.5 rounded text-[10px] font-bold border ${item.color}`}>
-                                {item.status}
-                            </span>
-                            <span className="text-slate-500">{item.conf} conf</span>
-                        </div>
+        <div
+            className="animate-rise-3"
+            style={{
+                background: "var(--surface)",
+                backdropFilter: "blur(16px)",
+                WebkitBackdropFilter: "blur(16px)",
+                border: "1px solid var(--line)",
+                borderRadius: "0.875rem",
+                boxShadow: "var(--shadow-panel)",
+                overflow: "hidden",
+                maxWidth: "440px",
+                width: "100%"
+            }}
+        >
+            {/* Top bar */}
+            <div
+                style={{
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "space-between",
+                    padding: "0.75rem 1rem",
+                    borderBottom: "1px solid var(--line)"
+                }}
+            >
+                {/* Window controls */}
+                <div style={{ display: "flex", alignItems: "center", gap: "5px" }}>
+                    {["var(--down)", "var(--warn)", "var(--up)"].map((c, i) => (
+                        <span
+                            key={i}
+                            style={{
+                                width: "8px",
+                                height: "8px",
+                                borderRadius: "9999px",
+                                background: c,
+                                opacity: 0.7,
+                                display: "inline-block"
+                            }}
+                        />
                     ))}
+                </div>
+                {/* Live label */}
+                <div style={{ display: "flex", alignItems: "center", gap: "0.4rem" }}>
+                    <span
+                        className="animate-blip"
+                        style={{
+                            width: "5px",
+                            height: "5px",
+                            borderRadius: "9999px",
+                            background: "var(--primary)",
+                            display: "inline-block"
+                        }}
+                    />
+                    <span
+                        style={{
+                            fontSize: "0.5625rem",
+                            fontFamily: "'JetBrains Mono', monospace",
+                            letterSpacing: "0.2em",
+                            color: "var(--mute)",
+                            textTransform: "uppercase"
+                        }}
+                    >
+                        Recovery Ledger · Live
+                    </span>
                 </div>
             </div>
 
-            {/* Section: How It Works */}
-            <section id="how" className="max-w-6xl w-full mx-auto px-6 py-20">
-                <div className="text-center mb-12">
-                    <span className="text-xs font-bold text-emerald-400 uppercase tracking-widest block mb-2">HOW IT WORKS</span>
-                    <h2 className="text-3xl md:text-4xl font-extrabold text-slate-100 tracking-tight font-mono">
-                        Perceive · Decide · Act · Log
-                    </h2>
+            {/* Table */}
+            <div style={{ padding: "0" }}>
+                {/* Headers */}
+                <div
+                    style={{
+                        display: "grid",
+                        gridTemplateColumns: "1fr 1fr 1fr 1fr",
+                        padding: "0.5rem 1rem",
+                        borderBottom: "1px solid var(--line)"
+                    }}
+                >
+                    {["Invoice", "Amount", "Status", "Agent"].map((h) => (
+                        <span
+                            key={h}
+                            style={{
+                                fontSize: "0.5625rem",
+                                fontFamily: "'JetBrains Mono', monospace",
+                                fontWeight: 600,
+                                letterSpacing: "0.14em",
+                                textTransform: "uppercase",
+                                color: "var(--mute)"
+                            }}
+                        >
+                            {h}
+                        </span>
+                    ))}
                 </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
-                    {[
-                        { step: "01", title: "Detect", icon: Activity, desc: "Payment failure signals are captured and scored for recoverability in real-time." },
-                        { step: "02", title: "Diagnose", icon: Sparkles, desc: "Gemini AI analyses failure mode, customer segment, and retry history." },
-                        { step: "03", title: "Intervene", icon: Zap, desc: "The right action — retry, payment link, or escalation — is dispatched within policy bounds." },
-                        { step: "04", title: "Log", icon: BookOpen, desc: "Every decision, reason, and outcome is written to the immutable audit trail." }
-                    ].map((card, idx) => {
-                        const Icon = card.icon;
-                        return (
-                            <div key={idx} className="p-6 rounded-2xl bg-slate-900/60 border border-slate-800/80 space-y-3">
-                                <div className="flex items-center justify-between">
-                                    <span className="text-xl font-bold font-mono text-emerald-400">{card.step}</span>
-                                    <div className="p-2 rounded-xl bg-slate-800 text-emerald-400">
-                                        <Icon className="w-4 h-4" />
-                                    </div>
+                {/* Rows */}
+                {ledgerRows.map((row, i) => (
+                    <div
+                        key={row.id}
+                        className={row.statusKey === "retrying" ? "animate-catch" : ""}
+                        style={{
+                            display: "grid",
+                            gridTemplateColumns: "1fr 1fr 1fr 1fr",
+                            padding: "0.5625rem 1rem",
+                            borderBottom: i < ledgerRows.length - 1 ? "1px solid var(--line)" : "none",
+                            transition: "background-color 150ms ease",
+                            background: row.statusKey === "retrying" ? "var(--primary-muted)" : "transparent",
+                            cursor: "default"
+                        }}
+                        onMouseEnter={(e) => {
+                            e.currentTarget.style.backgroundColor = "var(--primary-soft)";
+                        }}
+                        onMouseLeave={(e) => {
+                            e.currentTarget.style.backgroundColor =
+                                row.statusKey === "retrying" ? "var(--primary-muted)" : "transparent";
+                        }}
+                    >
+                        <span
+                            style={{
+                                fontSize: "0.6875rem",
+                                fontFamily: "'JetBrains Mono', monospace",
+                                color: "var(--ink)",
+                                fontWeight: 500
+                            }}
+                        >
+                            {row.id}
+                        </span>
+                        <span
+                            style={{
+                                fontSize: "0.6875rem",
+                                fontFamily: "'JetBrains Mono', monospace",
+                                fontVariantNumeric: "tabular-nums",
+                                color: "var(--ink)"
+                            }}
+                        >
+                            {row.amount}
+                        </span>
+                        <span
+                            style={{
+                                fontSize: "0.6875rem",
+                                fontFamily: "'JetBrains Mono', monospace",
+                                fontWeight: 600,
+                                ...statusStyles[row.statusKey]
+                            }}
+                        >
+                            {row.status}
+                        </span>
+                        <span
+                            style={{
+                                fontSize: "0.6875rem",
+                                fontFamily: "'JetBrains Mono', monospace",
+                                color: "var(--mute)"
+                            }}
+                        >
+                            {row.agent}
+                        </span>
+                    </div>
+                ))}
+            </div>
+
+            {/* Footer */}
+            <div
+                style={{
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "space-between",
+                    padding: "0.625rem 1rem",
+                    borderTop: "1px solid var(--line)"
+                }}
+            >
+                <span
+                    style={{
+                        fontSize: "0.6875rem",
+                        fontFamily: "'JetBrains Mono', monospace",
+                        color: "var(--mute)"
+                    }}
+                >
+                    total recovered{" "}
+                    <span style={{ color: "var(--up)", fontWeight: 600 }}>$4,215,980.00</span>
+                </span>
+                <span
+                    style={{
+                        fontSize: "0.6875rem",
+                        fontFamily: "'JetBrains Mono', monospace",
+                        color: "var(--mute)"
+                    }}
+                >
+                    38.6% of volume
+                </span>
+            </div>
+        </div>
+    );
+}
+
+/* ─── Landing Page ──────────────────────────────────────── */
+export const LandingPage = () => {
+    const navigate = useNavigate();
+    const [dark, setDark] = useState(() =>
+        window.matchMedia?.("(prefers-color-scheme: dark)").matches
+    );
+
+    useEffect(() => {
+        if (dark) document.documentElement.classList.add("dark");
+        else document.documentElement.classList.remove("dark");
+    }, [dark]);
+
+    const btnPrimary = {
+        display: "inline-flex",
+        alignItems: "center",
+        gap: "0.5rem",
+        padding: "0.625rem 1.125rem",
+        borderRadius: "0.5rem",
+        background: "var(--primary)",
+        color: "white",
+        fontWeight: 600,
+        fontSize: "0.875rem",
+        fontFamily: "'Inter', sans-serif",
+        border: "none",
+        cursor: "pointer",
+        boxShadow: "0 2px 8px oklch(0.43 0.075 180 / 0.35)",
+        transition: "opacity 150ms ease, transform 80ms ease",
+        textDecoration: "none"
+    };
+
+    const btnSecondary = {
+        display: "inline-flex",
+        alignItems: "center",
+        gap: "0.5rem",
+        padding: "0.625rem 1.125rem",
+        borderRadius: "0.5rem",
+        background: "transparent",
+        color: "var(--ink)",
+        fontWeight: 500,
+        fontSize: "0.875rem",
+        fontFamily: "'Inter', sans-serif",
+        border: "1px solid var(--line)",
+        cursor: "pointer",
+        transition: "all 150ms ease",
+        textDecoration: "none"
+    };
+
+    return (
+        <div
+            style={{
+                minHeight: "100vh",
+                background: "var(--background)",
+                color: "var(--ink)",
+                display: "flex",
+                flexDirection: "column",
+                fontFamily: "'Inter', sans-serif"
+            }}
+        >
+            {/* ── Site Header ─────────────────────────────── */}
+            <header
+                style={{
+                    position: "sticky",
+                    top: 0,
+                    zIndex: 50,
+                    background: "var(--surface)",
+                    backdropFilter: "blur(16px)",
+                    WebkitBackdropFilter: "blur(16px)",
+                    borderBottom: "1px solid var(--line)"
+                }}
+            >
+                <div
+                    style={{
+                        maxWidth: "72rem",
+                        margin: "0 auto",
+                        padding: "0 1.5rem",
+                        height: "4rem",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "space-between"
+                    }}
+                >
+                    {/* Logo */}
+                    <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
+                        <div
+                            style={{
+                                width: "1.625rem",
+                                height: "1.625rem",
+                                borderRadius: "0.4375rem",
+                                background: "var(--primary-soft)",
+                                border: "1px solid oklch(0.43 0.075 180 / 0.3)",
+                                display: "flex",
+                                alignItems: "center",
+                                justifyContent: "center",
+                                color: "var(--primary)"
+                            }}
+                        >
+                            <Zap size={13} strokeWidth={2.5} />
+                        </div>
+                        <span
+                            style={{
+                                fontSize: "1rem",
+                                fontWeight: 700,
+                                letterSpacing: "-0.025em",
+                                color: "var(--ink)"
+                            }}
+                        >
+                            Reclaim<span style={{ color: "var(--primary)" }}>.AI</span>
+                        </span>
+                    </div>
+
+                    {/* Nav */}
+                    <nav
+                        style={{
+                            display: "flex",
+                            alignItems: "center",
+                            gap: "2rem"
+                        }}
+                    >
+                        {[
+                            { label: "How it works", href: "#how" },
+                            { label: "Guardrails", href: "#guardrails" },
+                            { label: "Ledger", href: "#ledger" }
+                        ].map((link) => (
+                            <a
+                                key={link.label}
+                                href={link.href}
+                                style={{
+                                    fontSize: "0.8125rem",
+                                    fontWeight: 500,
+                                    color: "var(--mute)",
+                                    textDecoration: "none",
+                                    transition: "color 150ms ease"
+                                }}
+                                onMouseEnter={(e) => (e.currentTarget.style.color = "var(--ink)")}
+                                onMouseLeave={(e) => (e.currentTarget.style.color = "var(--mute)")}
+                            >
+                                {link.label}
+                            </a>
+                        ))}
+                    </nav>
+
+                    {/* Right: dark toggle + CTA */}
+                    <div style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}>
+                        <button
+                            onClick={() => setDark((d) => !d)}
+                            style={{
+                                padding: "0.375rem",
+                                borderRadius: "0.4375rem",
+                                border: "1px solid var(--line)",
+                                background: "transparent",
+                                color: "var(--mute)",
+                                cursor: "pointer",
+                                display: "flex",
+                                alignItems: "center",
+                                transition: "all 150ms ease"
+                            }}
+                        >
+                            {dark ? <Sun size={15} /> : <Moon size={15} />}
+                        </button>
+                        <Link to="/overview" style={{ textDecoration: "none" }}>
+                            <button
+                                style={btnPrimary}
+                                onMouseEnter={(e) => (e.currentTarget.style.opacity = "0.88")}
+                                onMouseLeave={(e) => (e.currentTarget.style.opacity = "1")}
+                            >
+                                <span>Open Console</span>
+                                <ArrowRight size={14} />
+                            </button>
+                        </Link>
+                    </div>
+                </div>
+            </header>
+
+            {/* ── Hero ────────────────────────────────────── */}
+            <section
+                style={{
+                    maxWidth: "72rem",
+                    margin: "0 auto",
+                    padding: "5rem 1.5rem 4rem",
+                    display: "grid",
+                    gridTemplateColumns: "1fr 1fr",
+                    gap: "4rem",
+                    alignItems: "center"
+                }}
+            >
+                {/* Left copy */}
+                <div>
+                    <div className="animate-rise" style={{ marginBottom: "1.25rem" }}>
+                        <span
+                            className="eyebrow-primary"
+                            style={{
+                                display: "inline-flex",
+                                alignItems: "center",
+                                gap: "0.4rem",
+                                padding: "0.25rem 0.625rem",
+                                borderRadius: "9999px",
+                                background: "var(--primary-soft)",
+                                border: "1px solid oklch(0.43 0.075 180 / 0.2)"
+                            }}
+                        >
+                            <span
+                                className="animate-blip"
+                                style={{
+                                    width: "5px",
+                                    height: "5px",
+                                    borderRadius: "9999px",
+                                    background: "var(--primary)",
+                                    display: "inline-block"
+                                }}
+                            />
+                            Revenue Recovery Agent
+                        </span>
+                    </div>
+
+                    <h1
+                        className="animate-rise-1"
+                        style={{
+                            fontSize: "clamp(2.25rem, 4vw, 3.25rem)",
+                            fontWeight: 700,
+                            lineHeight: 1.06,
+                            letterSpacing: "-0.03em",
+                            color: "var(--ink)",
+                            marginBottom: "1.25rem"
+                        }}
+                    >
+                        Failed payments,{" "}
+                        <span style={{ color: "var(--primary)" }}>caught and recovered</span>{" "}
+                        automatically.
+                    </h1>
+
+                    <p
+                        className="animate-rise-2"
+                        style={{
+                            fontSize: "1rem",
+                            color: "var(--mute)",
+                            lineHeight: 1.7,
+                            marginBottom: "2rem",
+                            maxWidth: "36rem"
+                        }}
+                    >
+                        Reclaim AI's agent re-routes declined charges, corrects failure scenarios, and re-submits within the recovery window — so revenue that slips through never stays gone.
+                    </p>
+
+                    <div
+                        className="animate-rise-2"
+                        style={{ display: "flex", alignItems: "center", gap: "0.75rem", flexWrap: "wrap" }}
+                    >
+                        <button
+                            onClick={() => navigate("/overview")}
+                            style={btnPrimary}
+                            onMouseEnter={(e) => (e.currentTarget.style.opacity = "0.88")}
+                            onMouseLeave={(e) => (e.currentTarget.style.opacity = "1")}
+                        >
+                            <span>See Live Recovery</span>
+                            <ArrowRight size={14} />
+                        </button>
+                        <a
+                            href="#guardrails"
+                            style={btnSecondary}
+                            onMouseEnter={(e) => {
+                                e.currentTarget.style.background = "var(--line)";
+                                e.currentTarget.style.borderColor = "var(--line-strong)";
+                            }}
+                            onMouseLeave={(e) => {
+                                e.currentTarget.style.background = "transparent";
+                                e.currentTarget.style.borderColor = "var(--line)";
+                            }}
+                        >
+                            <ShieldCheck size={14} style={{ color: "var(--primary)" }} />
+                            <span>View Guardrails</span>
+                        </a>
+                    </div>
+
+                    {/* KPI pills */}
+                    <div
+                        className="animate-rise-3"
+                        style={{
+                            display: "flex",
+                            gap: "1.5rem",
+                            marginTop: "2.5rem",
+                            flexWrap: "wrap"
+                        }}
+                    >
+                        {[
+                            { value: "$4.2M", label: "Recovered · 90d" },
+                            { value: "38.6%", label: "Recovery Rate" },
+                            { value: "1.9m", label: "Median Recovery Time" }
+                        ].map((kpi) => (
+                            <div key={kpi.label}>
+                                <div
+                                    style={{
+                                        fontSize: "1.5rem",
+                                        fontWeight: 700,
+                                        fontFamily: "'JetBrains Mono', monospace",
+                                        fontVariantNumeric: "tabular-nums",
+                                        color: "var(--ink)",
+                                        letterSpacing: "-0.02em",
+                                        lineHeight: 1.1
+                                    }}
+                                >
+                                    {kpi.value}
                                 </div>
-                                <h3 className="text-base font-bold text-slate-100">{card.title}</h3>
-                                <p className="text-xs text-slate-400 leading-relaxed">{card.desc}</p>
+                                <div className="eyebrow" style={{ marginTop: "3px" }}>{kpi.label}</div>
                             </div>
-                        );
-                    })}
+                        ))}
+                    </div>
+                </div>
+
+                {/* Right: Ledger Panel */}
+                <div style={{ display: "flex", justifyContent: "flex-end" }}>
+                    <RecoveryLedger />
                 </div>
             </section>
 
-            {/* Section: Guardrails, Not Suggestions */}
-            <section id="guardrails" className="max-w-6xl w-full mx-auto px-6 py-16 border-t border-slate-800/60">
-                <div className="text-center mb-12">
-                    <span className="text-xs font-bold text-emerald-400 uppercase tracking-widest block mb-2">POLICY ENGINE</span>
-                    <h2 className="text-3xl md:text-4xl font-extrabold text-slate-100 tracking-tight font-mono">
-                        Guardrails, not suggestions
-                    </h2>
-                </div>
+            {/* ── How It Works ────────────────────────────── */}
+            <section
+                id="how"
+                style={{
+                    background: "var(--surface-solid)",
+                    borderTop: "1px solid var(--line)",
+                    borderBottom: "1px solid var(--line)"
+                }}
+            >
+                <div
+                    style={{
+                        maxWidth: "72rem",
+                        margin: "0 auto",
+                        padding: "4rem 1.5rem"
+                    }}
+                >
+                    <div className="animate-rise" style={{ marginBottom: "3rem" }}>
+                        <span className="eyebrow" style={{ display: "block", marginBottom: "0.5rem" }}>
+                            How the Agent Works
+                        </span>
+                        <h2
+                            style={{
+                                fontSize: "clamp(1.5rem, 3vw, 2.25rem)",
+                                fontWeight: 700,
+                                letterSpacing: "-0.025em",
+                                color: "var(--ink)"
+                            }}
+                        >
+                            A recovery timeline, end to end.
+                        </h2>
+                    </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div
+                        style={{
+                            display: "grid",
+                            gridTemplateColumns: "repeat(4, 1fr)",
+                            gap: "1.5px",
+                            background: "var(--line)"
+                        }}
+                    >
+                        {[
+                            { step: "01", title: "Detect", desc: "Every decline is classified by code and wallet the moment it drops." },
+                            { step: "02", title: "Diagnose", desc: "Agent reads the reject reason and the customer's payment history." },
+                            { step: "03", title: "Act", desc: "Re-route, correct address, or schedule a smart retry within window." },
+                            { step: "04", title: "Log", desc: "Each decision is written to an auditable, replayable log." }
+                        ].map((item, i) => (
+                            <div
+                                key={item.step}
+                                className={`animate-rise-${i + 1}`}
+                                style={{
+                                    padding: "2rem 1.5rem",
+                                    background: "var(--surface-solid)"
+                                }}
+                            >
+                                <div
+                                    style={{
+                                        fontSize: "0.8125rem",
+                                        fontFamily: "'JetBrains Mono', monospace",
+                                        color: "var(--primary)",
+                                        fontWeight: 600,
+                                        marginBottom: "0.75rem"
+                                    }}
+                                >
+                                    ({item.step})
+                                </div>
+                                <h3
+                                    style={{
+                                        fontSize: "0.9375rem",
+                                        fontWeight: 600,
+                                        color: "var(--ink)",
+                                        marginBottom: "0.625rem",
+                                        fontFamily: "'Inter', sans-serif"
+                                    }}
+                                >
+                                    {item.title}
+                                </h3>
+                                <p style={{ fontSize: "0.8125rem", color: "var(--mute)", lineHeight: 1.6 }}>
+                                    {item.desc}
+                                </p>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            </section>
+
+            {/* ── Failed Payments Ledger Preview ──────────── */}
+            <section
+                id="ledger"
+                style={{
+                    maxWidth: "72rem",
+                    margin: "0 auto",
+                    padding: "4rem 1.5rem"
+                }}
+            >
+                <div
+                    className="panel animate-rise"
+                    style={{ overflow: "hidden" }}
+                >
+                    {/* Panel Header */}
+                    <div
+                        style={{
+                            padding: "1.25rem 1.5rem",
+                            borderBottom: "1px solid var(--line)",
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "space-between"
+                        }}
+                    >
+                        <div>
+                            <span className="eyebrow" style={{ display: "block", marginBottom: "3px" }}>
+                                In Product
+                            </span>
+                            <h3
+                                style={{
+                                    fontSize: "1rem",
+                                    fontWeight: 600,
+                                    color: "var(--ink)",
+                                    fontFamily: "'Inter', sans-serif",
+                                    letterSpacing: "-0.01em"
+                                }}
+                            >
+                                Failed payments ledger
+                            </h3>
+                        </div>
+                        <div style={{ display: "flex", alignItems: "center", gap: "0.4rem" }}>
+                            <span
+                                className="animate-blip"
+                                style={{
+                                    width: "5px",
+                                    height: "5px",
+                                    borderRadius: "9999px",
+                                    background: "var(--primary)",
+                                    display: "inline-block"
+                                }}
+                            />
+                            <span
+                                style={{
+                                    fontSize: "0.6875rem",
+                                    fontFamily: "'JetBrains Mono', monospace",
+                                    color: "var(--mute)"
+                                }}
+                            >
+                                last sync 12s ago
+                            </span>
+                        </div>
+                    </div>
+
+                    {/* Table */}
+                    <table className="tf-table">
+                        <thead>
+                            <tr>
+                                <th>Invoice</th>
+                                <th>Amount</th>
+                                <th>Code</th>
+                                <th>Retry State</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {[
+                                { id: "inv_8f21c", amount: "$2,480.00", code: "expired card",    state: "Recovered · retry 1", stateKey: "recovered" },
+                                { id: "inv_a39e0", amount: "$1,120.00", code: "insufficient",    state: "Recovered · retry 2", stateKey: "recovered" },
+                                { id: "inv_51b77", amount: "$960.00",   code: "expired card",    state: "Retrying · next 1.4h", stateKey: "retrying" },
+                                { id: "inv_c04d2", amount: "$3,300.00", code: "card declined",   state: "Failed · 3 attempts",  stateKey: "failed" },
+                                { id: "inv_77ba1", amount: "$12,400.00", code: "over auto-cap",  state: "Held · awaiting sign-off", stateKey: "held" }
+                            ].map((row, i) => (
+                                <tr
+                                    key={row.id}
+                                    className={row.stateKey === "retrying" ? "animate-catch" : "row-hover"}
+                                    style={{
+                                        borderBottom: "1px solid var(--line)"
+                                    }}
+                                >
+                                    <td style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: "0.75rem", color: "var(--ink)" }}>
+                                        {row.id}
+                                    </td>
+                                    <td style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: "0.75rem", fontVariantNumeric: "tabular-nums", color: "var(--ink)" }}>
+                                        {row.amount}
+                                    </td>
+                                    <td style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: "0.75rem", color: "var(--mute)" }}>
+                                        {row.code}
+                                    </td>
+                                    <td
+                                        style={{
+                                            fontFamily: "'JetBrains Mono', monospace",
+                                            fontSize: "0.75rem",
+                                            fontWeight: 600,
+                                            ...statusStyles[row.stateKey] || { color: "var(--warn)" }
+                                        }}
+                                    >
+                                        {row.state}
+                                    </td>
+                                </tr>
+                            ))}
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+
+            {/* ── Guardrails Section ───────────────────────── */}
+            <section
+                id="guardrails"
+                style={{
+                    background: "var(--surface-solid)",
+                    borderTop: "1px solid var(--line)",
+                    borderBottom: "1px solid var(--line)"
+                }}
+            >
+                <div
+                    style={{
+                        maxWidth: "72rem",
+                        margin: "0 auto",
+                        padding: "4rem 1.5rem",
+                        display: "grid",
+                        gridTemplateColumns: "1fr 1fr",
+                        gap: "3rem",
+                        alignItems: "start"
+                    }}
+                >
+                    {/* Left copy */}
+                    <div className="animate-rise">
+                        <span className="eyebrow" style={{ display: "block", marginBottom: "0.5rem" }}>
+                            Guardrails &amp; Trust
+                        </span>
+                        <h2
+                            style={{
+                                fontSize: "clamp(1.5rem, 2.5vw, 2rem)",
+                                fontWeight: 700,
+                                letterSpacing: "-0.025em",
+                                color: "var(--ink)",
+                                marginBottom: "1rem"
+                            }}
+                        >
+                            The agent acts only inside the boundary you set.
+                        </h2>
+                        <p
+                            style={{
+                                fontSize: "0.9rem",
+                                color: "var(--mute)",
+                                lineHeight: 1.7,
+                                marginBottom: "1.5rem"
+                            }}
+                        >
+                            Hard caps, a human-approval layer above a threshold, and a replayable decision log mean every recovery is explainable before it happens — not after.
+                        </p>
+
+                        {/* Policy Table */}
+                        <div
+                            className="panel"
+                            style={{ overflow: "hidden" }}
+                        >
+                            {[
+                                { label: "max retry per invoice", value: "4", color: "var(--ink)" },
+                                { label: "auto-recover cap", value: "$5,000.00", color: "var(--ink)" },
+                                { label: "approval required above", value: "$10,000.00", color: "var(--warn)" },
+                                { label: "quiet hours (customer local)", value: "20:00 – 08:00", color: "var(--ink)" }
+                            ].map((row, i, arr) => (
+                                <div
+                                    key={row.label}
+                                    style={{
+                                        display: "flex",
+                                        justifyContent: "space-between",
+                                        padding: "0.625rem 1rem",
+                                        borderBottom: i < arr.length - 1 ? "1px solid var(--line)" : "none"
+                                    }}
+                                >
+                                    <span
+                                        style={{
+                                            fontSize: "0.75rem",
+                                            fontFamily: "'JetBrains Mono', monospace",
+                                            color: "var(--mute)"
+                                        }}
+                                    >
+                                        {row.label}
+                                    </span>
+                                    <span
+                                        style={{
+                                            fontSize: "0.75rem",
+                                            fontFamily: "'JetBrains Mono', monospace",
+                                            fontWeight: 600,
+                                            fontVariantNumeric: "tabular-nums",
+                                            color: row.color
+                                        }}
+                                    >
+                                        {row.value}
+                                    </span>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+
+                    {/* Right: Decision Log */}
+                    <div className="animate-rise-1">
+                        <div
+                            className="panel"
+                            style={{ overflow: "hidden" }}
+                        >
+                            <div
+                                style={{
+                                    padding: "0.75rem 1rem",
+                                    borderBottom: "1px solid var(--line)",
+                                    display: "flex",
+                                    justifyContent: "space-between",
+                                    alignItems: "center"
+                                }}
+                            >
+                                <span
+                                    style={{
+                                        fontSize: "0.6875rem",
+                                        fontFamily: "'JetBrains Mono', monospace",
+                                        fontWeight: 600,
+                                        letterSpacing: "0.1em",
+                                        color: "var(--ink)",
+                                        textTransform: "uppercase"
+                                    }}
+                                >
+                                    Agent Decision Log
+                                </span>
+                                <span
+                                    style={{
+                                        fontSize: "0.625rem",
+                                        fontFamily: "'JetBrains Mono', monospace",
+                                        color: "var(--mute)"
+                                    }}
+                                >
+                                    replayable
+                                </span>
+                            </div>
+                            {[
+                                { time: "14:02:11", id: "inv_51b77", action: "schedule retry in 1.4h", color: "var(--primary)" },
+                                { time: "14:02:07", id: "inv_a39e0", action: "re-route via acquirer B", color: "var(--up)" },
+                                { time: "14:01:58", id: "inv_c04d2", action: "hold · 3 fails, escalate", color: "var(--down)" },
+                                { time: "14:01:22", id: "inv_77ba1", action: "route to human · above cap", color: "var(--warn)" }
+                            ].map((entry, i) => (
+                                <div
+                                    key={entry.id}
+                                    style={{
+                                        padding: "0.625rem 1rem",
+                                        borderBottom: i < 3 ? "1px solid var(--line)" : "none",
+                                        fontFamily: "'JetBrains Mono', monospace",
+                                        fontSize: "0.6875rem"
+                                    }}
+                                >
+                                    <span style={{ color: "var(--mute)" }}>{entry.time}&nbsp;&nbsp;</span>
+                                    <span style={{ color: "var(--ink)", fontWeight: 500 }}>{entry.id}</span>
+                                    <span style={{ color: "var(--mute)" }}> → </span>
+                                    <span style={{ color: entry.color, fontWeight: 600 }}>{entry.action}</span>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            {/* ── Does / Never Does ───────────────────────── */}
+            <section
+                style={{
+                    maxWidth: "72rem",
+                    margin: "0 auto",
+                    padding: "4rem 1.5rem"
+                }}
+            >
+                <div
+                    style={{
+                        display: "grid",
+                        gridTemplateColumns: "1fr 1fr",
+                        gap: "1.5rem"
+                    }}
+                >
                     {/* Does */}
-                    <div className="p-6 rounded-2xl bg-slate-900/60 border border-emerald-900/40 space-y-4">
-                        <h3 className="text-sm font-bold text-emerald-400 uppercase tracking-wider flex items-center gap-2">
-                            <Check className="w-4 h-4" />
-                            WHAT THE AGENT DOES
+                    <div
+                        className="panel panel-accent-up animate-rise"
+                        style={{
+                            padding: "1.5rem"
+                        }}
+                    >
+                        <h3
+                            style={{
+                                display: "flex",
+                                alignItems: "center",
+                                gap: "0.5rem",
+                                fontSize: "0.75rem",
+                                fontWeight: 700,
+                                color: "var(--up)",
+                                textTransform: "uppercase",
+                                letterSpacing: "0.1em",
+                                marginBottom: "1rem"
+                            }}
+                        >
+                            <Check size={14} />
+                            What the Agent Does
                         </h3>
-                        <ul className="space-y-3 text-xs text-slate-300">
-                            <li className="flex items-start gap-2">
-                                <span className="text-emerald-400 font-bold">•</span>
-                                <span>Retries only safe, temporary failures — never invalid ones</span>
-                            </li>
-                            <li className="flex items-start gap-2">
-                                <span className="text-emerald-400 font-bold">•</span>
-                                <span>Sends payment links for declined cards with no retry budget</span>
-                            </li>
-                            <li className="flex items-start gap-2">
-                                <span className="text-emerald-400 font-bold">•</span>
-                                <span>Escalates to a human for high-value payments above ₹20,000</span>
-                            </li>
-                            <li className="flex items-start gap-2">
-                                <span className="text-emerald-400 font-bold">•</span>
-                                <span>Logs every decision with AI reason and confidence score</span>
-                            </li>
-                            <li className="flex items-start gap-2">
-                                <span className="text-emerald-400 font-bold">•</span>
-                                <span>Halts after 3 attempts to prevent compounding losses</span>
-                            </li>
+                        <ul style={{ listStyle: "none", padding: 0, display: "flex", flexDirection: "column", gap: "0.625rem" }}>
+                            {[
+                                "Retries only safe, temporary failures — never invalid ones",
+                                "Sends payment links for declined cards with no retry budget",
+                                "Escalates to a human for high-value payments above ₹20,000",
+                                "Logs every decision with AI reason and confidence score",
+                                "Halts after 3 attempts to prevent compounding losses"
+                            ].map((item) => (
+                                <li
+                                    key={item}
+                                    style={{
+                                        display: "flex",
+                                        alignItems: "flex-start",
+                                        gap: "0.5rem",
+                                        fontSize: "0.8125rem",
+                                        color: "var(--ink)",
+                                        lineHeight: 1.5
+                                    }}
+                                >
+                                    <span style={{ color: "var(--up)", fontWeight: 700, flexShrink: 0 }}>·</span>
+                                    {item}
+                                </li>
+                            ))}
                         </ul>
                     </div>
 
                     {/* Never Does */}
-                    <div className="p-6 rounded-2xl bg-slate-900/60 border border-rose-900/40 space-y-4">
-                        <h3 className="text-sm font-bold text-rose-400 uppercase tracking-wider flex items-center gap-2">
-                            <X className="w-4 h-4" />
-                            WHAT IT WILL NEVER DO
+                    <div
+                        className="panel panel-accent-down animate-rise-1"
+                        style={{
+                            padding: "1.5rem"
+                        }}
+                    >
+                        <h3
+                            style={{
+                                display: "flex",
+                                alignItems: "center",
+                                gap: "0.5rem",
+                                fontSize: "0.75rem",
+                                fontWeight: 700,
+                                color: "var(--down)",
+                                textTransform: "uppercase",
+                                letterSpacing: "0.1em",
+                                marginBottom: "1rem"
+                            }}
+                        >
+                            <X size={14} />
+                            What It Will Never Do
                         </h3>
-                        <ul className="space-y-3 text-xs text-slate-300">
-                            <li className="flex items-start gap-2">
-                                <span className="text-rose-400 font-bold">•</span>
-                                <span>Never guesses on unknown failure modes — escalates instead</span>
-                            </li>
-                            <li className="flex items-start gap-2">
-                                <span className="text-rose-400 font-bold">•</span>
-                                <span>Never retries a payment that was intentionally declined</span>
-                            </li>
-                            <li className="flex items-start gap-2">
-                                <span className="text-rose-400 font-bold">•</span>
-                                <span>Never acts without a policy-validated decision</span>
-                            </li>
-                            <li className="flex items-start gap-2">
-                                <span className="text-rose-400 font-bold">•</span>
-                                <span>Never exposes customer data in logs or API responses</span>
-                            </li>
-                            <li className="flex items-start gap-2">
-                                <span className="text-rose-400 font-bold">•</span>
-                                <span>Never auto-recovers blocked payments without human sign-off</span>
-                            </li>
+                        <ul style={{ listStyle: "none", padding: 0, display: "flex", flexDirection: "column", gap: "0.625rem" }}>
+                            {[
+                                "Never guesses on unknown failure modes — escalates instead",
+                                "Never retries a payment that was intentionally declined",
+                                "Never acts without a policy-validated decision",
+                                "Never exposes customer data in logs or API responses",
+                                "Never auto-recovers blocked payments without human sign-off"
+                            ].map((item) => (
+                                <li
+                                    key={item}
+                                    style={{
+                                        display: "flex",
+                                        alignItems: "flex-start",
+                                        gap: "0.5rem",
+                                        fontSize: "0.8125rem",
+                                        color: "var(--ink)",
+                                        lineHeight: 1.5
+                                    }}
+                                >
+                                    <span style={{ color: "var(--down)", fontWeight: 700, flexShrink: 0 }}>·</span>
+                                    {item}
+                                </li>
+                            ))}
                         </ul>
                     </div>
                 </div>
+            </section>
 
-                {/* Bottom CTA Banner */}
-                <div className="mt-12 p-8 rounded-2xl bg-slate-900/80 border border-slate-800 flex flex-col md:flex-row items-center justify-between gap-6">
-                    <div>
-                        <h3 className="text-xl font-bold text-slate-100 font-mono">Ready to see the agent work?</h3>
-                        <p className="text-xs text-slate-400 mt-1">Trigger a real recovery, inspect the AI decision, follow the audit trail.</p>
-                    </div>
-
-                    <button
-                        onClick={() => navigate("/overview")}
-                        className="px-6 py-3 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold text-xs shadow-lg shadow-emerald-500/20 transition-all cursor-pointer flex items-center gap-2 shrink-0"
+            {/* ── CTA Banner ──────────────────────────────── */}
+            <section
+                style={{
+                    background: "var(--surface-solid)",
+                    borderTop: "1px solid var(--line)"
+                }}
+            >
+                <div
+                    style={{
+                        maxWidth: "72rem",
+                        margin: "0 auto",
+                        padding: "4rem 1.5rem",
+                        textAlign: "center"
+                    }}
+                >
+                    <h2
+                        className="animate-rise"
+                        style={{
+                            fontSize: "clamp(1.75rem, 3vw, 2.5rem)",
+                            fontWeight: 700,
+                            letterSpacing: "-0.03em",
+                            color: "var(--ink)",
+                            marginBottom: "0.75rem"
+                        }}
                     >
-                        <span>Open Dashboard</span>
-                        <ArrowRight className="w-4 h-4" />
-                    </button>
+                        Stop losing revenue to declines.
+                    </h2>
+                    <p
+                        className="animate-rise-1"
+                        style={{
+                            fontSize: "0.9375rem",
+                            color: "var(--mute)",
+                            marginBottom: "2rem"
+                        }}
+                    >
+                        Reclaim AI recovers failed payments autonomously, within your guardrails.
+                    </p>
+                    <div
+                        className="animate-rise-2"
+                        style={{ display: "flex", justifyContent: "center", gap: "0.75rem", flexWrap: "wrap" }}
+                    >
+                        <button
+                            onClick={() => navigate("/overview")}
+                            style={btnPrimary}
+                            onMouseEnter={(e) => (e.currentTarget.style.opacity = "0.88")}
+                            onMouseLeave={(e) => (e.currentTarget.style.opacity = "1")}
+                        >
+                            <span>Open Recovery Console</span>
+                            <ArrowRight size={14} />
+                        </button>
+                        <a
+                            href="#how"
+                            style={btnSecondary}
+                            onMouseEnter={(e) => {
+                                e.currentTarget.style.background = "var(--line)";
+                            }}
+                            onMouseLeave={(e) => {
+                                e.currentTarget.style.background = "transparent";
+                            }}
+                        >
+                            Talk to the team
+                        </a>
+                    </div>
                 </div>
             </section>
+
+            {/* ── Footer ──────────────────────────────────── */}
+            <footer
+                style={{
+                    borderTop: "1px solid var(--line)"
+                }}
+            >
+                <div
+                    style={{
+                        maxWidth: "72rem",
+                        margin: "0 auto",
+                        padding: "1.5rem",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "space-between"
+                    }}
+                >
+                    <span
+                        style={{
+                            fontSize: "0.875rem",
+                            fontWeight: 700,
+                            color: "var(--ink)",
+                            letterSpacing: "-0.02em"
+                        }}
+                    >
+                        Reclaim<span style={{ color: "var(--primary)" }}>.AI</span>
+                    </span>
+                    <span
+                        style={{
+                            fontSize: "0.6875rem",
+                            fontFamily: "'JetBrains Mono', monospace",
+                            color: "var(--mute)"
+                        }}
+                    >
+                        © 2026 Reclaim Systems · operator-grade recovery
+                    </span>
+                </div>
+            </footer>
         </div>
     );
 };

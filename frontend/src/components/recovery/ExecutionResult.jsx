@@ -29,7 +29,7 @@ const getOutcomeExplanation = ({
                     : "The payment"
             } has been successfully recovered. The money is no longer at risk.`,
             icon: CheckCircle2,
-            color: "text-emerald-400"
+            statusClass: "status-up"
         };
     }
 
@@ -43,7 +43,7 @@ const getOutcomeExplanation = ({
                 description:
                     "The customer now has another way to complete the payment. The money has not been recovered yet because the customer still needs to pay.",
                 icon: Clock,
-                color: "text-amber-400"
+                statusClass: "status-warn"
             };
         }
 
@@ -52,21 +52,18 @@ const getOutcomeExplanation = ({
             description:
                 "The system selected a payment link as the recovery method. The payment remains unrecovered until the customer completes it.",
             icon: Clock,
-            color: "text-amber-400"
+            statusClass: "status-warn"
         };
     }
 
     if (action === "RETRY_PAYMENT") {
-        if (
-            result === "failed" ||
-            result === "FAILED"
-        ) {
+        if (result === "failed" || result === "FAILED") {
             return {
                 title: "Retry did not recover the payment",
                 description:
                     "The additional payment attempt was unsuccessful. The payment remains unrecovered and can only continue through another permitted recovery path.",
                 icon: XCircle,
-                color: "text-rose-400"
+                statusClass: "status-down"
             };
         }
 
@@ -75,7 +72,7 @@ const getOutcomeExplanation = ({
             description:
                 "The system made another payment attempt. The current payment status determines whether the money was recovered.",
             icon: Zap,
-            color: "text-cyan-400"
+            statusClass: "status-primary"
         };
     }
 
@@ -85,7 +82,7 @@ const getOutcomeExplanation = ({
             description:
                 "No automatic payment attempt was made. The payment has been moved to a human-review workflow.",
             icon: UserCheck,
-            color: "text-purple-400"
+            statusClass: "status-primary"
         };
     }
 
@@ -95,7 +92,7 @@ const getOutcomeExplanation = ({
             description:
                 "The system will not make another automatic payment attempt. The payment remains unrecovered.",
             icon: AlertTriangle,
-            color: "text-slate-400"
+            statusClass: "status-mute"
         };
     }
 
@@ -104,7 +101,7 @@ const getOutcomeExplanation = ({
         description:
             "The recovery system processed the selected action. The current payment status shows the resulting state.",
         icon: Zap,
-        color: "text-cyan-400"
+        statusClass: "status-primary"
     };
 };
 
@@ -167,59 +164,64 @@ export const ExecutionResult = ({
 
     const OutcomeIcon = outcome.icon;
 
+    const moneyStatusClass = isRecovered
+        ? "status-up"
+        : resultStatus === "pending" || resultStatus === "PENDING"
+            ? "status-warn"
+            : "status-down";
+
+    const moneyStatusLabel = isRecovered
+        ? "Money recovered"
+        : resultStatus === "pending" || resultStatus === "PENDING"
+            ? "Waiting for payment"
+            : "Not recovered";
+
     return (
-        <div className={`
-            glass-panel
-            p-6
-            rounded-2xl
-            border
-            ${
+        <div
+            className={`panel recovery-card ${
                 isRecovered
-                    ? "border-emerald-500/30 bg-emerald-950/10"
-                    : "border-cyan-500/30 bg-gradient-to-br from-slate-900/95 to-cyan-950/20"
-            }
-        `}>
-
+                    ? "panel-accent-up"
+                    : "panel-accent-primary"
+            }`}
+        >
             {/* Header */}
-            <div className="
-                flex
-                flex-col
-                sm:flex-row
-                sm:items-center
-                sm:justify-between
-                gap-4
-                mb-5
-            ">
-
-                <div className="flex items-center gap-3">
-
-                    <div className={`
-                        p-2.5
-                        rounded-xl
-                        border
-                        ${
+            <div
+                style={{
+                    display: "flex",
+                    flexDirection: "column",
+                    gap: "1rem",
+                    marginBottom: "1.25rem"
+                }}
+                className="sm:flex-row sm:items-center sm:justify-between"
+            >
+                <div
+                    style={{
+                        display: "flex",
+                        alignItems: "center",
+                        gap: "0.75rem"
+                    }}
+                >
+                    <div
+                        className={`icon-box icon-box-md ${
                             isRecovered
-                                ? "bg-emerald-500/20 text-emerald-400 border-emerald-500/30"
-                                : "bg-cyan-500/20 text-cyan-400 border-cyan-500/30"
-                        }
-                    `}>
-                        <Zap className="w-5 h-5" />
+                                ? "icon-box-up"
+                                : "icon-box-primary"
+                        }`}
+                    >
+                        <Zap
+                            style={{
+                                width: "1.25rem",
+                                height: "1.25rem"
+                            }}
+                        />
                     </div>
 
                     <div>
-                        <h4 className="
-                            text-base
-                            font-bold
-                            text-slate-100
-                        ">
+                        <h4 className="recovery-card-title">
                             Recovery Outcome
                         </h4>
 
-                        <p className="
-                            text-[11px]
-                            text-slate-400
-                            mt-0.5
-                        ">
+                        <p className="recovery-card-subtitle">
                             What the system actually did
                         </p>
                     </div>
@@ -231,30 +233,25 @@ export const ExecutionResult = ({
             </div>
 
             {/* Action */}
-            <div className="
-                p-4
-                rounded-xl
-                bg-slate-950/60
-                border border-slate-800/80
-                mb-5
-            ">
-                <span className="
-                    text-[10px]
-                    uppercase
-                    tracking-wider
-                    font-bold
-                    text-slate-500
-                    block
-                    mb-1
-                ">
+            <div
+                className="sub-card"
+                style={{ marginBottom: "1.25rem" }}
+            >
+                <span
+                    className="meta-label"
+                    style={{ marginBottom: "0.25rem" }}
+                >
                     Action Taken
                 </span>
 
-                <span className="
-                    text-base
-                    font-bold
-                    text-slate-100
-                ">
+                <span
+                    style={{
+                        display: "block",
+                        fontSize: "1rem",
+                        fontWeight: 700,
+                        color: "var(--ink)"
+                    }}
+                >
                     {actionExecuted
                         ? formatRecoveryAction(actionExecuted)
                         : "No recovery action recorded"}
@@ -262,38 +259,44 @@ export const ExecutionResult = ({
             </div>
 
             {/* Outcome */}
-            <div className="
-                flex
-                items-start
-                gap-3
-                mb-5
-            ">
-
-                <div className="shrink-0 mt-0.5">
+            <div
+                style={{
+                    display: "flex",
+                    alignItems: "flex-start",
+                    gap: "0.75rem",
+                    marginBottom: "1.25rem"
+                }}
+            >
+                <div
+                    style={{
+                        flexShrink: 0,
+                        marginTop: "0.125rem"
+                    }}
+                >
                     <OutcomeIcon
-                        className={`
-                            w-5
-                            h-5
-                            ${outcome.color}
-                        `}
+                        className={outcome.statusClass}
+                        style={{
+                            width: "1.25rem",
+                            height: "1.25rem"
+                        }}
                     />
                 </div>
 
                 <div>
-                    <h5 className="
-                        text-sm
-                        font-bold
-                        text-slate-200
-                    ">
+                    <h5
+                        style={{
+                            fontSize: "0.8125rem",
+                            fontWeight: 700,
+                            color: "var(--ink)"
+                        }}
+                    >
                         {outcome.title}
                     </h5>
 
-                    <p className="
-                        text-sm
-                        text-slate-400
-                        leading-relaxed
-                        mt-1
-                    ">
+                    <p
+                        className="recovery-card-body-text"
+                        style={{ marginTop: "0.25rem" }}
+                    >
                         {outcome.description}
                     </p>
                 </div>
@@ -301,51 +304,44 @@ export const ExecutionResult = ({
 
             {/* Payment link */}
             {linkUrl && (
-                <div className="
-                    p-4
-                    bg-slate-950/80
-                    rounded-xl
-                    border border-cyan-800/50
-                    mb-5
-                ">
-
-                    <div className="
-                        flex
-                        items-center
-                        justify-between
-                        gap-3
-                        mb-2
-                    ">
-                        <span className="
-                            text-[11px]
-                            font-semibold
-                            text-cyan-400
-                            uppercase
-                            tracking-wider
-                        ">
+                <div
+                    className="sub-card-primary"
+                    style={{ marginBottom: "1.25rem" }}
+                >
+                    <div
+                        style={{
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "space-between",
+                            gap: "0.75rem",
+                            marginBottom: "0.5rem"
+                        }}
+                    >
+                        <span className="eyebrow-primary">
                             Customer Payment Link
                         </span>
 
                         <button
+                            type="button"
                             onClick={handleCopy}
-                            className="
-                                text-xs
-                                text-slate-400
-                                hover:text-slate-200
-                                flex
-                                items-center
-                                gap-1
-                                cursor-pointer
-                            "
+                            className="back-link"
+                            style={{ fontSize: "0.75rem" }}
                         >
                             {copied ? (
-                                <CheckCircle2 className="
-                                    w-3.5
-                                    h-3.5
-                                    text-emerald-400
-                                " />
+                                <CheckCircle2
+                                    className="status-up"
+                                    style={{
+                                        width: "0.875rem",
+                                        height: "0.875rem"
+                                    }}
+                                />
                             ) : (
-                                <Copy className="w-3.5 h-3.5" />
+                                <Copy
+                                    style={{
+                                        width: "0.875rem",
+                                        height: "0.875rem"
+                                    }}
+                                />
                             )}
 
                             <span>
@@ -356,22 +352,26 @@ export const ExecutionResult = ({
                         </button>
                     </div>
 
-                    <div className="
-                        flex
-                        items-center
-                        gap-2
-                        font-mono
-                        text-xs
-                        text-slate-300
-                        bg-slate-900
-                        p-2.5
-                        rounded-lg
-                        border border-slate-800
-                    ">
-                        <span className="
-                            truncate
-                            flex-1
-                        ">
+                    <div
+                        className="sub-card"
+                        style={{
+                            display: "flex",
+                            alignItems: "center",
+                            gap: "0.5rem",
+                            padding: "0.625rem"
+                        }}
+                    >
+                        <span
+                            className="font-mono"
+                            style={{
+                                fontSize: "0.75rem",
+                                color: "var(--ink)",
+                                overflow: "hidden",
+                                textOverflow: "ellipsis",
+                                whiteSpace: "nowrap",
+                                flex: 1
+                            }}
+                        >
                             {linkUrl}
                         </span>
 
@@ -379,59 +379,56 @@ export const ExecutionResult = ({
                             href={linkUrl}
                             target="_blank"
                             rel="noreferrer"
-                            className="
-                                p-1
-                                hover:text-cyan-400
-                                shrink-0
-                            "
+                            className="status-primary"
+                            style={{
+                                padding: "0.25rem",
+                                flexShrink: 0
+                            }}
                             aria-label="Open payment link"
                         >
-                            <ExternalLink className="
-                                w-3.5
-                                h-3.5
-                            " />
+                            <ExternalLink
+                                style={{
+                                    width: "0.875rem",
+                                    height: "0.875rem"
+                                }}
+                            />
                         </a>
                     </div>
                 </div>
             )}
 
             {/* Money state */}
-            <div className="
-                pt-4
-                border-t
-                border-slate-800/80
-            ">
-                <div className="
-                    flex
-                    items-center
-                    justify-between
-                    gap-4
-                ">
-                    <span className="
-                        text-xs
-                        text-slate-400
-                    ">
+            <div
+                style={{
+                    paddingTop: "1rem",
+                    borderTop: "1px solid var(--line)"
+                }}
+            >
+                <div
+                    style={{
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "space-between",
+                        gap: "1rem"
+                    }}
+                >
+                    <span
+                        style={{
+                            fontSize: "0.75rem",
+                            color: "var(--mute)"
+                        }}
+                    >
                         Money recovery status
                     </span>
 
-                    <span className={`
-                        text-xs
-                        font-bold
-                        ${
-                            isRecovered
-                                ? "text-emerald-400"
-                                : resultStatus === "pending" ||
-                                  resultStatus === "PENDING"
-                                    ? "text-amber-400"
-                                    : "text-rose-400"
-                        }
-                    `}>
-                        {isRecovered
-                            ? "Money recovered"
-                            : resultStatus === "pending" ||
-                              resultStatus === "PENDING"
-                                ? "Waiting for payment"
-                                : "Not recovered"}
+                    <span
+                        className={moneyStatusClass}
+                        style={{
+                            fontSize: "0.75rem",
+                            fontWeight: 700
+                        }}
+                    >
+                        {moneyStatusLabel}
                     </span>
                 </div>
             </div>

@@ -14,85 +14,231 @@ export const PaymentFilters = ({
         (filters.action && filters.action !== "ALL")
     );
 
+    const selectStyle = {
+        width: "100%",
+        background: "var(--surface-solid)",
+        border: "1px solid var(--line)",
+        borderRadius: "0.5rem",
+        padding: "0.5rem 0.75rem",
+        fontSize: "0.8125rem",
+        fontFamily: "'Inter', sans-serif",
+        color: "var(--ink)",
+        cursor: "pointer",
+        outline: "none",
+        transition: "border-color 150ms ease",
+        appearance: "none",
+        backgroundImage:
+            `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23888' stroke-width='2'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E")`,
+        backgroundRepeat: "no-repeat",
+        backgroundPosition: "right 0.625rem center",
+        paddingRight: "2rem"
+    };
+
     return (
-        <div className="glass-panel p-4 rounded-2xl mb-6 space-y-3">
-            <div className="flex flex-col lg:flex-row items-center gap-3">
-                {/* Search Bar */}
-                <div className="relative flex-1 w-full">
-                    <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
+        <div
+            className="panel"
+            style={{
+                padding: "0.875rem 1rem",
+                marginBottom: "1.5rem"
+            }}
+        >
+            <div
+                style={{
+                    display: "flex",
+                    flexWrap: "wrap",
+                    gap: "0.625rem",
+                    alignItems: "center"
+                }}
+            >
+                <div
+                    style={{
+                        position: "relative",
+                        flex: "1 1 240px",
+                        minWidth: "200px"
+                    }}
+                >
+                    <Search
+                        size={14}
+                        style={{
+                            position: "absolute",
+                            left: "0.75rem",
+                            top: "50%",
+                            transform: "translateY(-50%)",
+                            color: "var(--mute)",
+                            pointerEvents: "none"
+                        }}
+                    />
+
                     <input
                         type="text"
                         placeholder="Search payment ID, customer ID, or order..."
                         value={filters.search || ""}
-                        onChange={(e) => onFilterChange({ search: e.target.value })}
-                        className="w-full bg-slate-900/80 border border-slate-700/70 rounded-xl pl-10 pr-4 py-2 text-sm text-slate-200 placeholder-slate-500 focus:outline-none focus:border-indigo-500 transition-colors"
+                        onChange={(e) =>
+                            onFilterChange({
+                                search: e.target.value
+                            })
+                        }
+                        className="tf-input"
+                        style={{
+                            paddingLeft: "2.125rem",
+                            paddingRight: filters.search
+                                ? "2rem"
+                                : "0.75rem"
+                        }}
                     />
+
                     {filters.search && (
                         <button
-                            onClick={() => onFilterChange({ search: "" })}
-                            className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-200"
+                            type="button"
+                            onClick={() =>
+                                onFilterChange({
+                                    search: ""
+                                })
+                            }
+                            style={{
+                                position: "absolute",
+                                right: "0.625rem",
+                                top: "50%",
+                                transform: "translateY(-50%)",
+                                background: "none",
+                                border: "none",
+                                color: "var(--mute)",
+                                cursor: "pointer",
+                                display: "flex",
+                                alignItems: "center"
+                            }}
                         >
-                            <X className="w-4 h-4" />
+                            <X size={13} />
                         </button>
                     )}
                 </div>
 
-                {/* Status Filter */}
-                <div className="w-full lg:w-44">
+                <div
+                    style={{
+                        flex: "0 1 200px"
+                    }}
+                >
                     <select
                         value={filters.status || "ALL"}
-                        onChange={(e) => onFilterChange({ status: e.target.value })}
-                        className="w-full bg-slate-900/80 border border-slate-700/70 rounded-xl px-3.5 py-2 text-sm text-slate-200 focus:outline-none focus:border-indigo-500 transition-colors"
+                        onChange={(e) =>
+                            onFilterChange({
+                                status: e.target.value
+                            })
+                        }
+                        style={selectStyle}
                     >
-                        <option value="ALL">All Statuses</option>
-                        <option value="at_risk">Money at Risk (Failed/Pending/Escalated)</option>
-                        <option value="failed">Failed</option>
-                        <option value="pending">Pending</option>
-                        <option value="recovered">Recovered</option>
-                        <option value="escalated">Escalated</option>
-                        <option value="stopped">Stopped</option>
+                        <option value="ALL">
+                            All Statuses
+                        </option>
+
+                        <option value="at_risk">
+                            Money at Risk (Failed/Pending/Escalated)
+                        </option>
+
+                        <option value="failed">
+                            Failed
+                        </option>
+
+                        <option value="pending">
+                            Pending
+                        </option>
+
+                        <option value="recovered">
+                            Recovered
+                        </option>
+
+                        <option value="escalated">
+                            Escalated
+                        </option>
+
+                        <option value="stopped">
+                            Stopped
+                        </option>
                     </select>
                 </div>
 
-                {/* Action Filter */}
-                <div className="w-full lg:w-48">
+                <div
+                    style={{
+                        flex: "0 1 200px"
+                    }}
+                >
                     <select
                         value={filters.action || "ALL"}
-                        onChange={(e) => onFilterChange({ action: e.target.value })}
-                        className="w-full bg-slate-900/80 border border-slate-700/70 rounded-xl px-3.5 py-2 text-sm text-slate-200 focus:outline-none focus:border-indigo-500 transition-colors"
+                        onChange={(e) =>
+                            onFilterChange({
+                                action: e.target.value
+                            })
+                        }
+                        style={selectStyle}
                     >
-                        <option value="ALL">All AI Actions</option>
-                        <option value="RETRY_PAYMENT">Auto-Retry Engine</option>
-                        <option value="CREATE_PAYMENT_LINK">Generated Payment Link</option>
-                        <option value="ESCALATE_TO_HUMAN">Human Escalation</option>
-                        <option value="STOP_RECOVERY">Halted Recovery</option>
+                        <option value="ALL">
+                            All AI Actions
+                        </option>
+
+                        <option value="RETRY_PAYMENT">
+                            Auto-Retry Engine
+                        </option>
+
+                        <option value="CREATE_PAYMENT_LINK">
+                            Generated Payment Link
+                        </option>
+
+                        <option value="ESCALATE_TO_HUMAN">
+                            Human Escalation
+                        </option>
+
+                        <option value="STOP_RECOVERY">
+                            Halted Recovery
+                        </option>
                     </select>
                 </div>
 
-                {/* Scenario Filter */}
-                <div className="w-full lg:w-48">
+                <div
+                    style={{
+                        flex: "0 1 200px"
+                    }}
+                >
                     <select
                         value={filters.scenario || "ALL"}
-                        onChange={(e) => onFilterChange({ scenario: e.target.value })}
-                        className="w-full bg-slate-900/80 border border-slate-700/70 rounded-xl px-3.5 py-2 text-sm text-slate-200 focus:outline-none focus:border-indigo-500 transition-colors"
+                        onChange={(e) =>
+                            onFilterChange({
+                                scenario: e.target.value
+                            })
+                        }
+                        style={selectStyle}
                     >
-                        <option value="ALL">All Scenarios</option>
-                        <option value="TEMPORARY_FAILURE">Temporary Failure</option>
-                        <option value="CARD_DECLINED">Card Declined</option>
-                        <option value="REPEATED_FAILURE">Repeated Failure</option>
-                        <option value="HIGH_VALUE_FAILURE">High-Value Failure</option>
-                        <option value="UNKNOWN_FAILURE">Unknown Failure</option>
+                        <option value="ALL">
+                            All Scenarios
+                        </option>
+
+                        <option value="TEMPORARY_FAILURE">
+                            Temporary Failure
+                        </option>
+
+                        <option value="CARD_DECLINED">
+                            Card Declined
+                        </option>
+
+                        <option value="REPEATED_FAILURE">
+                            Repeated Failure
+                        </option>
+
+                        <option value="HIGH_VALUE_FAILURE">
+                            High-Value Failure
+                        </option>
+
+                        <option value="UNKNOWN_FAILURE">
+                            Unknown Failure
+                        </option>
                     </select>
                 </div>
 
-                {/* Reset Filters Button */}
                 {hasActiveFilters && (
                     <Button
                         variant="ghost"
                         size="sm"
                         icon={X}
                         onClick={onReset}
-                        className="shrink-0"
                     >
                         Reset
                     </Button>

@@ -1,151 +1,321 @@
 import React from "react";
 import { formatRelativeTime } from "../../utils/formatDate";
 import { formatRecoveryAction } from "../../utils/statusHelpers";
-import { Activity, ArrowRight, Bot, ShieldCheck } from "lucide-react";
+import { ArrowRight, ShieldCheck } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 
 export const RecentActivity = ({ logs = [] }) => {
     const navigate = useNavigate();
 
     return (
-        <div className="glass-panel p-6 rounded-2xl flex flex-col justify-between h-full">
-            <div>
-                <div className="flex items-center justify-between mb-4">
-                    <h3 className="text-base font-bold text-slate-100 flex items-center gap-2">
-                        <Activity className="w-5 h-5 text-cyan-400" />
-                        Recent AI Decisions & Logs
-                    </h3>
-
-                    <button
-                        onClick={() => navigate("/payments")}
-                        className="text-xs text-indigo-400 hover:text-indigo-300 font-semibold flex items-center gap-1 cursor-pointer"
+        <div
+            className="panel"
+            style={{
+                display: "flex",
+                flexDirection: "column",
+                height: "420px",
+                minHeight: 0
+            }}
+        >
+            <div
+                style={{
+                    padding: "1rem 1.25rem",
+                    borderBottom: "1px solid var(--line)",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "space-between",
+                    flexShrink: 0
+                }}
+            >
+                <div>
+                    <span
+                        className="eyebrow-primary"
+                        style={{
+                            display: "block",
+                            marginBottom: "3px"
+                        }}
                     >
-                        <span>View All Payments</span>
-                        <ArrowRight className="w-3.5 h-3.5" />
-                    </button>
+                        AGENT DECISION LOG
+                    </span>
+
+                    <h3
+                        style={{
+                            fontSize: "0.9375rem",
+                            fontWeight: 600,
+                            color: "var(--ink)",
+                            fontFamily: "'Inter', sans-serif",
+                            letterSpacing: "-0.01em"
+                        }}
+                    >
+                        Recent AI Decisions &amp; Logs
+                    </h3>
                 </div>
 
+                <button
+                    onClick={() => navigate("/payments")}
+                    style={{
+                        display: "flex",
+                        alignItems: "center",
+                        gap: "0.25rem",
+                        fontSize: "0.75rem",
+                        color: "var(--primary)",
+                        background: "none",
+                        border: "none",
+                        cursor: "pointer",
+                        fontWeight: 500,
+                        fontFamily: "'Inter', sans-serif",
+                        transition: "opacity 150ms ease"
+                    }}
+                >
+                    <span>View All Payments</span>
+                    <ArrowRight size={13} />
+                </button>
+            </div>
+
+            <div
+                style={{
+                    flex: 1,
+                    minHeight: 0,
+                    overflowY: "auto",
+                    padding: "0.5rem"
+                }}
+            >
                 {logs.length === 0 ? (
-                    <div className="text-center py-12 text-slate-500 text-xs">
+                    <div
+                        style={{
+                            textAlign: "center",
+                            padding: "2.5rem 1rem",
+                            color: "var(--mute)",
+                            fontSize: "0.75rem",
+                            fontFamily: "'JetBrains Mono', monospace"
+                        }}
+                    >
                         No AI recovery logs recorded yet. Run a recovery action to see live decisions!
                     </div>
                 ) : (
-                    <div className="space-y-3 max-h-[380px] overflow-y-auto pr-1">
-                        {logs.map((log, index) => {
-                            const aiAction =
-                                log.aiAction ||
-                                log.aiRecommendation?.action ||
-                                log.actionExecuted;
+                    logs.map((log, index) => {
+                        const aiAction =
+                            log.aiAction ||
+                            log.aiRecommendation?.action ||
+                            log.actionExecuted;
 
-                            const aiReason =
-                                log.aiReason ||
-                                log.aiRecommendation?.reason ||
-                                log.message;
+                        const aiReason =
+                            log.aiReason ||
+                            log.aiRecommendation?.reason ||
+                            log.message;
 
-                            const aiConfidence =
-                                log.aiConfidence ??
-                                log.aiRecommendation?.confidence;
+                        const aiConfidence =
+                            log.aiConfidence ??
+                            log.aiRecommendation?.confidence;
 
-                            const isAllowed =
-                                log.policyAllowed !== undefined
-                                    ? log.policyAllowed
-                                    : log.policyCheck?.allowed !== false;
+                        const isAllowed =
+                            log.policyAllowed !== undefined
+                                ? log.policyAllowed
+                                : log.policyCheck?.allowed !== false;
 
-                            return (
+                        return (
+                            <div
+                                key={
+                                    log._id ||
+                                    log.logId ||
+                                    `${log.paymentId}-${log.createdAt}-${index}`
+                                }
+                                onClick={() =>
+                                    log.paymentId &&
+                                    navigate(`/payments/${log.paymentId}`)
+                                }
+                                className="row-hover"
+                                style={{
+                                    display: "flex",
+                                    alignItems: "flex-start",
+                                    justifyContent: "space-between",
+                                    gap: "0.75rem",
+                                    padding: "0.625rem 0.75rem",
+                                    borderRadius: "0.5rem",
+                                    cursor: log.paymentId
+                                        ? "pointer"
+                                        : "default",
+                                    transition:
+                                        "background-color 150ms ease"
+                                }}
+                            >
                                 <div
-                                    key={log._id || log.logId || `${log.paymentId}-${log.createdAt}-${index}`}
-                                    onClick={() =>
-                                        log.paymentId &&
-                                        navigate(`/payments/${log.paymentId}`)
-                                    }
-                                    className={`p-3.5 rounded-xl bg-slate-900/60 border border-slate-800/80 hover:border-slate-700/80 transition-all flex items-start justify-between gap-3 group ${
-                                        log.paymentId
-                                            ? "cursor-pointer"
-                                            : "cursor-default"
-                                    }`}
+                                    style={{
+                                        display: "flex",
+                                        flexDirection: "column",
+                                        gap: "0.25rem",
+                                        minWidth: 0
+                                    }}
                                 >
-                                    <div className="flex items-start gap-3 min-w-0">
-                                        <div
-                                            className={`p-2 rounded-lg shrink-0 mt-0.5 ${
-                                                isAllowed
-                                                    ? "bg-indigo-950/60 text-indigo-400 border border-indigo-800/50"
-                                                    : "bg-rose-950/60 text-rose-400 border border-rose-800/50"
-                                            }`}
+                                    <div
+                                        style={{
+                                            display: "flex",
+                                            alignItems: "center",
+                                            gap: "0.625rem",
+                                            minWidth: 0
+                                        }}
+                                    >
+                                        <span
+                                            style={{
+                                                fontSize: "0.6875rem",
+                                                fontFamily:
+                                                    "'JetBrains Mono', monospace",
+                                                color: "var(--mute)",
+                                                flexShrink: 0
+                                            }}
                                         >
-                                            <Bot className="w-4 h-4" />
-                                        </div>
-
-                                        <div className="min-w-0">
-                                            <div className="flex items-center gap-2 mb-1">
-                                                <span className="text-xs font-bold text-slate-200 group-hover:text-indigo-300 transition-colors truncate">
-                                                    {log.paymentId || "Unknown Payment"}
-                                                </span>
-
-                                                <span
-                                                    className={`text-[10px] font-semibold px-2 py-0.5 rounded-full border shrink-0 ${
-                                                        isAllowed
-                                                            ? "bg-emerald-950/50 text-emerald-400 border-emerald-800/50"
-                                                            : "bg-rose-950/50 text-rose-400 border-rose-800/50"
-                                                    }`}
-                                                >
-                                                    {isAllowed
-                                                        ? "APPROVED"
-                                                        : "BLOCKED"}
-                                                </span>
-                                            </div>
-
-                                            <p className="text-xs text-slate-300 font-medium">
-                                                Action:{" "}
-                                                <span className="text-indigo-400 font-semibold">
-                                                    {aiAction
-                                                        ? formatRecoveryAction(
-                                                              aiAction
-                                                          )
-                                                        : "No action recorded"}
-                                                </span>
-                                            </p>
-
-                                            <p className="text-[11px] text-slate-400 line-clamp-1 mt-0.5">
-                                                {aiReason ||
-                                                    "Processed by AI Recovery pipeline"}
-                                            </p>
-                                        </div>
-                                    </div>
-
-                                    <div className="text-right shrink-0">
-                                        <span className="text-[10px] text-slate-500 font-medium block">
                                             {formatRelativeTime(
                                                 log.createdAt ||
                                                     log.timestamp
                                             )}
                                         </span>
 
-                                        {aiConfidence !== null &&
-                                            aiConfidence !== undefined && (
-                                                <span className="text-[10px] font-semibold text-slate-400 block mt-1">
-                                                    {(Number(aiConfidence) <= 1
-                                                        ? Number(aiConfidence) *
-                                                          100
+                                        <span
+                                            style={{
+                                                fontSize: "0.6875rem",
+                                                fontFamily:
+                                                    "'JetBrains Mono', monospace",
+                                                color: "var(--ink)",
+                                                fontWeight: 500,
+                                                overflow: "hidden",
+                                                textOverflow: "ellipsis",
+                                                whiteSpace: "nowrap",
+                                                maxWidth: "160px"
+                                            }}
+                                        >
+                                            {log.paymentId ||
+                                                "Unknown Payment"}
+                                        </span>
+
+                                        <span
+                                            style={{
+                                                fontSize: "0.5625rem",
+                                                fontFamily:
+                                                    "'JetBrains Mono', monospace",
+                                                fontWeight: 600,
+                                                letterSpacing: "0.08em",
+                                                padding: "0.125rem 0.5rem",
+                                                borderRadius: "9999px",
+                                                flexShrink: 0,
+                                                ...(isAllowed
+                                                    ? {
+                                                          background:
+                                                              "var(--up-soft)",
+                                                          color: "var(--up)",
+                                                          border:
+                                                              "1px solid var(--up-border)"
+                                                      }
+                                                    : {
+                                                          background:
+                                                              "var(--down-soft)",
+                                                          color: "var(--down)",
+                                                          border:
+                                                              "1px solid var(--down-border)"
+                                                      })
+                                            }}
+                                        >
+                                            {isAllowed
+                                                ? "APPROVED"
+                                                : "BLOCKED"}
+                                        </span>
+                                    </div>
+
+                                    <div
+                                        style={{
+                                            display: "flex",
+                                            alignItems: "center",
+                                            gap: "0.5rem"
+                                        }}
+                                    >
+                                        <span
+                                            style={{
+                                                fontSize: "0.6875rem",
+                                                fontFamily:
+                                                    "'JetBrains Mono', monospace",
+                                                color: "var(--mute)"
+                                            }}
+                                        >
+                                            →
+                                        </span>
+
+                                        <span
+                                            style={{
+                                                fontSize: "0.6875rem",
+                                                fontFamily:
+                                                    "'JetBrains Mono', monospace",
+                                                color: "var(--primary)",
+                                                fontWeight: 500
+                                            }}
+                                        >
+                                            {aiAction
+                                                ? formatRecoveryAction(
+                                                      aiAction
+                                                  )
+                                                : "No action recorded"}
+                                        </span>
+
+                                        {aiConfidence != null && (
+                                            <span
+                                                style={{
+                                                    fontSize: "0.625rem",
+                                                    color: "var(--mute)",
+                                                    fontFamily:
+                                                        "'JetBrains Mono', monospace"
+                                                }}
+                                            >
+                                                ·{" "}
+                                                {(
+                                                    Number(aiConfidence) <= 1
+                                                        ? Number(
+                                                              aiConfidence
+                                                          ) * 100
                                                         : Number(
                                                               aiConfidence
                                                           )
-                                                    ).toFixed(0)}
-                                                    % Conf.
-                                                </span>
-                                            )}
+                                                ).toFixed(0)}
+                                                % conf
+                                            </span>
+                                        )}
                                     </div>
+
+                                    <p
+                                        style={{
+                                            fontSize: "0.6875rem",
+                                            color: "var(--mute)",
+                                            overflow: "hidden",
+                                            textOverflow: "ellipsis",
+                                            whiteSpace: "nowrap",
+                                            maxWidth: "280px"
+                                        }}
+                                    >
+                                        {aiReason ||
+                                            "Processed by AI Recovery pipeline"}
+                                    </p>
                                 </div>
-                            );
-                        })}
-                    </div>
+                            </div>
+                        );
+                    })
                 )}
             </div>
 
-            <div className="mt-4 pt-3 border-t border-slate-800/80 flex items-center justify-between text-xs text-slate-400">
-                <span className="flex items-center gap-1">
-                    <ShieldCheck className="w-4 h-4 text-emerald-400" />
-                    Automatic Policy Enforcement Active
-                </span>
+            <div
+                style={{
+                    padding: "0.75rem 1.25rem",
+                    borderTop: "1px solid var(--line)",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "0.4rem",
+                    fontSize: "0.6875rem",
+                    color: "var(--mute)",
+                    flexShrink: 0
+                }}
+            >
+                <ShieldCheck
+                    size={13}
+                    style={{ color: "var(--up)" }}
+                />
+
+                <span>Automatic Policy Enforcement Active</span>
             </div>
         </div>
     );

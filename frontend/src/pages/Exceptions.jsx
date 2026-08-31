@@ -1,99 +1,249 @@
-import React, { useState } from "react";
+import React from "react";
+import { useNavigate } from "react-router-dom";
+import { usePayments } from "../hooks/usePayments";
 import { formatCurrency } from "../utils/formatCurrency";
 import { ShieldAlert, CheckCircle2 } from "lucide-react";
 import Button from "../components/common/Button";
+import Loader from "../components/common/Loader";
+import ErrorMessage from "../components/common/ErrorMessage";
 
 export const Exceptions = () => {
-    // Generate 82 surfaced exception items matching the 82 escalated count
-    const generateCases = () => {
-        const baseCases = [
-            { id: "pay_4940fdd1-ade4-493e-9fc9-64143a2fefb3", scenario: "HIGH VALUE FAILURE", amount: 25202, reason: "High-value payment requires human approval before any automatic remediation is allowed.", suggestedAction: "ESCALATE TO HUMAN", status: "BLOCKED" },
-            { id: "pay_277a00d4-8c8a-45e9-a26d-36254aeb6d79", scenario: "UNKNOWN FAILURE", amount: 7213, reason: "The failure mode is unknown; the system must escalate instead of guessing.", suggestedAction: "ESCALATE TO HUMAN", status: "BLOCKED" },
-            { id: "pay_38b85fd4-74b4-4b3e-b127-6b39c7f8bf88", scenario: "REPEATED FAILURE", amount: 13340, reason: "Maximum retry attempts reached; stop the recovery loop to avoid compounding revenue loss.", suggestedAction: "STOP RECOVERY", status: "BLOCKED" },
-            { id: "pay_0e195f9d-1af1-4cf1-ab0d-1cbeaf6973bf", scenario: "HIGH VALUE FAILURE", amount: 35473, reason: "High-value payment requires human approval before any automatic remediation is allowed.", suggestedAction: "ESCALATE TO HUMAN", status: "BLOCKED" },
-            { id: "pay_2f5b3598-d72c-4848-9585-146afa3c0f1c", scenario: "REPEATED FAILURE", amount: 12500, reason: "Maximum retry attempts reached; stop the recovery loop to avoid compounding revenue loss.", suggestedAction: "STOP RECOVERY", status: "BLOCKED" },
-            { id: "pay_cc977788-c486-4d83-8d7b-e0ea2d1ca00f", scenario: "UNKNOWN FAILURE", amount: 2941, reason: "The failure mode is unknown; the system must escalate instead of guessing.", suggestedAction: "ESCALATE TO HUMAN", status: "BLOCKED" }
-        ];
-
-        const list = [];
-        for (let i = 0; i < 82; i++) {
-            const template = baseCases[i % baseCases.length];
-            const suffix = i < 6 ? template.id : `pay_${Math.random().toString(36).substring(2, 10)}-${Math.random().toString(36).substring(2, 6)}-493e-9fc9-${Math.random().toString(36).substring(2, 12)}`;
-            list.push({ ...template, paymentId: suffix });
-        }
-        return list;
-    };
-
-    const [cases, setCases] = useState(generateCases);
-
-    const handleAction = (paymentId, actionType) => {
-        setCases((prev) => prev.filter((c) => c.paymentId !== paymentId));
-    };
+    const navigate = useNavigate();
+    const {
+        payments,
+        pagination,
+        loading,
+        error,
+        refetch
+    } = usePayments({
+        status: "escalated"
+    });
 
     return (
-        <div className="space-y-6 animate-fade-in font-sans">
-            {/* Header Banner */}
-            <div className="glass-panel p-6 rounded-2xl border border-rose-500/30 flex items-center justify-between">
+        <div className="page-stack animate-rise">
+            {/* Header */}
+            <div className="panel page-header-panel panel-accent-down">
                 <div>
-                    <span className="text-[10px] font-bold uppercase tracking-widest text-rose-400 block mb-0.5">
-                        CURRENT BATCH
+                    <span
+                        className="eyebrow"
+                        style={{
+                            color: "var(--down)",
+                            display: "block",
+                            marginBottom: "4px"
+                        }}
+                    >
+                        Current Batch
                     </span>
-                    <h1 className="text-xl font-bold text-slate-100 flex items-center gap-2">
-                        <ShieldAlert className="w-5 h-5 text-rose-400" />
-                        Blocked & Escalated Cases
+
+                    <h1 className="page-title">
+                        <ShieldAlert
+                            size={20}
+                            style={{ color: "var(--down)" }}
+                        />
+                        Blocked &amp; Escalated Cases
                     </h1>
                 </div>
 
-                <div className="px-3.5 py-1.5 rounded-full bg-rose-950/60 text-rose-300 border border-rose-800/80 text-xs font-bold font-mono">
-                    {cases.length} SURFACED
-                </div>
+                <span className="count-pill count-pill-down">
+                    {pagination?.total ?? payments.length} SURFACED
+                </span>
             </div>
 
-            {/* List of Blocked Exception Cards */}
-            {cases.length === 0 ? (
-                <div className="glass-panel p-12 text-center rounded-2xl text-slate-400 space-y-2">
-                    <CheckCircle2 className="w-10 h-10 text-emerald-400 mx-auto" />
-                    <h3 className="text-base font-bold text-slate-200">All Exceptions Resolved</h3>
-                    <p className="text-xs text-slate-400">There are currently no surfaced blocked or escalated payments requiring human sign-off.</p>
-                </div>
-            ) : (
-                <div className="space-y-4">
-                    {cases.map((item) => (
-                        <div
-                            key={item.paymentId}
-                            className="glass-panel p-5 rounded-2xl border border-slate-800 hover:border-slate-700 transition-all space-y-3"
+            {/* Error */}
+            {error && (
+                <ErrorMessage
+                    message={error}
+                    onRetry={refetch}
+                />
+            )}
+
+            {/* Loading */}
+            {loading && payments.length === 0 ? (
+                <Loader text="Fetching escalated payments..." />
+            ) : !error ? (
+                payments.length === 0 ? (
+                    /* Empty State */
+                    <div
+                        className="panel"
+                        style={{
+                            padding: "3rem",
+                            textAlign: "center"
+                        }}
+                    >
+                        <CheckCircle2
+                            size={40}
+                            style={{
+                                color: "var(--up)",
+                                margin: "0 auto 0.75rem"
+                            }}
+                        />
+
+                        <h3
+                            style={{
+                                fontSize: "1rem",
+                                fontWeight: 700,
+                                color: "var(--ink)",
+                                marginBottom: "0.5rem"
+                            }}
                         >
-                            <div className="flex items-center justify-between">
-                                <div className="flex items-center gap-3">
-                                    <span className="font-mono text-xs font-bold text-slate-200">{item.paymentId}</span>
-                                    <span className="px-2 py-0.5 rounded bg-slate-800 text-slate-400 text-[10px] font-bold border border-slate-700">
-                                        {item.scenario}
-                                    </span>
-                                </div>
+                            All Exceptions Resolved
+                        </h3>
 
-                                <div className="flex items-center gap-3">
-                                    <span className="font-mono text-base font-bold text-slate-100">{formatCurrency(item.amount)}</span>
-                                    <span className="px-2.5 py-0.5 rounded-full bg-rose-950/80 text-rose-400 border border-rose-800/80 text-[10px] font-extrabold uppercase tracking-wider">
-                                        {item.status}
-                                    </span>
-                                </div>
-                            </div>
-
-                            <p className="text-xs text-slate-300 font-mono bg-slate-950/60 p-3 rounded-xl border border-slate-800/80">
-                                Corrective action: {item.reason}
-                            </p>
-
-                            <div className="flex items-center justify-end gap-3 pt-1">
-                                <Button
-                                    variant={item.suggestedAction === "STOP RECOVERY" ? "danger" : "glow"}
-                                    size="sm"
-                                    onClick={() => handleAction(item.paymentId, item.suggestedAction)}
+                        <p
+                            style={{
+                                fontSize: "0.8125rem",
+                                color: "var(--mute)"
+                            }}
+                        >
+                            There are currently no escalated payments
+                            requiring human sign-off.
+                        </p>
+                    </div>
+                ) : (
+                    /* Exception List */
+                    <div className="page-stack">
+                        {payments.map((item) => (
+                            <div
+                                key={item.paymentId}
+                                className="panel panel-accent-down"
+                                style={{
+                                    padding: "1.25rem",
+                                    transition:
+                                        "box-shadow 150ms ease"
+                                }}
+                            >
+                                {/* Top Row */}
+                                <div
+                                    style={{
+                                        display: "flex",
+                                        alignItems: "center",
+                                        justifyContent:
+                                            "space-between",
+                                        flexWrap: "wrap",
+                                        gap: "0.75rem",
+                                        marginBottom: "0.75rem"
+                                    }}
                                 >
-                                    {item.suggestedAction}
-                                </Button>
+                                    <div
+                                        style={{
+                                            display: "flex",
+                                            alignItems: "center",
+                                            gap: "0.75rem",
+                                            flexWrap: "wrap"
+                                        }}
+                                    >
+                                        <span
+                                            style={{
+                                                fontFamily:
+                                                    "'JetBrains Mono', monospace",
+                                                fontSize: "0.75rem",
+                                                fontWeight: 600,
+                                                color: "var(--ink)"
+                                            }}
+                                        >
+                                            {item.paymentId}
+                                        </span>
+
+                                        <span className="chip">
+                                            {item.scenario}
+                                        </span>
+                                    </div>
+
+                                    <div
+                                        style={{
+                                            display: "flex",
+                                            alignItems: "center",
+                                            gap: "0.75rem"
+                                        }}
+                                    >
+                                        <span
+                                            style={{
+                                                fontFamily:
+                                                    "'JetBrains Mono', monospace",
+                                                fontSize: "1rem",
+                                                fontWeight: 700,
+                                                color: "var(--ink)"
+                                            }}
+                                        >
+                                            {formatCurrency(item.amount)}
+                                        </span>
+
+                                        <span
+                                            className="badge-down"
+                                            style={{
+                                                padding:
+                                                    "0.1875rem 0.625rem",
+                                                borderRadius:
+                                                    "9999px",
+                                                fontSize:
+                                                    "0.625rem",
+                                                fontWeight: 700,
+                                                letterSpacing:
+                                                    "0.06em"
+                                            }}
+                                        >
+                                            {item.status?.toUpperCase()}
+                                        </span>
+                                    </div>
+                                </div>
+
+                                {/* Reason */}
+                                <p
+                                    className="sub-card-soft"
+                                    style={{
+                                        fontSize: "0.75rem",
+                                        fontFamily:
+                                            "'JetBrains Mono', monospace",
+                                        color: "var(--mute)",
+                                        marginBottom: "0.75rem",
+                                        lineHeight: 1.5
+                                    }}
+                                >
+                                    Corrective action:{" "}
+                                    {item.failureReason ||
+                                        "Payment requires human review before further recovery."}
+                                </p>
+
+                                {/* Action */}
+                                <div
+                                    style={{
+                                        display: "flex",
+                                        justifyContent: "flex-end"
+                                    }}
+                                >
+                                    <Button
+                                        variant="glow"
+                                        size="sm"
+                                        onClick={() => {
+                                            navigate(`/payments/${item.paymentId}`);
+                                        }}
+                                    >
+                                        REVIEW PAYMENT
+                                    </Button>
+                                </div>
                             </div>
-                        </div>
-                    ))}
+                        ))}
+                    </div>
+                )
+            ) : null}
+
+            {/* Pagination */}
+            {pagination?.pages > 1 && (
+                <div className="table-footer">
+                    <span>
+                        Page{" "}
+                        <strong style={{ color: "var(--ink)" }}>
+                            {pagination.page}
+                        </strong>{" "}
+                        of{" "}
+                        <strong style={{ color: "var(--ink)" }}>
+                            {pagination.pages}
+                        </strong>
+                    </span>
+
+                    <span>
+                        {pagination.total} escalated payments
+                    </span>
                 </div>
             )}
         </div>

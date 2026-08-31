@@ -69,93 +69,58 @@ export const PolicyDecision = ({
         });
 
     return (
-        <div className={`
-            glass-panel
-            p-6
-            rounded-2xl
-            border
-            ${
-                isAllowed
-                    ? "border-emerald-500/30 bg-emerald-950/10"
-                    : "border-rose-500/30 bg-rose-950/10"
-            }
-        `}>
-
-            <div className="
-                flex
-                flex-col
-                sm:flex-row
-                sm:items-center
-                sm:justify-between
-                gap-4
-                mb-5
-            ">
-
-                <div className="flex items-center gap-3">
-
-                    <div className={`
-                        p-2.5
-                        rounded-xl
-                        border
-                        ${
-                            isAllowed
-                                ? "bg-emerald-500/20 text-emerald-400 border-emerald-500/30"
-                                : "bg-rose-500/20 text-rose-400 border-rose-500/30"
-                        }
-                    `}>
+        <div
+            className={`panel recovery-card ${
+                isAllowed ? "panel-accent-up" : "panel-accent-down"
+            }`}
+        >
+            <div
+                style={{
+                    display: "flex",
+                    flexDirection: "column",
+                    gap: "1rem",
+                    marginBottom: "1.25rem"
+                }}
+                className="sm:flex-row sm:items-center sm:justify-between"
+            >
+                <div style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}>
+                    <div
+                        className={`icon-box icon-box-md ${
+                            isAllowed ? "icon-box-up" : "icon-box-down"
+                        }`}
+                    >
                         {isAllowed ? (
-                            <ShieldCheck className="w-5 h-5" />
+                            <ShieldCheck style={{ width: "1.25rem", height: "1.25rem" }} />
                         ) : (
-                            <ShieldAlert className="w-5 h-5" />
+                            <ShieldAlert style={{ width: "1.25rem", height: "1.25rem" }} />
                         )}
                     </div>
 
                     <div>
-                        <h4 className="
-                            text-base
-                            font-bold
-                            text-slate-100
-                        ">
+                        <h4 className="recovery-card-title">
                             Recovery Safety Check
                         </h4>
 
-                        <p className="
-                            text-[11px]
-                            text-slate-400
-                            mt-0.5
-                        ">
+                        <p className="recovery-card-subtitle">
                             The system checked whether the AI decision was safe to execute
                         </p>
                     </div>
                 </div>
 
-                <div className={`
-                    self-start
-                    sm:self-auto
-                    px-3
-                    py-1.5
-                    rounded-full
-                    text-xs
-                    font-extrabold
-                    tracking-wider
-                    border
-                    flex
-                    items-center
-                    gap-1.5
-                    ${
-                        isAllowed
-                            ? "bg-emerald-950/60 text-emerald-400 border-emerald-800/80"
-                            : "bg-rose-950/60 text-rose-400 border-rose-800/80"
-                    }
-                `}>
+                <div
+                    className={`count-pill self-start sm:self-auto ${
+                        isAllowed ? "count-pill-up" : "count-pill-down"
+                    }`}
+                    style={{ display: "inline-flex", alignItems: "center", gap: "0.375rem" }}
+                >
                     {isAllowed ? (
                         <>
-                            <CheckCircle2 className="w-3.5 h-3.5" />
+                            <CheckCircle2 style={{ width: "0.875rem", height: "0.875rem" }} />
                             <span>APPROVED</span>
                         </>
                     ) : (
                         <>
-                            <XCircle className="w-3.5 h-3.5" />
+                            <XCircle style={{ width: "0.875rem", height: "0.875rem" }} />
                             <span>BLOCKED</span>
                         </>
                     )}
@@ -163,49 +128,45 @@ export const PolicyDecision = ({
             </div>
 
             {finalAction && (
-                <div className="
-                    mb-4
-                    p-3
-                    rounded-xl
-                    bg-slate-900/70
-                    border border-slate-800
-                    flex
-                    flex-col
-                    sm:flex-row
-                    sm:items-center
-                    sm:justify-between
-                    gap-2
-                ">
-                    <span className="text-xs text-slate-400">
+                <div
+                    className="sub-card"
+                    style={{
+                        marginBottom: "1rem",
+                        display: "flex",
+                        flexDirection: "column",
+                        gap: "0.5rem"
+                    }}
+                >
+                    <span style={{ fontSize: "0.75rem", color: "var(--mute)" }}>
                         Action allowed by the system
                     </span>
 
-                    <span className="
-                        text-sm
-                        font-semibold
-                        text-slate-200
-                    ">
+                    <span
+                        style={{
+                            fontSize: "0.8125rem",
+                            fontWeight: 600,
+                            color: "var(--ink)"
+                        }}
+                    >
                         {formatRecoveryAction(finalAction)}
                     </span>
                 </div>
             )}
 
             <div>
-                <span className="
-                    text-xs
-                    font-semibold
-                    text-slate-300
-                    block
-                    mb-2
-                ">
+                <span
+                    style={{
+                        fontSize: "0.75rem",
+                        fontWeight: 600,
+                        color: "var(--ink)",
+                        display: "block",
+                        marginBottom: "0.5rem"
+                    }}
+                >
                     What this means
                 </span>
 
-                <p className="
-                    text-sm
-                    text-slate-400
-                    leading-relaxed
-                ">
+                <p className="recovery-card-body-text">
                     {explanation}
                 </p>
             </div>

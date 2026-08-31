@@ -55,119 +55,140 @@ export const Modal = ({
 
     return (
         <div
-            className="
-                fixed
-                inset-0
-                z-[100]
-                flex
-                items-center
-                justify-center
-                p-3
-                sm:p-6
-                bg-slate-950/85
-                backdrop-blur-sm
-                animate-fade-in
-            "
             onMouseDown={(event) => {
                 if (event.target === event.currentTarget) {
                     onClose();
                 }
             }}
+            style={{
+                position: "fixed",
+                inset: 0,
+                zIndex: 100,
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                padding: "0.75rem",
+                background: "oklch(0.1 0.01 250 / 0.55)",
+                backdropFilter: "blur(6px)",
+                WebkitBackdropFilter: "blur(6px)",
+                animation:
+                    "rise 300ms cubic-bezier(0.32, 0.72, 0, 1) both"
+            }}
         >
             <div
-                className={`
-                    relative
-                    w-full
-                    ${maxWidth}
-                    max-h-[calc(100vh-1.5rem)]
-                    sm:max-h-[calc(100vh-3rem)]
-                    flex
-                    flex-col
-                    overflow-hidden
-                    rounded-2xl
-                    border
-                    border-slate-700/80
-                    bg-slate-900
-                    shadow-2xl
-                    shadow-black/60
-                `}
                 onMouseDown={(event) => event.stopPropagation()}
+                className={maxWidth}
+                style={{
+                    position: "relative",
+                    width: "100%",
+                    maxHeight: "calc(100vh - 1.5rem)",
+                    display: "flex",
+                    flexDirection: "column",
+                    overflow: "hidden",
+                    borderRadius: "0.875rem",
+                    border: "1px solid var(--line)",
+                    background: "var(--surface-solid)",
+                    boxShadow:
+                        "0 24px 64px -16px oklch(0.1 0.01 250 / 0.4), 0 0 0 1px var(--line)",
+                    animation:
+                        "fadeInScale 400ms cubic-bezier(0.32, 0.72, 0, 1) both"
+                }}
             >
+                {/* Header */}
                 <div
-                    className="
-                        shrink-0
-                        flex
-                        items-center
-                        justify-between
-                        gap-4
-                        px-5
-                        py-4
-                        sm:px-6
-                        bg-slate-900
-                        border-b
-                        border-slate-800
-                    "
+                    style={{
+                        flexShrink: 0,
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "space-between",
+                        gap: "1rem",
+                        padding: "1rem 1.25rem",
+                        borderBottom: "1px solid var(--line)"
+                    }}
                 >
-                    <div className="min-w-0">
-                        <h3 className="text-base sm:text-lg font-semibold text-slate-100 truncate">
+                    <div style={{ minWidth: 0 }}>
+                        <span
+                            className="eyebrow-primary"
+                            style={{
+                                display: "block",
+                                marginBottom: "3px"
+                            }}
+                        >
+                            Recovery Execution
+                        </span>
+
+                        <h3
+                            style={{
+                                fontSize: "0.9375rem",
+                                fontWeight: 600,
+                                color: "var(--ink)",
+                                fontFamily: "'Inter', sans-serif",
+                                letterSpacing: "-0.01em",
+                                whiteSpace: "nowrap",
+                                overflow: "hidden",
+                                textOverflow: "ellipsis"
+                            }}
+                        >
                             {title}
                         </h3>
-
-                        <p className="text-[11px] text-slate-500 mt-0.5">
-                            Recovery execution details
-                        </p>
                     </div>
 
                     <button
                         type="button"
                         onClick={onClose}
-                        className="
-                            shrink-0
-                            p-2
-                            rounded-lg
-                            text-slate-400
-                            hover:text-slate-100
-                            hover:bg-slate-800
-                            transition-colors
-                            cursor-pointer
-                        "
+                        style={{
+                            flexShrink: 0,
+                            padding: "0.375rem",
+                            borderRadius: "0.375rem",
+                            border: "1px solid var(--line)",
+                            background: "transparent",
+                            color: "var(--mute)",
+                            cursor: "pointer",
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                            transition: "all 150ms ease"
+                        }}
+                        onMouseEnter={(event) => {
+                            event.currentTarget.style.background =
+                                "var(--line)";
+                            event.currentTarget.style.color =
+                                "var(--ink)";
+                        }}
+                        onMouseLeave={(event) => {
+                            event.currentTarget.style.background =
+                                "transparent";
+                            event.currentTarget.style.color =
+                                "var(--mute)";
+                        }}
                         aria-label="Close modal"
                     >
-                        <X className="w-5 h-5" />
+                        <X size={16} />
                     </button>
                 </div>
 
+                {/* Scrollable Body */}
                 <div
                     ref={scrollContainerRef}
-                    className="
-                        flex-1
-                        min-h-0
-                        overflow-y-auto
-                        overscroll-contain
-                        px-4
-                        py-5
-                        sm:px-6
-                        sm:py-6
-                        scrollbar-thin
-                        scrollbar-thumb-slate-700
-                        scrollbar-track-slate-900
-                    "
+                    style={{
+                        flex: 1,
+                        minHeight: 0,
+                        overflowY: "auto",
+                        overscrollBehavior: "contain",
+                        padding: "1.25rem"
+                    }}
                 >
                     {children}
                 </div>
 
+                {/* Footer */}
                 {footer && (
                     <div
-                        className="
-                            shrink-0
-                            px-4
-                            py-3
-                            sm:px-6
-                            sm:py-4
-                            bg-slate-900
-                            border-t
-                            border-slate-800
-                        "
+                        style={{
+                            flexShrink: 0,
+                            padding: "0.875rem 1.25rem",
+                            borderTop: "1px solid var(--line)"
+                        }}
                     >
                         {footer}
                     </div>

@@ -26,56 +26,142 @@ export const PaymentTable = ({
     }
 
     return (
-        <div className="glass-panel rounded-2xl overflow-hidden">
-            <div className="overflow-x-auto">
-                <table className="w-full text-left border-collapse">
+        <div
+            className="panel"
+            style={{
+                overflow: "hidden"
+            }}
+        >
+            <div
+                style={{
+                    overflowX: "auto"
+                }}
+            >
+                <table className="tf-table">
                     <thead>
-                        <tr className="bg-slate-900/80 border-b border-slate-800 text-[11px] font-semibold uppercase tracking-wider text-slate-400">
-                            <th className="px-4 py-3.5">Payment ID</th>
-                            <th className="px-4 py-3.5">Customer ID</th>
-                            <th className="px-4 py-3.5">Amount</th>
-                            <th className="px-4 py-3.5">Scenario</th>
-                            <th className="px-4 py-3.5">Status</th>
-                            <th className="px-4 py-3.5">Attempts & Action</th>
-                            <th className="px-4 py-3.5">Created At</th>
-                            <th className="px-4 py-3.5 text-right">Actions</th>
+                        <tr>
+                            <th>Payment ID</th>
+                            <th>Customer ID</th>
+                            <th>Amount</th>
+                            <th>Scenario</th>
+                            <th>Status</th>
+                            <th>Attempts &amp; Action</th>
+                            <th>Created At</th>
+                            <th style={{ textAlign: "right" }}>
+                                Actions
+                            </th>
                         </tr>
                     </thead>
-                    <tbody className="divide-y divide-slate-800/60">
+
+                    <tbody>
                         {payments.map((payment) => (
                             <PaymentRow
                                 key={payment._id || payment.paymentId}
                                 payment={payment}
                                 onRunRecovery={onRunRecovery}
-                                isExecuting={executingId === payment.paymentId}
+                                isExecuting={
+                                    executingId === payment.paymentId
+                                }
                             />
                         ))}
                     </tbody>
                 </table>
             </div>
 
-            {/* Pagination Controls */}
             {pagination && pagination.pages > 1 && (
-                <div className="px-6 py-4 bg-slate-900/60 border-t border-slate-800/80 flex items-center justify-between text-xs text-slate-400">
+                <div
+                    style={{
+                        padding: "0.875rem 1.25rem",
+                        borderTop: "1px solid var(--line)",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "space-between",
+                        fontSize: "0.75rem",
+                        color: "var(--mute)",
+                        fontFamily: "'JetBrains Mono', monospace"
+                    }}
+                >
                     <div>
-                        Showing page <span className="font-bold text-slate-200">{pagination.page}</span> of{" "}
-                        <span className="font-bold text-slate-200">{pagination.pages}</span> ({pagination.total} total payments)
+                        Showing page{" "}
+                        <span
+                            style={{
+                                fontWeight: 600,
+                                color: "var(--ink)"
+                            }}
+                        >
+                            {pagination.page}
+                        </span>{" "}
+                        of{" "}
+                        <span
+                            style={{
+                                fontWeight: 600,
+                                color: "var(--ink)"
+                            }}
+                        >
+                            {pagination.pages}
+                        </span>{" "}
+                        ({pagination.total} total payments)
                     </div>
 
-                    <div className="flex items-center gap-2">
+                    <div
+                        style={{
+                            display: "flex",
+                            alignItems: "center",
+                            gap: "0.5rem"
+                        }}
+                    >
                         <button
                             disabled={pagination.page <= 1}
-                            onClick={() => onPageChange(pagination.page - 1)}
-                            className="p-1.5 rounded-lg bg-slate-800 border border-slate-700 disabled:opacity-40 hover:bg-slate-700 text-slate-200 transition-colors cursor-pointer"
+                            onClick={() =>
+                                onPageChange(pagination.page - 1)
+                            }
+                            style={{
+                                padding: "0.3125rem",
+                                borderRadius: "0.375rem",
+                                border: "1px solid var(--line)",
+                                background: "var(--surface-solid)",
+                                color: "var(--mute)",
+                                cursor:
+                                    pagination.page <= 1
+                                        ? "not-allowed"
+                                        : "pointer",
+                                opacity:
+                                    pagination.page <= 1 ? 0.4 : 1,
+                                display: "flex",
+                                alignItems: "center",
+                                transition: "all 150ms ease"
+                            }}
                         >
-                            <ChevronLeft className="w-4 h-4" />
+                            <ChevronLeft size={14} />
                         </button>
+
                         <button
-                            disabled={pagination.page >= pagination.pages}
-                            onClick={() => onPageChange(pagination.page + 1)}
-                            className="p-1.5 rounded-lg bg-slate-800 border border-slate-700 disabled:opacity-40 hover:bg-slate-700 text-slate-200 transition-colors cursor-pointer"
+                            disabled={
+                                pagination.page >= pagination.pages
+                            }
+                            onClick={() =>
+                                onPageChange(pagination.page + 1)
+                            }
+                            style={{
+                                padding: "0.3125rem",
+                                borderRadius: "0.375rem",
+                                border: "1px solid var(--line)",
+                                background: "var(--surface-solid)",
+                                color: "var(--mute)",
+                                cursor:
+                                    pagination.page >= pagination.pages
+                                        ? "not-allowed"
+                                        : "pointer",
+                                opacity:
+                                    pagination.page >= pagination.pages
+                                        ? 0.4
+                                        : 1,
+                                display: "flex",
+                                alignItems: "center",
+                                transition: "all 150ms ease"
+                            }}
                         >
-                            <ChevronRight className="w-4 h-4" />
+                            <ChevronRight size={14} />
                         </button>
                     </div>
                 </div>

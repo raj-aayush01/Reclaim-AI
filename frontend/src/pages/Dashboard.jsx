@@ -22,21 +22,11 @@ export const Dashboard = () => {
     const navigate = useNavigate();
 
     if (loading && !data) {
-        return (
-            <Loader
-                fullPage
-                text="Loading ReclaimAI Overview metrics..."
-            />
-        );
+        return <Loader fullPage text="Loading recovery metrics..." />;
     }
 
     if (error && !data) {
-        return (
-            <ErrorMessage
-                message={error}
-                onRetry={refetch}
-            />
-        );
+        return <ErrorMessage message={error} onRetry={refetch} />;
     }
 
     const {
@@ -47,6 +37,7 @@ export const Dashboard = () => {
         recoveredCount = 0,
         recoveredAmount = 0,
         recoveryRate = 0,
+        openExceptionsCount = 0,
         actions = {
             retryCount: 0,
             paymentLinkCount: 0,
@@ -57,79 +48,193 @@ export const Dashboard = () => {
         recoveryFlow = []
     } = data || {};
 
-    const openExceptionsCount = actions.escalatedCount || 0;
-
     return (
-        <div className="space-y-6 animate-fade-in font-sans">
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+        <div
+            style={{
+                display: "flex",
+                flexDirection: "column",
+                gap: "1.5rem"
+            }}
+            className="animate-rise"
+        >
+            {/* Page Header */}
+            <div>
+                <span
+                    className="eyebrow-primary"
+                    style={{
+                        display: "block",
+                        marginBottom: "4px"
+                    }}
+                >
+                    Recovery Console
+                </span>
+
+                <div
+                    style={{
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "space-between"
+                    }}
+                >
+                    <h1
+                        style={{
+                            fontSize: "1.375rem",
+                            fontWeight: 700,
+                            color: "var(--ink)",
+                            letterSpacing: "-0.025em",
+                            fontFamily: "'Inter', sans-serif"
+                        }}
+                    >
+                        Recovery Overview ·{" "}
+                        <span style={{ color: "var(--primary)" }}>
+                            Live
+                        </span>
+                    </h1>
+
+                    <div
+                        style={{
+                            display: "flex",
+                            alignItems: "center",
+                            gap: "0.5rem"
+                        }}
+                    >
+                        <span
+                            className="animate-blip"
+                            style={{
+                                width: "6px",
+                                height: "6px",
+                                borderRadius: "9999px",
+                                background: "var(--primary)",
+                                display: "inline-block"
+                            }}
+                        />
+
+                        <span
+                            style={{
+                                fontSize: "0.6875rem",
+                                fontFamily: "'JetBrains Mono', monospace",
+                                color: "var(--mute)"
+                            }}
+                        >
+                            agent running · last sync 12s ago
+                        </span>
+                    </div>
+                </div>
+            </div>
+
+            {/* KPI Strip */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                {/* Revenue at Risk */}
                 <div
                     onClick={() => navigate("/ledger?status=at_risk")}
-                    className="glass-panel p-5 rounded-2xl border border-amber-500/20 hover:border-amber-500/40 transition-all cursor-pointer group"
+                    className="panel panel-accent-warn p-5 cursor-pointer transition-shadow duration-150 animate-rise-1"
                 >
                     <div className="flex items-center justify-between mb-3">
-                        <span className="text-[10px] font-bold uppercase tracking-widest text-slate-400">
-                            REVENUE AT RISK
+                        <span className="eyebrow">
+                            Revenue at Risk
                         </span>
 
-                        <div className="p-2 rounded-xl bg-amber-500/10 text-amber-400 border border-amber-500/20">
-                            <AlertTriangle className="w-4 h-4" />
+                        <div className="icon-box icon-box-sm icon-box-warn">
+                            <AlertTriangle
+                                size={14}
+                                strokeWidth={1.75}
+                            />
                         </div>
                     </div>
 
-                    <div className="text-3xl font-extrabold text-amber-400 tracking-tight mb-1 font-mono">
+                    <div
+                        style={{
+                            fontSize: "1.875rem",
+                            fontWeight: 700,
+                            fontFamily: "'JetBrains Mono', monospace",
+                            fontVariantNumeric: "tabular-nums",
+                            color: "var(--warn)",
+                            letterSpacing: "-0.03em",
+                            lineHeight: 1.1,
+                            marginBottom: "0.25rem"
+                        }}
+                    >
                         <AnimatedNumber
-                            value={totalAtRisk / 100000}
+                            value={totalAtRisk}
                             decimals={2}
                             prefix="₹"
-                            suffix="L"
                         />
                     </div>
 
-                    <div className="text-xs text-rose-400 font-medium">
+                    <div style={{ fontSize: "0.75rem", color: "var(--mute)" }}>
                         {atRiskCount} payments
                     </div>
                 </div>
 
+                {/* Amount Recovered */}
                 <div
                     onClick={() => navigate("/ledger?status=recovered")}
-                    className="glass-panel p-5 rounded-2xl border border-emerald-500/20 hover:border-emerald-500/40 transition-all cursor-pointer group"
+                    className="panel panel-accent-up p-5 cursor-pointer transition-shadow duration-150 animate-rise-2"
                 >
                     <div className="flex items-center justify-between mb-3">
-                        <span className="text-[10px] font-bold uppercase tracking-widest text-slate-400">
-                            AMOUNT RECOVERED
+                        <span className="eyebrow">
+                            Amount Recovered
                         </span>
 
-                        <div className="p-2 rounded-xl bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
-                            <TrendingUp className="w-4 h-4" />
+                        <div className="icon-box icon-box-sm icon-box-up">
+                            <TrendingUp
+                                size={14}
+                                strokeWidth={1.75}
+                            />
                         </div>
                     </div>
 
-                    <div className="text-3xl font-extrabold text-emerald-400 tracking-tight mb-1 font-mono">
+                    <div
+                        style={{
+                            fontSize: "1.875rem",
+                            fontWeight: 700,
+                            fontFamily: "'JetBrains Mono', monospace",
+                            fontVariantNumeric: "tabular-nums",
+                            color: "var(--up)",
+                            letterSpacing: "-0.03em",
+                            lineHeight: 1.1,
+                            marginBottom: "0.25rem"
+                        }}
+                    >
                         <AnimatedNumber
-                            value={recoveredAmount / 100000}
+                            value={recoveredAmount}
                             decimals={2}
                             prefix="₹"
-                            suffix="L"
                         />
                     </div>
 
-                    <div className="text-xs text-emerald-400/90 font-medium">
+                    <div style={{ fontSize: "0.75rem", color: "var(--mute)" }}>
                         {recoveredCount} payments
                     </div>
                 </div>
 
-                <div className="glass-panel p-5 rounded-2xl border border-emerald-500/20">
+                {/* Recovery Rate */}
+                <div className="panel panel-accent-primary p-5 animate-rise-3">
                     <div className="flex items-center justify-between mb-3">
-                        <span className="text-[10px] font-bold uppercase tracking-widest text-slate-400">
-                            RECOVERY RATE
+                        <span className="eyebrow">
+                            Recovery Rate
                         </span>
 
-                        <div className="p-2 rounded-xl bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
-                            <Zap className="w-4 h-4" />
+                        <div className="icon-box icon-box-sm icon-box-primary">
+                            <Zap
+                                size={14}
+                                strokeWidth={1.75}
+                            />
                         </div>
                     </div>
 
-                    <div className="text-3xl font-extrabold text-emerald-400 tracking-tight mb-1 font-mono">
+                    <div
+                        style={{
+                            fontSize: "1.875rem",
+                            fontWeight: 700,
+                            fontFamily: "'JetBrains Mono', monospace",
+                            fontVariantNumeric: "tabular-nums",
+                            color: "var(--primary)",
+                            letterSpacing: "-0.03em",
+                            lineHeight: 1.1,
+                            marginBottom: "0.25rem"
+                        }}
+                    >
                         <AnimatedNumber
                             value={recoveryRate}
                             decimals={1}
@@ -137,57 +242,74 @@ export const Dashboard = () => {
                         />
                     </div>
 
-                    <div className="text-xs text-slate-400 font-medium">
-                        current recovery performance ({timeRange})
+                    <div style={{ fontSize: "0.75rem", color: "var(--mute)" }}>
+                        current performance ({timeRange})
                     </div>
                 </div>
 
+                {/* Open Exceptions */}
                 <div
                     onClick={() => navigate("/exceptions")}
-                    className="glass-panel p-5 rounded-2xl border border-rose-500/20 hover:border-rose-500/40 transition-all cursor-pointer group"
+                    className="panel panel-accent-down p-5 cursor-pointer transition-shadow duration-150 animate-rise-4"
                 >
                     <div className="flex items-center justify-between mb-3">
-                        <span className="text-[10px] font-bold uppercase tracking-widest text-slate-400">
-                            OPEN EXCEPTIONS
+                        <span className="eyebrow">
+                            Open Exceptions
                         </span>
 
-                        <div className="p-2 rounded-xl bg-rose-500/10 text-rose-400 border border-rose-500/20">
-                            <AlertOctagon className="w-4 h-4" />
+                        <div className="icon-box icon-box-sm icon-box-down">
+                            <AlertOctagon
+                                size={14}
+                                strokeWidth={1.75}
+                            />
                         </div>
                     </div>
 
-                    <div className="text-3xl font-extrabold text-rose-400 tracking-tight mb-1 font-mono">
+                    <div
+                        style={{
+                            fontSize: "1.875rem",
+                            fontWeight: 700,
+                            fontFamily: "'JetBrains Mono', monospace",
+                            fontVariantNumeric: "tabular-nums",
+                            color: "var(--down)",
+                            letterSpacing: "-0.03em",
+                            lineHeight: 1.1,
+                            marginBottom: "0.25rem"
+                        }}
+                    >
                         <AnimatedNumber
                             value={openExceptionsCount}
                             decimals={0}
                         />
                     </div>
 
-                    <div className="text-xs text-rose-400/90 font-medium">
+                    <div style={{ fontSize: "0.75rem", color: "var(--mute)" }}>
                         need review
                     </div>
                 </div>
             </div>
 
-            <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-                <div className="lg:col-span-8">
+            {/* Charts Row */}
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
+                <div className="lg:col-span-2">
                     <RecoveryFlowChart
                         data={recoveryFlow}
                         timeRange={timeRange}
                     />
                 </div>
 
-                <div className="lg:col-span-4">
+                <div>
                     <DonutChart actions={actions} />
                 </div>
             </div>
 
-            <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-                <div className="lg:col-span-6">
+            {/* Activity + Summary Row */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 items-stretch">
+                <div>
                     <RecentActivity logs={recentLogs} />
                 </div>
 
-                <div className="lg:col-span-6">
+                <div>
                     <RecoveryRunSummary
                         batchData={{
                             evaluated: totalPayments,
@@ -200,24 +322,51 @@ export const Dashboard = () => {
                 </div>
             </div>
 
-            <div className="p-4 rounded-2xl bg-rose-950/40 border border-rose-800/60 flex items-center justify-between text-xs">
-                <div className="flex items-center gap-2 text-rose-300 font-medium">
-                    <span className="w-2 h-2 rounded-full bg-rose-500 animate-ping" />
+            {/* Exception Alert Banner */}
+            {openExceptionsCount > 0 && (
+                <div className="panel panel-accent-down p-4 flex flex-col sm:flex-row items-center justify-between gap-3 animate-rise">
+                    <div className="flex items-center gap-2.5">
+                        <span
+                            className="animate-blip"
+                            style={{
+                                width: "8px",
+                                height: "8px",
+                                borderRadius: "9999px",
+                                background: "var(--down)",
+                                display: "inline-block"
+                            }}
+                        />
 
-                    <span>
-                        <strong>{openExceptionsCount} exceptions</strong>{" "}
-                        need review
-                    </span>
+                        <span
+                            style={{
+                                fontSize: "0.8125rem",
+                                color: "var(--ink)",
+                                fontWeight: 500
+                            }}
+                        >
+                            <strong>{openExceptionsCount} exceptions</strong> need human review
+                        </span>
+                    </div>
+
+                    <button
+                        onClick={() => navigate("/exceptions")}
+                        className="badge-down cursor-pointer"
+                        style={{
+                            display: "inline-flex",
+                            alignItems: "center",
+                            gap: "0.375rem",
+                            padding: "0.375rem 0.875rem",
+                            borderRadius: "var(--radius-sm)",
+                            fontSize: "0.75rem",
+                            fontWeight: 700,
+                            fontFamily: "'JetBrains Mono', monospace"
+                        }}
+                    >
+                        <span>VIEW EXCEPTIONS</span>
+                        <ArrowRight size={13} />
+                    </button>
                 </div>
-
-                <button
-                    onClick={() => navigate("/exceptions")}
-                    className="px-3.5 py-1.5 rounded-xl bg-rose-600 hover:bg-rose-500 text-white font-bold text-xs shadow-md shadow-rose-600/20 transition-all cursor-pointer flex items-center gap-1.5"
-                >
-                    <span>View Exceptions</span>
-                    <ArrowRight className="w-3.5 h-3.5" />
-                </button>
-            </div>
+            )}
         </div>
     );
 };

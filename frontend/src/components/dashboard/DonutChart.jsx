@@ -4,74 +4,35 @@ import { useNavigate } from "react-router-dom";
 export const DonutChart = ({ actions = {} }) => {
     const navigate = useNavigate();
 
-    const {
-        retryCount = 0,
-        paymentLinkCount = 0,
-        escalatedCount = 0,
-        stoppedCount = 0
-    } = actions;
-
-    const total =
-        retryCount +
-        paymentLinkCount +
-        escalatedCount +
-        stoppedCount;
+    const { retryCount = 0, paymentLinkCount = 0, escalatedCount = 0, stoppedCount = 0 } = actions;
+    const total = retryCount + paymentLinkCount + escalatedCount + stoppedCount;
 
     const segments = [
-        {
-            label: "Retry",
-            count: retryCount,
-            color: "#10b981",
-            path: "/ledger?action=RETRY_PAYMENT"
-        },
-        {
-            label: "Payment Link",
-            count: paymentLinkCount,
-            color: "#f59e0b",
-            path: "/ledger?action=CREATE_PAYMENT_LINK"
-        },
-        {
-            label: "Escalate",
-            count: escalatedCount,
-            color: "#8b5cf6",
-            path: "/ledger?action=ESCALATE_TO_HUMAN"
-        },
-        {
-            label: "Stop",
-            count: stoppedCount,
-            color: "#f43f5e",
-            path: "/ledger?action=STOP_RECOVERY"
-        }
+        { label: "Retry", count: retryCount, color: "var(--up)", path: "/ledger?action=RETRY_PAYMENT" },
+        { label: "Payment Link", count: paymentLinkCount, color: "var(--warn)", path: "/ledger?action=CREATE_PAYMENT_LINK" },
+        { label: "Escalate", count: escalatedCount, color: "var(--primary)", path: "/ledger?action=ESCALATE_TO_HUMAN" },
+        { label: "Stop", count: stoppedCount, color: "var(--down)", path: "/ledger?action=STOP_RECOVERY" }
     ];
 
     const radius = 70;
     const strokeWidth = 18;
     const circumference = 2 * Math.PI * radius;
-
     let accumulatedAngle = 0;
 
     return (
-        <div className="glass-panel p-6 rounded-2xl flex flex-col justify-between h-full">
+        <div className="panel animate-rise" style={{ padding: "1.5rem", display: "flex", flexDirection: "column", justifyContent: "space-between", height: "100%" }}>
             <div>
-                <h3 className="text-base font-bold text-slate-100 mb-0.5">
-                    Action Breakdown
-                </h3>
+                <span className="eyebrow-primary" style={{ display: "block", marginBottom: "3px" }}>Agent Actions</span>
+                <h3 className="panel-section-title" style={{ marginBottom: "0.25rem" }}>Action Breakdown</h3>
+                <p className="panel-section-desc" style={{ marginBottom: "1.5rem" }}>How the agent intervenes</p>
 
-                <p className="text-xs text-slate-400 mb-6">
-                    How the agent intervenes
-                </p>
-
-                <div className="relative flex items-center justify-center my-4">
-                    <svg className="w-52 h-52 transform -rotate-90">
+                <div style={{ position: "relative", display: "flex", alignItems: "center", justifyContent: "center", margin: "1rem 0" }}>
+                    <svg style={{ width: "13rem", height: "13rem", transform: "rotate(-90deg)" }}>
                         {segments.map((seg, idx) => {
-                            const segmentLength =
-                                (seg.count / (total || 1)) * circumference;
-
+                            const segmentLength = (seg.count / (total || 1)) * circumference;
                             const strokeDasharray = `${segmentLength} ${circumference}`;
                             const strokeDashoffset = -accumulatedAngle;
-
                             accumulatedAngle += segmentLength;
-
                             return (
                                 <circle
                                     key={idx}
@@ -83,45 +44,35 @@ export const DonutChart = ({ actions = {} }) => {
                                     strokeWidth={strokeWidth}
                                     strokeDasharray={strokeDasharray}
                                     strokeDashoffset={strokeDashoffset}
-                                    className="transition-all duration-700 cursor-pointer hover:opacity-80"
+                                    style={{ cursor: "pointer", transition: "opacity 150ms ease" }}
                                     onClick={() => navigate(seg.path)}
                                 />
                             );
                         })}
                     </svg>
-
-                    <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none text-center">
-                        <span className="text-2xl font-extrabold text-slate-100 font-mono tracking-tight">
+                    <div style={{ position: "absolute", inset: 0, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", pointerEvents: "none" }}>
+                        <span style={{ fontSize: "1.5rem", fontWeight: 800, fontFamily: "'JetBrains Mono', monospace", color: "var(--ink)", letterSpacing: "-0.03em" }}>
                             {total}
                         </span>
-
-                        <span className="text-[10px] font-bold uppercase tracking-widest text-slate-400">
-                            ACTIONS
-                        </span>
+                        <span className="eyebrow">Actions</span>
                     </div>
                 </div>
 
-                <div className="grid grid-cols-2 gap-3 mt-6">
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0.75rem", marginTop: "1.5rem" }}>
                     {segments.map((seg, idx) => (
                         <div
                             key={idx}
                             onClick={() => navigate(seg.path)}
-                            className="flex items-center justify-between text-xs p-2 rounded-xl bg-slate-900/60 border border-slate-800/80 hover:border-slate-700 transition-colors cursor-pointer"
+                            className="sub-card"
+                            style={{ display: "flex", alignItems: "center", justifyContent: "space-between", cursor: "pointer", transition: "background-color 150ms ease, border-color 150ms ease" }}
+                            onMouseEnter={(e) => { e.currentTarget.style.background = "var(--hover-primary)"; e.currentTarget.style.borderColor = "var(--primary-border)"; }}
+                            onMouseLeave={(e) => { e.currentTarget.style.background = ""; e.currentTarget.style.borderColor = ""; }}
                         >
-                            <div className="flex items-center gap-2">
-                                <span
-                                    className="w-2.5 h-2.5 rounded-full shrink-0"
-                                    style={{ backgroundColor: seg.color }}
-                                />
-
-                                <span className="text-slate-300 font-medium">
-                                    {seg.label}
-                                </span>
+                            <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
+                                <span style={{ width: "0.625rem", height: "0.625rem", borderRadius: "9999px", background: seg.color, flexShrink: 0 }} />
+                                <span style={{ fontSize: "0.75rem", fontWeight: 500, color: "var(--ink)" }}>{seg.label}</span>
                             </div>
-
-                            <span className="font-bold text-slate-100 font-mono">
-                                {seg.count}
-                            </span>
+                            <span style={{ fontSize: "0.75rem", fontWeight: 700, fontFamily: "'JetBrains Mono', monospace", color: "var(--ink)" }}>{seg.count}</span>
                         </div>
                     ))}
                 </div>

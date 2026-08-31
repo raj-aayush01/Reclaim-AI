@@ -151,34 +151,50 @@ export const RecoveryFlowChart = ({ data = [], timeRange = "7D" }) => {
     };
 
     return (
-        <div className="glass-panel p-6 rounded-2xl flex flex-col justify-between h-full">
+        <div className="panel p-6 rounded-xl flex flex-col justify-between h-full">
             <div>
                 <div className="flex items-center justify-between mb-4">
                     <div>
-                        <h3 className="text-base font-bold text-slate-100">
+                        <h3
+                            style={{
+                                fontSize: "0.9375rem",
+                                fontWeight: 600,
+                                color: "var(--ink)",
+                                fontFamily: "'Inter', sans-serif"
+                            }}
+                        >
                             Recovery Flow
                         </h3>
 
-                        <p className="text-xs text-slate-400">
+                        <p
+                            style={{
+                                fontSize: "0.6875rem",
+                                color: "var(--mute)",
+                                marginTop: "2px"
+                            }}
+                        >
                             At-risk vs recovered — {getRangeLabel()}
                         </p>
                     </div>
 
                     <div className="flex items-center gap-4 text-xs font-semibold">
-                        <span className="flex items-center gap-1.5 text-amber-400">
-                            <span className="w-2.5 h-2.5 rounded-full bg-amber-400" />
+                        <span className="flex items-center gap-1.5" style={{ color: "var(--warn)" }}>
+                            <span className="w-2.5 h-2.5 rounded-full" style={{ background: "var(--warn)" }} />
                             At Risk
                         </span>
 
-                        <span className="flex items-center gap-1.5 text-emerald-400">
-                            <span className="w-2.5 h-2.5 rounded-full bg-emerald-400" />
+                        <span className="flex items-center gap-1.5" style={{ color: "var(--up)" }}>
+                            <span className="w-2.5 h-2.5 rounded-full" style={{ background: "var(--up)" }} />
                             Recovered
                         </span>
                     </div>
                 </div>
 
                 {points.length === 0 ? (
-                    <div className="h-64 flex items-center justify-center text-xs text-slate-500 font-mono">
+                    <div
+                        className="h-64 flex items-center justify-center font-mono"
+                        style={{ fontSize: "0.75rem", color: "var(--mute)" }}
+                    >
                         No recovery data available for this period.
                     </div>
                 ) : (
@@ -196,9 +212,12 @@ export const RecoveryFlowChart = ({ data = [], timeRange = "7D" }) => {
                                 return (
                                     <div
                                         key={index}
-                                        className="absolute inset-x-0 border-b border-slate-800/50 flex items-center text-[10px] text-slate-500 font-mono"
+                                        className="absolute inset-x-0 flex items-center font-mono"
                                         style={{
-                                            top: `${topPositions[index]}px`
+                                            top: `${topPositions[index]}px`,
+                                            borderBottom: "1px solid var(--line)",
+                                            fontSize: "0.625rem",
+                                            color: "var(--mute)"
                                         }}
                                     >
                                         <span>{formatAmount(value)}</span>
@@ -220,13 +239,13 @@ export const RecoveryFlowChart = ({ data = [], timeRange = "7D" }) => {
                                     >
                                         <stop
                                             offset="0%"
-                                            stopColor="#f59e0b"
+                                            stopColor="var(--warn)"
                                             stopOpacity="0.25"
                                         />
 
                                         <stop
                                             offset="100%"
-                                            stopColor="#f59e0b"
+                                            stopColor="var(--warn)"
                                             stopOpacity="0"
                                         />
                                     </linearGradient>
@@ -240,7 +259,7 @@ export const RecoveryFlowChart = ({ data = [], timeRange = "7D" }) => {
                                 <path
                                     d={atRiskPath}
                                     fill="none"
-                                    stroke="#f59e0b"
+                                    stroke="var(--warn)"
                                     strokeWidth="2.5"
                                     strokeLinecap="round"
                                 />
@@ -248,7 +267,7 @@ export const RecoveryFlowChart = ({ data = [], timeRange = "7D" }) => {
                                 <path
                                     d={recoveredPath}
                                     fill="none"
-                                    stroke="#10b981"
+                                    stroke="var(--up)"
                                     strokeWidth="2.5"
                                     strokeLinecap="round"
                                 />
@@ -260,18 +279,18 @@ export const RecoveryFlowChart = ({ data = [], timeRange = "7D" }) => {
                                             y1="20"
                                             x2={activePoint.x}
                                             y2="215"
-                                            stroke="#94a3b8"
+                                            stroke="var(--mute)"
                                             strokeWidth="1"
                                             strokeDasharray="3 3"
-                                            opacity="0.8"
+                                            opacity="0.6"
                                         />
 
                                         <circle
                                             cx={activePoint.x}
                                             cy={activePoint.yAtRisk}
                                             r="5"
-                                            fill="#f59e0b"
-                                            stroke="#090d16"
+                                            fill="var(--warn)"
+                                            stroke="var(--surface-solid)"
                                             strokeWidth="2"
                                         />
 
@@ -279,8 +298,8 @@ export const RecoveryFlowChart = ({ data = [], timeRange = "7D" }) => {
                                             cx={activePoint.x}
                                             cy={activePoint.yRecovered}
                                             r="5"
-                                            fill="#10b981"
-                                            stroke="#090d16"
+                                            fill="var(--up)"
+                                            stroke="var(--surface-solid)"
                                             strokeWidth="2"
                                         />
                                     </>
@@ -305,20 +324,46 @@ export const RecoveryFlowChart = ({ data = [], timeRange = "7D" }) => {
                                         transform: "translateX(-50%)"
                                     }}
                                 >
-                                    <div className="bg-[#0f172a]/95 border border-slate-700/80 backdrop-blur-xl px-4 py-3 rounded-xl shadow-2xl space-y-1 text-xs min-w-[140px]">
-                                        <div className="text-[11px] font-mono text-slate-400 font-bold border-b border-slate-800 pb-1 mb-1">
+                                    <div
+                                        className="chart-tooltip"
+                                        style={{ minWidth: "140px" }}
+                                    >
+                                        <div className="chart-tooltip-label">
                                             {activePoint.label ||
                                                 activePoint.date}
                                         </div>
 
-                                        <div className="flex items-center justify-between gap-3 text-amber-400 font-bold font-mono">
+                                        <div
+                                            style={{
+                                                display: "flex",
+                                                alignItems: "center",
+                                                justifyContent: "space-between",
+                                                gap: "0.75rem",
+                                                color: "var(--warn)",
+                                                fontWeight: 700,
+                                                fontFamily: "'JetBrains Mono', monospace",
+                                                fontSize: "0.75rem"
+                                            }}
+                                        >
                                             <span>At Risk:</span>
                                             <span>
                                                 {activePoint.atRiskLabel}
                                             </span>
                                         </div>
 
-                                        <div className="flex items-center justify-between gap-3 text-emerald-400 font-bold font-mono">
+                                        <div
+                                            style={{
+                                                display: "flex",
+                                                alignItems: "center",
+                                                justifyContent: "space-between",
+                                                gap: "0.75rem",
+                                                color: "var(--up)",
+                                                fontWeight: 700,
+                                                fontFamily: "'JetBrains Mono', monospace",
+                                                fontSize: "0.75rem",
+                                                marginTop: "2px"
+                                            }}
+                                        >
                                             <span>Recovered:</span>
                                             <span>
                                                 {activePoint.recLabel}
@@ -329,7 +374,20 @@ export const RecoveryFlowChart = ({ data = [], timeRange = "7D" }) => {
                             )}
                         </div>
 
-                        <div className="flex justify-between items-center text-[10px] font-mono text-slate-500 pt-2 px-4 border-t border-slate-800/80">
+                        <div
+                            style={{
+                                display: "flex",
+                                justifyContent: "space-between",
+                                alignItems: "center",
+                                fontSize: "0.625rem",
+                                fontFamily: "'JetBrains Mono', monospace",
+                                color: "var(--mute)",
+                                paddingTop: "0.5rem",
+                                paddingLeft: "1rem",
+                                paddingRight: "1rem",
+                                borderTop: "1px solid var(--line)"
+                            }}
+                        >
                             <span>
                                 {points[0]?.label || points[0]?.date}
                             </span>

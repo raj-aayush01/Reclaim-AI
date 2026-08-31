@@ -10,14 +10,60 @@ export const EmptyState = ({
     icon: Icon = Inbox
 }) => {
     return (
-        <div className="flex flex-col items-center justify-center p-12 text-center bg-slate-900/40 border border-slate-800/80 rounded-2xl">
-            <div className="p-4 mb-4 rounded-2xl bg-slate-800/50 border border-slate-700/50 text-indigo-400">
-                <Icon className="w-8 h-8" />
+        <div
+            className="panel animate-rise"
+            style={{
+                padding: "3.5rem 2rem",
+                textAlign: "center",
+                display: "flex",
+                flexDirection: "column",
+                alignItems: "center",
+                gap: "0.75rem"
+            }}
+        >
+            <div
+                style={{
+                    width: "2.5rem",
+                    height: "2.5rem",
+                    borderRadius: "0.625rem",
+                    background: "var(--primary-soft)",
+                    border: "1px solid oklch(0.43 0.075 180 / 0.2)",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    color: "var(--primary)"
+                }}
+            >
+                <Icon size={18} />
             </div>
-            <h4 className="text-lg font-semibold text-slate-200 mb-1">{title}</h4>
-            <p className="text-sm text-slate-400 max-w-sm mb-6">{description}</p>
+
+            <h3
+                style={{
+                    fontSize: "0.9375rem",
+                    fontWeight: 600,
+                    color: "var(--ink)",
+                    fontFamily: "'Inter', sans-serif"
+                }}
+            >
+                {title}
+            </h3>
+
+            <p
+                style={{
+                    fontSize: "0.8125rem",
+                    color: "var(--mute)",
+                    maxWidth: "28rem",
+                    lineHeight: 1.6
+                }}
+            >
+                {description}
+            </p>
+
             {actionText && onAction && (
-                <Button variant="primary" onClick={onAction}>
+                <Button
+                    variant="primary"
+                    onClick={onAction}
+                >
                     {actionText}
                 </Button>
             )}

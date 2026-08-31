@@ -44,20 +44,30 @@ export const Guardrails = () => {
     ];
 
     return (
-        <div className="space-y-8 animate-fade-in font-sans">
+        <div className="space-y-6 animate-fade-in font-sans">
             {/* Header Banner */}
-            <div className="glass-panel p-6 rounded-2xl border border-emerald-500/30 flex items-center justify-between">
+            <div className="panel panel-accent-up p-6 rounded-xl flex items-center justify-between">
                 <div>
-                    <span className="text-[10px] font-bold uppercase tracking-widest text-emerald-400 block mb-0.5">
+                    <span className="eyebrow" style={{ color: "var(--up)", display: "block", marginBottom: "2px" }}>
                         POLICY ENGINE
                     </span>
-                    <h1 className="text-xl font-bold text-slate-100 flex items-center gap-2">
-                        <ShieldCheck className="w-5 h-5 text-emerald-400" />
+                    <h1
+                        style={{
+                            fontSize: "1.25rem",
+                            fontWeight: 700,
+                            color: "var(--ink)",
+                            fontFamily: "'Inter', sans-serif",
+                            display: "flex",
+                            alignItems: "center",
+                            gap: "0.5rem"
+                        }}
+                    >
+                        <ShieldCheck className="w-5 h-5" style={{ color: "var(--up)" }} />
                         Rules the Agent Follows
                     </h1>
                 </div>
 
-                <div className="px-3.5 py-1.5 rounded-full bg-emerald-950/60 text-emerald-300 border border-emerald-800/80 text-xs font-bold font-mono">
+                <div className="count-pill count-pill-up">
                     05 ACTIVE RULES
                 </div>
             </div>
@@ -67,53 +77,96 @@ export const Guardrails = () => {
                 {rules.map((rule) => {
                     const Icon = rule.icon;
                     return (
-                        <div key={rule.num} className="glass-panel p-5 rounded-2xl border border-slate-800 space-y-3">
+                        <div key={rule.num} className="panel p-5 rounded-xl space-y-3">
                             <div className="flex items-center justify-between">
-                                <span className="text-lg font-bold font-mono text-emerald-400">{rule.num}</span>
-                                <div className="p-2 rounded-xl bg-slate-900 text-emerald-400 border border-slate-800">
+                                <span
+                                    style={{
+                                        fontSize: "1.125rem",
+                                        fontWeight: 800,
+                                        fontFamily: "'JetBrains Mono', monospace",
+                                        color: "var(--up)"
+                                    }}
+                                >
+                                    {rule.num}
+                                </span>
+                                <div className="icon-box icon-box-sm icon-box-up">
                                     <Icon className="w-4 h-4" />
                                 </div>
                             </div>
-                            <h3 className="text-xs font-bold text-slate-100">{rule.title}</h3>
-                            <p className="text-[11px] text-slate-400 leading-relaxed">{rule.desc}</p>
+                            <h3
+                                style={{
+                                    fontSize: "0.8125rem",
+                                    fontWeight: 700,
+                                    color: "var(--ink)"
+                                }}
+                            >
+                                {rule.title}
+                            </h3>
+                            <p
+                                style={{
+                                    fontSize: "0.6875rem",
+                                    color: "var(--mute)",
+                                    lineHeight: 1.5
+                                }}
+                            >
+                                {rule.desc}
+                            </p>
                         </div>
                     );
                 })}
             </div>
 
             {/* Recent Policy Firings Table */}
-            <div className="glass-panel p-6 rounded-2xl space-y-4">
+            <div className="panel p-6 rounded-xl space-y-4">
                 <div className="flex items-center justify-between">
                     <div>
-                        <span className="text-[10px] font-bold uppercase tracking-widest text-emerald-400 block mb-0.5">
+                        <span className="eyebrow" style={{ color: "var(--up)", display: "block", marginBottom: "2px" }}>
                             LIVE EXAMPLES
                         </span>
-                        <h3 className="text-base font-bold text-slate-100">Recent Policy Firings</h3>
+                        <h3
+                            style={{
+                                fontSize: "1rem",
+                                fontWeight: 700,
+                                color: "var(--ink)",
+                                fontFamily: "'Inter', sans-serif"
+                            }}
+                        >
+                            Recent Policy Firings
+                        </h3>
                     </div>
-                    <span className="text-xs font-mono font-bold text-slate-400">6 FIRED</span>
+                    <span
+                        style={{
+                            fontSize: "0.75rem",
+                            fontFamily: "'JetBrains Mono', monospace",
+                            fontWeight: 700,
+                            color: "var(--mute)"
+                        }}
+                    >
+                        6 FIRED
+                    </span>
                 </div>
 
                 <div className="overflow-x-auto">
-                    <table className="w-full text-left border-collapse">
+                    <table className="tf-table">
                         <thead>
-                            <tr className="bg-slate-900/80 border-b border-slate-800 text-[10px] font-bold uppercase tracking-wider text-slate-400">
-                                <th className="px-4 py-3">Payment ID</th>
-                                <th className="px-4 py-3">Amount</th>
-                                <th className="px-4 py-3">Action Taken</th>
-                                <th className="px-4 py-3">Reason</th>
+                            <tr>
+                                <th>Payment ID</th>
+                                <th>Amount</th>
+                                <th>Action Taken</th>
+                                <th>Reason</th>
                             </tr>
                         </thead>
-                        <tbody className="divide-y divide-slate-800/60 text-xs">
+                        <tbody>
                             {firings.map((f, idx) => (
-                                <tr key={idx} className="hover:bg-slate-800/40">
-                                    <td className="px-4 py-3 font-mono font-bold text-slate-200">{f.paymentId}</td>
-                                    <td className="px-4 py-3 font-bold text-slate-100">{formatCurrency(f.amount)}</td>
-                                    <td className="px-4 py-3">
-                                        <span className="px-2.5 py-0.5 rounded bg-amber-950/60 text-amber-300 border border-amber-800/60 text-[10px] font-extrabold">
+                                <tr key={idx} className="row-hover">
+                                    <td className="font-mono" style={{ fontWeight: 600, color: "var(--ink)" }}>{f.paymentId}</td>
+                                    <td style={{ fontWeight: 700, color: "var(--ink)" }}>{formatCurrency(f.amount)}</td>
+                                    <td>
+                                        <span className="badge-warn" style={{ display: "inline-block", padding: "0.1875rem 0.5rem", borderRadius: "0.25rem", fontSize: "0.625rem", fontWeight: 700, fontFamily: "'JetBrains Mono', monospace" }}>
                                             {f.action}
                                         </span>
                                     </td>
-                                    <td className="px-4 py-3 font-mono text-slate-400">{f.reason}</td>
+                                    <td className="font-mono" style={{ color: "var(--mute)" }}>{f.reason}</td>
                                 </tr>
                             ))}
                         </tbody>

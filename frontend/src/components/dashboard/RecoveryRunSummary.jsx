@@ -12,61 +12,111 @@ export const RecoveryRunSummary = ({ batchData = {} }) => {
     } = batchData;
 
     const rows = [
-        { label: "Run", value: batchId, isMono: true },
-        { label: "Evaluated", value: evaluated },
-        { label: "Recovered ₹", value: formatCurrency(recoveredAmount) },
+        {
+            label: "Run",
+            value: batchId,
+            isMono: true,
+            color: "var(--ink)"
+        },
+        {
+            label: "Evaluated",
+            value: evaluated,
+            color: "var(--ink)"
+        },
+        {
+            label: "Recovered ₹",
+            value: formatCurrency(recoveredAmount),
+            color: "var(--up)"
+        },
         {
             label: "Blocked",
             value: blocked,
-            textColor: "text-rose-400 font-bold"
+            color: "var(--down)"
         },
         {
             label: "Exceptions",
             value: exceptions,
-            textColor: "text-amber-400 font-bold"
+            color: "var(--warn)"
         },
         {
             label: "Recovery Rate",
-            value: `${Number(recoveryRate).toFixed(1)}%`
+            value: `${Number(recoveryRate).toFixed(1)}%`,
+            color: "var(--primary)"
         }
     ];
 
     return (
-        <div className="glass-panel p-6 rounded-2xl flex flex-col justify-between h-full">
-            <div>
-                <div className="flex items-center justify-between mb-4">
-                    <div>
-                        <span className="text-[10px] font-bold uppercase tracking-widest text-emerald-400 block mb-0.5">
-                            RECOVERY SUMMARY
-                        </span>
-                        <h3 className="text-base font-bold text-slate-100">
-                            Recovery Performance
-                        </h3>
-                    </div>
-                </div>
+        <div
+            className="panel h-full flex flex-col"
+        >
+            <div
+                style={{
+                    padding: "1rem 1.25rem",
+                    borderBottom: "1px solid var(--line)"
+                }}
+            >
+                <span
+                    className="eyebrow-primary"
+                    style={{
+                        display: "block",
+                        marginBottom: "3px"
+                    }}
+                >
+                    RECOVERY SUMMARY
+                </span>
 
-                <div className="divide-y divide-slate-800/80">
-                    {rows.map((row) => (
-                        <div
-                            key={row.label}
-                            className="py-2.5 flex items-center justify-between text-xs"
+                <h3
+                    style={{
+                        fontSize: "0.9375rem",
+                        fontWeight: 600,
+                        color: "var(--ink)",
+                        fontFamily: "'Inter', sans-serif",
+                        letterSpacing: "-0.01em"
+                    }}
+                >
+                    Recovery Performance
+                </h3>
+            </div>
+
+            <div
+                style={{
+                    padding: "0.375rem 0 1.75rem"
+                }}
+            >
+                {rows.map((row) => (
+                    <div
+                        key={row.label}
+                        style={{
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "space-between",
+                            padding: "0.5625rem 1.25rem",
+                            borderBottom: "1px solid var(--line)"
+                        }}
+                    >
+                        <span
+                            style={{
+                                fontSize: "0.75rem",
+                                color: "var(--mute)",
+                                fontFamily: "'JetBrains Mono', monospace"
+                            }}
                         >
-                            <span className="text-slate-400 font-medium">
-                                {row.label}
-                            </span>
+                            {row.label}
+                        </span>
 
-                            <span
-                                className={`text-slate-200 ${
-                                    row.isMono
-                                        ? "font-mono text-[11px]"
-                                        : "font-semibold"
-                                } ${row.textColor || ""}`}
-                            >
-                                {row.value}
-                            </span>
-                        </div>
-                    ))}
-                </div>
+                        <span
+                            style={{
+                                fontSize: "0.8125rem",
+                                fontWeight: row.isMono ? 500 : 600,
+                                fontFamily: "'JetBrains Mono', monospace",
+                                fontVariantNumeric: "tabular-nums",
+                                color: row.color
+                            }}
+                        >
+                            {row.value}
+                        </span>
+                    </div>
+                ))}
             </div>
         </div>
     );

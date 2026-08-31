@@ -43,47 +43,41 @@ export const Payments = () => {
     };
 
     return (
-        <div className="space-y-6 animate-fade-in">
-            {/* Title Header */}
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 glass-panel p-6 rounded-2xl">
+        <div className="page-stack animate-rise">
+            <div className="panel page-header-panel panel-accent-primary">
                 <div>
-                    <h1 className="text-xl font-bold text-slate-100 flex items-center gap-2">
-                        <CreditCard className="w-5 h-5 text-indigo-400" />
-                        Payments & AI Recovery Desk
+                    <span className="eyebrow-primary" style={{ display: "block", marginBottom: "4px" }}>
+                        Payment Ledger
+                    </span>
+                    <h1 className="page-title">
+                        <CreditCard size={20} style={{ color: "var(--primary)" }} />
+                        Payments &amp; AI Recovery Desk
                     </h1>
-                    <p className="text-xs text-slate-400 mt-1">
+                    <p className="page-desc">
                         Search, filter, inspect failure scenarios, and trigger autonomous AI recovery routines.
                     </p>
                 </div>
 
-                <div className="flex items-center gap-3">
-                    <button
-                        onClick={refetch}
-                        disabled={loading}
-                        className="p-2.5 rounded-xl bg-slate-800/80 hover:bg-slate-700 text-slate-300 border border-slate-700 transition-all cursor-pointer"
-                        title="Refresh payment table"
-                    >
-                        <RefreshCw className={`w-4 h-4 ${loading ? "animate-spin" : ""}`} />
-                    </button>
-                </div>
+                <button
+                    onClick={refetch}
+                    disabled={loading}
+                    className="icon-btn"
+                    title="Refresh payment table"
+                >
+                    <RefreshCw size={16} className={loading ? "animate-spin" : ""} style={loading ? { animation: "spin 1s linear infinite" } : undefined} />
+                </button>
             </div>
 
-            {/* Execution Error Banner */}
             {executionError && (
-                <ErrorMessage
-                    message={executionError}
-                    onRetry={() => setExecutionError(null)}
-                />
+                <ErrorMessage message={executionError} onRetry={() => setExecutionError(null)} />
             )}
 
-            {/* Filter Bar */}
             <PaymentFilters
                 filters={filters}
                 onFilterChange={updateFilters}
                 onReset={resetFilters}
             />
 
-            {/* Payments Data Table */}
             {error ? (
                 <ErrorMessage message={error} onRetry={refetch} />
             ) : (
@@ -97,7 +91,6 @@ export const Payments = () => {
                 />
             )}
 
-            {/* AI Recovery Execution Modal Result */}
             <Modal
                 isOpen={!!recoveryModalData}
                 onClose={() => setRecoveryModalData(null)}
@@ -105,18 +98,17 @@ export const Payments = () => {
                 maxWidth="max-w-2xl"
             >
                 {recoveryModalData && (
-                    <div className="space-y-5">
-                        <div className="flex items-center gap-2 p-3 bg-emerald-950/40 border border-emerald-800/40 rounded-xl text-xs text-emerald-300">
-                            <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
+                    <div className="page-stack">
+                        <div className="banner-up">
+                            <CheckCircle2 size={16} style={{ flexShrink: 0 }} />
                             <span>
                                 AI Recovery Engine executed for payment{" "}
-                                <strong>
+                                <strong style={{ color: "var(--ink)" }}>
                                     {recoveryModalData.paymentId || recoveryModalData.executionResult?.paymentId}
                                 </strong>.
                             </span>
                         </div>
 
-                        {/* Standardized Props (Change 1, 3, 5) */}
                         <AIDecisionCard
                             aiDecision={recoveryModalData.aiDecision || recoveryModalData.aiRecommendation}
                         />
@@ -126,14 +118,12 @@ export const Payments = () => {
                         />
 
                         {recoveryModalData.executionResult && (
-                            <ExecutionResult
-                                executionResult={recoveryModalData.executionResult}
-                            />
+                            <ExecutionResult executionResult={recoveryModalData.executionResult} />
                         )}
 
-                        <div className="flex justify-end pt-2">
+                        <div style={{ display: "flex", justifyContent: "flex-end", paddingTop: "0.5rem" }}>
                             <Button variant="primary" onClick={() => setRecoveryModalData(null)}>
-                                Close & Refresh Table
+                                Close &amp; Refresh Table
                             </Button>
                         </div>
                     </div>

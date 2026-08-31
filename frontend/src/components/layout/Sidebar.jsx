@@ -1,15 +1,17 @@
 import React from "react";
-import { NavLink } from "react-router-dom";
-import { 
-    LayoutDashboard, 
-    CreditCard, 
-    AlertCircle, 
-    ShieldCheck, 
-    Sparkles,
-    AlertOctagon
+import { NavLink, useLocation } from "react-router-dom";
+import {
+    LayoutDashboard,
+    CreditCard,
+    AlertCircle,
+    ShieldCheck,
+    AlertOctagon,
+    Zap
 } from "lucide-react";
 
 export const Sidebar = () => {
+    const location = useLocation();
+
     const navItems = [
         {
             path: "/overview",
@@ -41,44 +43,162 @@ export const Sidebar = () => {
     ];
 
     return (
-        <aside className="w-64 bg-[#090d16] border-r border-slate-800/80 flex flex-col justify-between fixed top-0 bottom-0 left-0 z-30">
+        <aside
+            style={{
+                width: "16rem",
+                background: "var(--surface)",
+                backdropFilter: "blur(16px)",
+                WebkitBackdropFilter: "blur(16px)",
+                borderRight: "1px solid var(--line)",
+                display: "flex",
+                flexDirection: "column",
+                justifyContent: "space-between",
+                position: "fixed",
+                top: 0,
+                bottom: 0,
+                left: 0,
+                zIndex: 30
+            }}
+        >
             <div>
-                {/* Brand Header */}
-                <div className="h-16 flex items-center px-6 border-b border-slate-800/80 gap-3">
-                    <div className="w-7 h-7 rounded-lg bg-emerald-500/20 text-emerald-400 flex items-center justify-center border border-emerald-500/40">
-                        <Sparkles className="w-4 h-4" />
+                <div
+                    style={{
+                        height: "4rem",
+                        display: "flex",
+                        alignItems: "center",
+                        padding: "0 1.25rem",
+                        borderBottom: "1px solid var(--line)",
+                        gap: "0.625rem"
+                    }}
+                >
+                    <div
+                        style={{
+                            width: "1.75rem",
+                            height: "1.75rem",
+                            borderRadius: "0.5rem",
+                            background: "var(--primary-soft)",
+                            border: "1px solid var(--primary-border)",
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                            color: "var(--primary)",
+                            flexShrink: 0
+                        }}
+                    >
+                        <Zap size={14} strokeWidth={2.5} />
                     </div>
+
                     <div>
-                        <h1 className="text-base font-extrabold tracking-tight text-slate-100 font-mono">
-                            Reclaim<span className="text-emerald-400">·AI</span>
+                        <h1
+                            style={{
+                                fontSize: "0.9375rem",
+                                fontWeight: 700,
+                                letterSpacing: "-0.025em",
+                                color: "var(--ink)",
+                                fontFamily: "'Inter', sans-serif",
+                                lineHeight: 1.2
+                            }}
+                        >
+                            Reclaim
+                            <span style={{ color: "var(--primary)" }}>
+                                .AI
+                            </span>
                         </h1>
-                        <p className="text-[9px] uppercase tracking-widest font-bold text-slate-500">
-                            REVENUE RECOVERY
+
+                        <p
+                            className="eyebrow"
+                            style={{ marginTop: "1px" }}
+                        >
+                            Revenue Recovery
                         </p>
                     </div>
                 </div>
 
-                {/* Navigation Links */}
-                <nav className="p-4 space-y-1.5">
-                    <div className="px-3 py-2 text-[10px] font-bold text-slate-500 uppercase tracking-widest">
-                        NAVIGATION
+                <nav
+                    style={{
+                        padding: "1rem 0.75rem",
+                        display: "flex",
+                        flexDirection: "column",
+                        gap: "2px"
+                    }}
+                >
+                    <div
+                        className="eyebrow"
+                        style={{
+                            padding: "0.5rem 0.75rem 0.75rem"
+                        }}
+                    >
+                        Navigation
                     </div>
+
                     {navItems.map((item) => {
                         const Icon = item.icon;
+
+                        const isCurrentPath =
+                            location.pathname === item.path ||
+                            (item.altPath &&
+                                location.pathname === item.altPath);
+
                         return (
                             <NavLink
                                 key={item.path}
                                 to={item.path}
-                                className={({ isActive }) => {
-                                    const active = isActive || (item.altPath && window.location.pathname === item.altPath);
-                                    return `flex items-center gap-3 px-3.5 py-2.5 rounded-xl font-semibold text-xs transition-all duration-200 ${
-                                        active
-                                            ? "bg-emerald-950/60 text-emerald-300 border border-emerald-800/60 shadow-lg shadow-emerald-950/40"
-                                            : "text-slate-400 hover:text-slate-200 hover:bg-slate-900/60"
-                                    }`;
+                                end
+                                style={({ isActive }) => {
+                                    const active =
+                                        isActive || isCurrentPath;
+
+                                    return {
+                                        display: "flex",
+                                        alignItems: "center",
+                                        gap: "0.625rem",
+                                        padding: "0.5rem 0.75rem",
+                                        borderRadius: "0.5rem",
+                                        fontSize: "0.8125rem",
+                                        fontWeight: active ? 600 : 500,
+                                        transition:
+                                            "background-color 150ms ease, color 150ms ease",
+                                        textDecoration: "none",
+                                        background: active
+                                            ? "var(--primary-soft)"
+                                            : "transparent",
+                                        color: active
+                                            ? "var(--primary)"
+                                            : "var(--mute)"
+                                    };
+                                }}
+                                onMouseEnter={(e) => {
+                                    const active =
+                                        e.currentTarget.getAttribute(
+                                            "aria-current"
+                                        ) === "page";
+
+                                    if (!active) {
+                                        e.currentTarget.style.backgroundColor =
+                                            "var(--line)";
+                                        e.currentTarget.style.color =
+                                            "var(--ink)";
+                                    }
+                                }}
+                                onMouseLeave={(e) => {
+                                    const active =
+                                        e.currentTarget.getAttribute(
+                                            "aria-current"
+                                        ) === "page";
+
+                                    if (!active) {
+                                        e.currentTarget.style.backgroundColor =
+                                            "transparent";
+                                        e.currentTarget.style.color =
+                                            "var(--mute)";
+                                    }
                                 }}
                             >
-                                <Icon className="w-4 h-4" />
+                                <Icon
+                                    size={15}
+                                    strokeWidth={1.75}
+                                />
+
                                 <span>{item.label}</span>
                             </NavLink>
                         );
@@ -86,17 +206,64 @@ export const Sidebar = () => {
                 </nav>
             </div>
 
-            {/* Bottom Status Widget */}
-            <div className="p-4 border-t border-slate-800/80">
-                <div className="p-3.5 rounded-xl bg-slate-900/80 border border-slate-800/80 space-y-1">
-                    <div className="flex items-center gap-2">
-                        <span className="relative flex h-2 w-2">
-                            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-                            <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+            <div
+                style={{
+                    padding: "1rem",
+                    borderTop: "1px solid var(--line)"
+                }}
+            >
+                <div
+                    style={{
+                        padding: "0.75rem",
+                        borderRadius: "0.5rem",
+                        background: "var(--surface-solid)",
+                        border: "1px solid var(--line)",
+                        display: "flex",
+                        flexDirection: "column",
+                        gap: "0.375rem"
+                    }}
+                >
+                    <div
+                        style={{
+                            display: "flex",
+                            alignItems: "center",
+                            gap: "0.5rem"
+                        }}
+                    >
+                        <span
+                            className="animate-blip"
+                            style={{
+                                width: "6px",
+                                height: "6px",
+                                borderRadius: "9999px",
+                                background: "var(--up)",
+                                display: "inline-block",
+                                flexShrink: 0
+                            }}
+                        />
+
+                        <span
+                            style={{
+                                fontSize: "0.75rem",
+                                fontWeight: 600,
+                                color: "var(--up)",
+                                fontFamily:
+                                    "'JetBrains Mono', monospace"
+                            }}
+                        >
+                            Agent · Online
                         </span>
-                        <span className="text-emerald-400 font-bold text-xs">Agent · Online</span>
                     </div>
-                    <span className="text-[11px] text-slate-400 block font-mono pl-4">
+
+                    <span
+                        style={{
+                            fontSize: "0.6875rem",
+                            color: "var(--mute)",
+                            fontFamily:
+                                "'JetBrains Mono', monospace",
+                            paddingLeft: "0.875rem"
+                        }}
+                    >
                         Gemini Flash 3.6
                     </span>
                 </div>

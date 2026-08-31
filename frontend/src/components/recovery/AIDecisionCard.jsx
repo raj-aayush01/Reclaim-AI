@@ -6,7 +6,6 @@ import {
     AlertTriangle,
     ArrowRight
 } from "lucide-react";
-
 import { formatRecoveryAction } from "../../utils/statusHelpers";
 import { formatCurrency } from "../../utils/formatCurrency";
 
@@ -77,8 +76,10 @@ const getFailureExplanation = (payment) => {
             return "The reason for the failure could not be confidently classified, so the system avoids making an unsafe assumption.";
 
         default:
-            return payment?.failureReason ||
-                "The payment could not be completed successfully.";
+            return (
+                payment?.failureReason ||
+                "The payment could not be completed successfully."
+            );
     }
 };
 
@@ -87,9 +88,7 @@ export const AIDecisionCard = ({
     payment = {},
     customer = {}
 }) => {
-    if (!aiDecision) {
-        return null;
-    }
+    if (!aiDecision) return null;
 
     const {
         action,
@@ -115,11 +114,8 @@ export const AIDecisionCard = ({
     );
 
     const actionInfo = getActionExplanation(action);
-
     const customerName =
-        customer?.name ||
-        payment?.customerName ||
-        "The customer";
+        customer?.name || payment?.customerName || "The customer";
 
     const amount =
         payment?.amount !== undefined
@@ -129,103 +125,96 @@ export const AIDecisionCard = ({
     const failureExplanation = getFailureExplanation(payment);
 
     return (
-        <div className="
-            glass-panel
-            rounded-2xl
-            border border-indigo-500/30
-            bg-gradient-to-br
-            from-slate-900/95
-            via-slate-900/80
-            to-indigo-950/20
-            p-6
-        ">
-
-            {/* Header */}
-            <div className="
-                flex
-                flex-col
-                sm:flex-row
-                sm:items-start
-                sm:justify-between
-                gap-4
-                mb-6
-            ">
-
-                <div className="flex items-start gap-3">
-                    <div className="
-                        p-2.5
-                        rounded-xl
-                        bg-indigo-500/20
-                        text-indigo-400
-                        border border-indigo-500/30
-                    ">
-                        <Brain className="w-5 h-5" />
+        <div className="panel panel-accent-primary recovery-card">
+            <div
+                style={{
+                    display: "flex",
+                    flexWrap: "wrap",
+                    alignItems: "flex-start",
+                    justifyContent: "space-between",
+                    gap: "1rem",
+                    marginBottom: "1.5rem"
+                }}
+            >
+                <div
+                    style={{
+                        display: "flex",
+                        alignItems: "flex-start",
+                        gap: "0.75rem"
+                    }}
+                >
+                    <div className="icon-box icon-box-md icon-box-primary">
+                        <Brain size={18} />
                     </div>
 
                     <div>
-                        <h4 className="
-                            text-base
-                            font-bold
-                            text-slate-100
-                            flex
-                            items-center
-                            gap-1.5
-                        ">
+                        <h4
+                            className="recovery-card-title"
+                            style={{
+                                display: "flex",
+                                alignItems: "center",
+                                gap: "0.375rem"
+                            }}
+                        >
                             AI Recovery Decision
-                            <Sparkles className="w-4 h-4 text-amber-400" />
+                            <Sparkles
+                                size={16}
+                                style={{ color: "var(--warn)" }}
+                            />
                         </h4>
 
-                        <p className="
-                            text-[11px]
-                            text-slate-400
-                            mt-0.5
-                        ">
+                        <p className="recovery-card-subtitle">
                             Why the AI chose this recovery strategy
                         </p>
                     </div>
                 </div>
 
-                <div className="sm:text-right">
-                    <span className="
-                        text-[10px]
-                        uppercase
-                        tracking-wider
-                        text-slate-500
-                        block
-                    ">
-                        AI Confidence
-                    </span>
+                <div style={{ textAlign: "right" }}>
+                    <span className="meta-label">AI Confidence</span>
 
-                    <span className="
-                        text-lg
-                        font-extrabold
-                        text-indigo-300
-                    ">
+                    <span
+                        style={{
+                            display: "block",
+                            fontSize: "1.125rem",
+                            fontWeight: 800,
+                            color: "var(--primary)",
+                            fontFamily: "'JetBrains Mono', monospace"
+                        }}
+                    >
                         {confidencePercent}%
                     </span>
                 </div>
             </div>
 
-            {/* What happened */}
-            <div className="mb-6">
+            <div style={{ marginBottom: "1.5rem" }}>
+                <div
+                    style={{
+                        display: "flex",
+                        alignItems: "center",
+                        gap: "0.5rem",
+                        marginBottom: "0.5rem"
+                    }}
+                >
+                    <User
+                        size={14}
+                        style={{ color: "var(--mute)" }}
+                    />
 
-                <div className="flex items-center gap-2 mb-2">
-                    <User className="w-4 h-4 text-slate-500" />
-
-                    <span className="
-                        text-xs
-                        font-semibold
-                        text-slate-300
-                    ">
+                    <span
+                        style={{
+                            fontSize: "0.75rem",
+                            fontWeight: 600,
+                            color: "var(--ink)"
+                        }}
+                    >
                         What happened
                     </span>
                 </div>
 
-                <p className="
-                    text-sm
-                    text-slate-300
-                    leading-relaxed
-                ">
+                <p
+                    className="recovery-card-body-text"
+                    style={{ color: "var(--ink)" }}
+                >
                     {summary ||
                         `${customerName}${
                             amount
@@ -234,103 +223,100 @@ export const AIDecisionCard = ({
                         } payment, but the payment could not be completed.`}
                 </p>
 
-                <p className="
-                    text-sm
-                    text-slate-400
-                    leading-relaxed
-                    mt-2
-                ">
+                <p
+                    className="recovery-card-body-text"
+                    style={{ marginTop: "0.5rem" }}
+                >
                     {failureExplanation}
                 </p>
             </div>
 
-            {/* Decision */}
-            <div className="
-                p-4
-                rounded-xl
-                bg-indigo-950/40
-                border border-indigo-800/60
-                mb-6
-            ">
-                <span className="
-                    text-[10px]
-                    uppercase
-                    font-bold
-                    tracking-wider
-                    text-indigo-400
-                    block
-                    mb-2
-                ">
+            <div className="recovery-card-highlight">
+                <span
+                    className="eyebrow-primary"
+                    style={{
+                        display: "block",
+                        marginBottom: "0.5rem"
+                    }}
+                >
                     AI Decision
                 </span>
 
-                <div className="
-                    flex
-                    flex-col
-                    sm:flex-row
-                    sm:items-center
-                    sm:justify-between
-                    gap-3
-                ">
-
+                <div
+                    style={{
+                        display: "flex",
+                        flexWrap: "wrap",
+                        alignItems: "center",
+                        justifyContent: "space-between",
+                        gap: "0.75rem"
+                    }}
+                >
                     <div>
-                        <span className="
-                            text-lg
-                            font-bold
-                            text-slate-100
-                        ">
+                        <span
+                            style={{
+                                fontSize: "1.125rem",
+                                fontWeight: 700,
+                                color: "var(--ink)"
+                            }}
+                        >
                             {formatRecoveryAction(action)}
                         </span>
 
-                        <p className="
-                            text-xs
-                            text-indigo-200/70
-                            mt-1
-                        ">
+                        <p
+                            style={{
+                                fontSize: "0.75rem",
+                                color: "var(--primary)",
+                                marginTop: "0.25rem"
+                            }}
+                        >
                             {actionInfo.title}
                         </p>
                     </div>
 
-                    <ArrowRight className="
-                        hidden
-                        sm:block
-                        w-5
-                        h-5
-                        text-indigo-400
-                    " />
+                    <ArrowRight
+                        size={18}
+                        style={{
+                            color: "var(--primary)",
+                            display: "none"
+                        }}
+                        className="sm-show"
+                    />
                 </div>
             </div>
 
-            {/* Why */}
-            <div className="space-y-5">
-
+            <div
+                style={{
+                    display: "flex",
+                    flexDirection: "column",
+                    gap: "1.25rem"
+                }}
+            >
                 <div>
-                    <div className="
-                        flex
-                        items-center
-                        gap-2
-                        mb-2
-                    ">
-                        <AlertTriangle className="
-                            w-4
-                            h-4
-                            text-amber-400
-                        " />
+                    <div
+                        style={{
+                            display: "flex",
+                            alignItems: "center",
+                            gap: "0.5rem",
+                            marginBottom: "0.5rem"
+                        }}
+                    >
+                        <AlertTriangle
+                            size={14}
+                            style={{ color: "var(--warn)" }}
+                        />
 
-                        <span className="
-                            text-xs
-                            font-semibold
-                            text-slate-300
-                        ">
+                        <span
+                            style={{
+                                fontSize: "0.75rem",
+                                fontWeight: 600,
+                                color: "var(--ink)"
+                            }}
+                        >
                             Why this decision?
                         </span>
                     </div>
 
-                    <p className="
-                        text-sm
-                        text-slate-400
-                        leading-relaxed
-                    ">
+                    <p className="recovery-card-body-text">
                         {whyThisDecision ||
                             reason ||
                             actionInfo.explanation}
@@ -338,23 +324,20 @@ export const AIDecisionCard = ({
                 </div>
 
                 <div>
-                    <span className="
-                        text-xs
-                        font-semibold
-                        text-slate-300
-                        block
-                        mb-2
-                    ">
+                    <span
+                        style={{
+                            fontSize: "0.75rem",
+                            fontWeight: 600,
+                            color: "var(--ink)",
+                            display: "block",
+                            marginBottom: "0.5rem"
+                        }}
+                    >
                         What happens next?
                     </span>
 
-                    <p className="
-                        text-sm
-                        text-slate-400
-                        leading-relaxed
-                    ">
-                        {whatHappensNext ||
-                            actionInfo.next}
+                    <p className="recovery-card-body-text">
+                        {whatHappensNext || actionInfo.next}
                     </p>
                 </div>
             </div>

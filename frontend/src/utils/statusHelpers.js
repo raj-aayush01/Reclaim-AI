@@ -5,37 +5,37 @@ export const STATUS_CONFIG = {
     failed: {
         label: "Failed",
         variant: "danger",
-        bg: "rgba(244, 63, 94, 0.15)",
-        color: "#f43f5e",
-        border: "rgba(244, 63, 94, 0.3)"
+        bg: "var(--down-soft)",
+        color: "var(--down)",
+        border: "var(--down-border)"
     },
     pending: {
         label: "Pending",
         variant: "warning",
-        bg: "rgba(245, 158, 11, 0.15)",
-        color: "#f59e0b",
-        border: "rgba(245, 158, 11, 0.3)"
+        bg: "var(--warn-soft)",
+        color: "var(--warn)",
+        border: "var(--warn-border)"
     },
     recovered: {
         label: "Recovered",
         variant: "success",
-        bg: "rgba(16, 185, 129, 0.15)",
-        color: "#10b981",
-        border: "rgba(16, 185, 129, 0.3)"
+        bg: "var(--up-soft)",
+        color: "var(--up)",
+        border: "var(--up-border)"
     },
     escalated: {
         label: "Escalated",
-        variant: "purple",
-        bg: "rgba(139, 92, 246, 0.15)",
-        color: "#a78bfa",
-        border: "rgba(139, 92, 246, 0.3)"
+        variant: "warning",
+        bg: "var(--warn-soft)",
+        color: "var(--warn)",
+        border: "var(--warn-border)"
     },
     stopped: {
         label: "Stopped",
         variant: "neutral",
-        bg: "rgba(100, 116, 139, 0.15)",
-        color: "#94a3b8",
-        border: "rgba(100, 116, 139, 0.3)"
+        bg: "var(--line)",
+        color: "var(--mute)",
+        border: "var(--line-strong)"
     }
 };
 
@@ -65,9 +65,9 @@ export const getStatusConfig = (status) => {
     return STATUS_CONFIG[key] || {
         label: status || "Unknown",
         variant: "neutral",
-        bg: "rgba(100, 116, 139, 0.15)",
-        color: "#94a3b8",
-        border: "rgba(100, 116, 139, 0.3)"
+        bg: "var(--line)",
+        color: "var(--mute)",
+        border: "var(--line-strong)"
     };
 };
 

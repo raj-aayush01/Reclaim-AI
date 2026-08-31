@@ -1,5 +1,74 @@
 import React from "react";
 
+const variantMap = {
+    primary: {
+        text: "var(--primary)",
+        icon: {
+            bg: "var(--primary-soft)",
+            border: "var(--primary-border)",
+            color: "var(--primary)"
+        },
+        panel: {
+            borderColor: "var(--primary-border)"
+        }
+    },
+    emerald: {
+        text: "var(--up)",
+        icon: {
+            bg: "var(--up-soft)",
+            border: "var(--up-border)",
+            color: "var(--up)"
+        },
+        panel: {
+            borderColor: "var(--up-border)"
+        }
+    },
+    rose: {
+        text: "var(--down)",
+        icon: {
+            bg: "var(--down-soft)",
+            border: "var(--down-border)",
+            color: "var(--down)"
+        },
+        panel: {
+            borderColor: "var(--down-border)"
+        }
+    },
+    amber: {
+        text: "var(--warn)",
+        icon: {
+            bg: "var(--warn-soft)",
+            border: "var(--warn-border)",
+            color: "var(--warn)"
+        },
+        panel: {
+            borderColor: "var(--warn-border)"
+        }
+    },
+    indigo: {
+        text: "var(--primary)",
+        icon: {
+            bg: "var(--primary-soft)",
+            border: "var(--primary-border)",
+            color: "var(--primary)"
+        },
+        panel: {
+            borderColor: "var(--primary-border)"
+        }
+    },
+    purple: {
+        text: "var(--primary)",
+        icon: {
+            bg: "var(--primary-soft)",
+            border: "var(--primary-border)",
+            color: "var(--primary)"
+        },
+        panel: {
+            borderColor: "var(--primary-border)"
+        }
+    }
+};
+
 export const StatCard = ({
     title,
     value,
@@ -8,53 +77,82 @@ export const StatCard = ({
     colorVariant = "indigo",
     onClick
 }) => {
-    const variants = {
-        indigo: {
-            iconBg: "bg-indigo-500/10 text-indigo-400 border-indigo-500/20",
-            glow: "hover:border-indigo-500/30"
-        },
-        rose: {
-            iconBg: "bg-rose-500/10 text-rose-400 border-rose-500/20",
-            glow: "hover:border-rose-500/30"
-        },
-        amber: {
-            iconBg: "bg-amber-500/10 text-amber-400 border-amber-500/20",
-            glow: "hover:border-amber-500/30"
-        },
-        emerald: {
-            iconBg: "bg-emerald-500/10 text-emerald-400 border-emerald-500/20",
-            glow: "hover:border-emerald-500/30"
-        },
-        purple: {
-            iconBg: "bg-purple-500/10 text-purple-400 border-purple-500/20",
-            glow: "hover:border-purple-500/30"
-        }
-    };
-
-    const currentVariant = variants[colorVariant] || variants.indigo;
+    const variant = variantMap[colorVariant] || variantMap.indigo;
 
     return (
         <div
             onClick={onClick}
-            className={`glass-panel p-5 rounded-2xl transition-all duration-200 ${
-                onClick ? "cursor-pointer glass-panel-hover" : ""
-            } ${currentVariant.glow}`}
+            className="panel animate-rise"
+            style={{
+                padding: "1.25rem",
+                cursor: onClick ? "pointer" : "default",
+                transition:
+                    "box-shadow 150ms ease, border-color 150ms ease",
+                borderColor: variant.panel.borderColor
+            }}
+            onMouseEnter={(event) => {
+                if (onClick) {
+                    event.currentTarget.style.boxShadow =
+                        "var(--shadow-panel), 0 8px 24px -12px oklch(0.43 0.075 180 / 0.2)";
+                }
+            }}
+            onMouseLeave={(event) => {
+                event.currentTarget.style.boxShadow = "";
+            }}
         >
-            <div className="flex items-center justify-between mb-3">
-                <span className="text-xs font-semibold uppercase tracking-wider text-slate-400">
+            <div
+                style={{
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "space-between",
+                    marginBottom: "0.75rem"
+                }}
+            >
+                <span className="eyebrow">
                     {title}
                 </span>
+
                 {Icon && (
-                    <div className={`p-2.5 rounded-xl border ${currentVariant.iconBg}`}>
-                        <Icon className="w-5 h-5" />
+                    <div
+                        style={{
+                            padding: "0.5rem",
+                            borderRadius: "0.5rem",
+                            background: variant.icon.bg,
+                            border: `1px solid ${variant.icon.border}`,
+                            color: variant.icon.color,
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "center"
+                        }}
+                    >
+                        <Icon size={15} strokeWidth={1.75} />
                     </div>
                 )}
             </div>
-            <div className="text-2xl font-bold text-slate-100 tracking-tight mb-1">
+
+            <div
+                style={{
+                    fontSize: "1.875rem",
+                    fontWeight: 700,
+                    fontFamily: "'JetBrains Mono', monospace",
+                    fontVariantNumeric: "tabular-nums",
+                    color: variant.text,
+                    letterSpacing: "-0.03em",
+                    lineHeight: 1.1,
+                    marginBottom: "0.375rem"
+                }}
+            >
                 {value}
             </div>
+
             {subtext && (
-                <div className="text-xs text-slate-400 font-medium">
+                <div
+                    style={{
+                        fontSize: "0.75rem",
+                        color: "var(--mute)",
+                        fontFamily: "'Inter', sans-serif"
+                    }}
+                >
                     {subtext}
                 </div>
             )}

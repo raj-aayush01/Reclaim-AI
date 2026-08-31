@@ -28,7 +28,14 @@ const getDashboardSummary = async (req, res) => {
             ? { createdAt: { $gte: startDate } }
             : {};
 
+        // Payments within the selected dashboard time range
         const payments = await Payment.find(dateQuery);
+
+        // Current open exceptions are independent of the selected
+        // dashboard time range.
+        const openExceptionsCount = await Payment.countDocuments({
+            status: "escalated"
+        });
 
         const totalPayments = payments.length;
 
@@ -63,6 +70,7 @@ const getDashboardSummary = async (req, res) => {
                 ? ((recoveredAmount / totalAtRisk) * 100).toFixed(2)
                 : 0;
 
+        // Action breakdown remains time-range based.
         const retryCount = payments.filter(
             payment =>
                 payment.recoveryAction === "RETRY_PAYMENT"
@@ -99,6 +107,7 @@ const getDashboardSummary = async (req, res) => {
 
             for (let i = rangeDays - 1; i >= 0; i--) {
                 const dayStart = new Date(now);
+
                 dayStart.setHours(0, 0, 0, 0);
                 dayStart.setDate(dayStart.getDate() - i);
 
@@ -148,11 +157,16 @@ const getDashboardSummary = async (req, res) => {
             timeRange,
             totalPayments,
             failedPayments,
+
             atRiskCount: atRiskPayments.length,
             totalAtRisk,
+
             recoveredCount: recoveredPayments,
             recoveredAmount,
             recoveryRate: Number(recoveryRate),
+
+            // Current open exceptions, regardless of selected time range.
+            openExceptionsCount,
 
             actions: {
                 retryCount,

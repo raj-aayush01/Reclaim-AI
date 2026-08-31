@@ -7,17 +7,39 @@ export const Layout = () => {
     const [timeRange, setTimeRange] = useState("7D");
 
     return (
-        <div className="min-h-screen bg-[#070a11] text-slate-100 flex font-sans">
+        <div
+            style={{
+                minHeight: "100vh",
+                background: "var(--background)",
+                color: "var(--ink)",
+                display: "flex",
+                fontFamily: "'Inter', sans-serif"
+            }}
+        >
             {/* Left Sidebar */}
             <Sidebar />
 
             {/* Main Workspace Area */}
-            <div className="flex-1 ml-64 flex flex-col min-h-screen">
+            <div
+                style={{
+                    flex: 1,
+                    marginLeft: "16rem",
+                    display: "flex",
+                    flexDirection: "column",
+                    minHeight: "100vh"
+                }}
+            >
                 {/* Top Navbar */}
                 <Navbar timeRange={timeRange} onTimeRangeChange={setTimeRange} />
 
                 {/* Dynamic Page Content */}
-                <main className="mt-16 p-8 flex-1">
+                <main
+                    style={{
+                        marginTop: "4rem",
+                        padding: "2rem",
+                        flex: 1
+                    }}
+                >
                     <Outlet context={{ timeRange }} />
                 </main>
             </div>
