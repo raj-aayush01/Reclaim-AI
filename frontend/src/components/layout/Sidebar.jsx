@@ -7,24 +7,19 @@ import {
     ShieldCheck,
     AlertOctagon,
     Zap,
-    Bot
+    Bot,
+    Repeat
 } from "lucide-react";
 
 export const Sidebar = () => {
     const location = useLocation();
 
-    const navItems = [
+        const navItems = [
         {
             path: "/overview",
             altPath: "/",
             label: "Overview",
             icon: LayoutDashboard
-        },
-        {
-            path: "/ledger",
-            altPath: "/payments",
-            label: "Ledger",
-            icon: CreditCard
         },
         {
             path: "/control-room",
@@ -35,6 +30,17 @@ export const Sidebar = () => {
             path: "/failed-payments",
             label: "Failed Payments",
             icon: AlertOctagon
+        },
+        {
+            path: "/failed-subscriptions",
+            label: "Failed Subscriptions",
+            icon: Repeat
+        },
+        {
+            path: "/ledger",
+            altPath: "/payments",
+            label: "Ledger",
+            icon: CreditCard
         },
         {
             path: "/exceptions",

@@ -60,6 +60,13 @@ export const Navbar = ({ timeRange = "7D", onTimeRangeChange }) => {
         }
 
         /* =========================
+           Failed Subscriptions
+           ========================= */
+        if (path === "/failed-subscriptions") {
+            return "Failed Subscriptions";
+        }
+
+        /* =========================
            Exceptions
            ========================= */
         if (path === "/exceptions") {

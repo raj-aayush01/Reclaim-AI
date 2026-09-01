@@ -1,10 +1,24 @@
 const express = require("express");
 
-const { runRecovery } = require("../services/aiRecoveryOrchestrator");
-const { runAgentBatch } = require("../services/agent/agentBatchRunner");
-const { getAgentRun, getControlRoom } = require("../controllers/agentController");
+const {
+    runRecovery
+} = require("../services/aiRecoveryOrchestrator");
+
+const {
+    runAgentBatch
+} = require("../services/agent/agentBatchRunner");
+
+const {
+    getAgentRun,
+    getControlRoom
+} = require("../controllers/agentController");
 
 const router = express.Router();
+
+
+// =========================================================
+// RUN AI RECOVERY FOR ONE PAYMENT
+// =========================================================
 
 router.post("/ai/:paymentId", async (req, res) => {
 
@@ -16,15 +30,33 @@ router.post("/ai/:paymentId", async (req, res) => {
             await runRecovery(paymentId);
 
         res.status(200).json({
-            message: "AI recovery executed successfully",
+
+            message:
+                "AI recovery executed successfully",
+
             result,
-            payment: result?.payment || null,
+
+            payment:
+                result?.payment || null,
+
+            subscription:
+                result?.subscription || null,
+
             run: {
-                runId: result?.runId || null,
+
+                runId:
+                    result?.runId || null,
+
                 paymentId,
-                status: result?.status || "COMPLETED",
-                steps: result?.steps || []
+
+                status:
+                    result?.status || "COMPLETED",
+
+                steps:
+                    result?.steps || []
+
             }
+
         });
 
     } catch (error) {
@@ -35,11 +67,23 @@ router.post("/ai/:paymentId", async (req, res) => {
         );
 
         res.status(500).json({
-            message: "AI recovery execution failed",
-            error: error.message
+
+            message:
+                "AI recovery execution failed",
+
+            error:
+                error.message
+
         });
+
     }
+
 });
+
+
+// =========================================================
+// BATCH AI RECOVERY
+// =========================================================
 
 router.post("/batch", async (req, res) => {
 
@@ -51,18 +95,24 @@ router.post("/batch", async (req, res) => {
         if (limit < 1 || limit > 50) {
 
             return res.status(400).json({
+
                 message:
                     "Limit must be between 1 and 50"
+
             });
+
         }
 
         const result =
             await runAgentBatch(limit);
 
         res.status(200).json({
+
             message:
                 "Agent batch recovery completed",
+
             result
+
         });
 
     } catch (error) {
@@ -73,14 +123,38 @@ router.post("/batch", async (req, res) => {
         );
 
         res.status(500).json({
+
             message:
                 "Agent batch recovery failed",
-            error: error.message
+
+            error:
+                error.message
+
         });
+
     }
+
 });
 
-router.get("/control-room", getControlRoom);
-router.get("/runs/:paymentId", getAgentRun);
+
+// =========================================================
+// AI CONTROL ROOM
+// =========================================================
+
+router.get(
+    "/control-room",
+    getControlRoom
+);
+
+
+// =========================================================
+// AGENT RUN HISTORY
+// =========================================================
+
+router.get(
+    "/runs/:paymentId",
+    getAgentRun
+);
+
 
 module.exports = router;

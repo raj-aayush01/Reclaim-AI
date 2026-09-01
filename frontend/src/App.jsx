@@ -5,6 +5,7 @@ import LandingPage from "./pages/LandingPage";
 import Dashboard from "./pages/Dashboard";
 import Payments from "./pages/Payments";
 import FailedPayments from "./pages/FailedPayments";
+import FailedSubscriptions from "./pages/FailedSubscriptions";
 import PaymentDetails from "./pages/PaymentDetails";
 import Exceptions from "./pages/Exceptions";
 import Guardrails from "./pages/Guardrails";
@@ -24,6 +25,10 @@ function App() {
                     <Route
                         path="failed-payments"
                         element={<FailedPayments />}
+                    />
+                    <Route
+                        path="failed-subscriptions"
+                        element={<FailedSubscriptions />}
                     />
                     <Route
                         path="payments/:paymentId"

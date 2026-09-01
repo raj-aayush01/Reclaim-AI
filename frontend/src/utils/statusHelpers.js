@@ -30,13 +30,34 @@ export const STATUS_CONFIG = {
         color: "var(--warn)",
         border: "var(--warn-border)"
     },
-    stopped: {
-        label: "Stopped",
-        variant: "neutral",
-        bg: "var(--line)",
-        color: "var(--mute)",
-        border: "var(--line-strong)"
-    }
+        stopped: {
+            label: "Stopped",
+            variant: "neutral",
+            bg: "var(--line)",
+            color: "var(--mute)",
+            border: "var(--line-strong)"
+        },
+        active: {
+            label: "Active",
+            variant: "success",
+            bg: "var(--up-soft)",
+            color: "var(--up)",
+            border: "var(--up-border)"
+        },
+        past_due: {
+            label: "Past Due",
+            variant: "danger",
+            bg: "var(--down-soft)",
+            color: "var(--down)",
+            border: "var(--down-border)"
+        },
+        canceled: {
+            label: "Canceled",
+            variant: "neutral",
+            bg: "var(--line)",
+            color: "var(--mute)",
+            border: "var(--line-strong)"
+        }
 };
 
 /**

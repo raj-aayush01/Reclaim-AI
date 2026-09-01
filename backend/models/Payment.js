@@ -103,6 +103,16 @@ const paymentSchema = new mongoose.Schema(
                 null
             ],
             default: null
+        },
+
+        subscriptionId: {
+            type: String,
+            default: null
+        },
+
+        isSubscriptionRenewal: {
+            type: Boolean,
+            default: false
         }
     },
     {
