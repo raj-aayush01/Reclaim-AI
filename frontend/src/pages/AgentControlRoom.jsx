@@ -9,79 +9,118 @@ import {
     X,
     Eye,
     Clock,
-    Zap
+    Zap,
+    CreditCard,
+    UserRound,
 } from "lucide-react";
+
 import AnimatedNumber from "../components/common/AnimatedNumber";
 import Loader from "../components/common/Loader";
 import ErrorMessage from "../components/common/ErrorMessage";
-import {
-    getControlRoom,
-    getAgentRun
-} from "../services/agentService";
+import { getControlRoom, getAgentRun } from "../services/agentService";
+import "./AgentControlRoom.css";
 
-const getActionLabel = (action) => {
-    const labels = {
-        RETRY_PAYMENT: "Retry payment",
-        CREATE_PAYMENT_LINK: "Create payment link",
-        ESCALATE_TO_HUMAN: "Escalate to human",
-        STOP_RECOVERY: "Stop recovery"
-    };
-
-    return labels[action] || action || "No action";
+const ACTION_LABELS = {
+    RETRY_PAYMENT: "Retry payment",
+    CREATE_PAYMENT_LINK: "Create payment link",
+    ESCALATE_TO_HUMAN: "Escalate to human",
+    STOP_RECOVERY: "Stop recovery",
 };
 
+const STATUS_LABELS = {
+    RECOVERED: "Recovered",
+    ESCALATED: "Human review",
+    BLOCKED: "Blocked",
+    STOPPED: "Stopped",
+    FAILED: "Failed",
+    RUNNING: "In progress",
+    COMPLETED: "Completed",
+    PENDING: "Pending",
+    MAX_STEPS_REACHED: "Stopped safely",
+};
+
+const getActionLabel = (action) =>
+    ACTION_LABELS[action] || action || "No action";
+
+const getStatusLabel = (status) =>
+    STATUS_LABELS[status] || status || "Unknown";
+
 const getStatusClass = (status) => {
-    if (
-        status === "RECOVERED" ||
-        status === "APPROVED"
-    ) {
-        return "badge-up";
+    if (status === "RECOVERED" || status === "APPROVED") {
+        return "acr-status acr-status-success";
     }
 
     if (
         status === "ESCALATED" ||
-        status === "BLOCKED" ||
-        status === "STOPPED"
+        status === "PENDING" ||
+        status === "RUNNING"
     ) {
-        return "badge-down";
+        return "acr-status acr-status-warning";
     }
 
-    return "badge-primary";
+    if (
+        status === "BLOCKED" ||
+        status === "STOPPED" ||
+        status === "FAILED"
+    ) {
+        return "acr-status acr-status-danger";
+    }
+
+    return "acr-status";
 };
 
-const getStatusLabel = (status) => {
-    const labels = {
-        RECOVERED: "Recovered",
-        ESCALATED: "Human review",
-        BLOCKED: "Blocked",
-        STOPPED: "Stopped",
-        FAILED: "Failed",
-        RUNNING: "In progress",
-        COMPLETED: "Completed",
-        PENDING: "Pending",
-        MAX_STEPS_REACHED: "Stopped safely"
-    };
+const getStep = (run, type) =>
+    run?.steps?.find((step) => step.type === type) || null;
 
-    return labels[status] || status || "Unknown";
+const getLastStep = (run, types) => {
+    const steps =
+        run?.steps?.filter((step) => types.includes(step.type)) || [];
+
+    return steps.length ? steps[steps.length - 1] : null;
+};
+
+const getDecisionStep = (run) => getStep(run, "DECISION");
+const getPolicyStep = (run) => getLastStep(run, ["POLICY"]);
+const getActionStep = (run) => getLastStep(run, ["ACTION"]);
+
+const getResultStep = (run) =>
+    getLastStep(run, ["RESULT", "TERMINAL"]);
+
+const getRunAction = (run) => {
+    const decision = getDecisionStep(run);
+    const policy = getPolicyStep(run);
+
+    return (
+        decision?.output?.action ||
+        decision?.action ||
+        policy?.output?.finalAction ||
+        policy?.output?.stopResult?.policyDecision?.finalAction ||
+        policy?.finalAction ||
+        null
+    );
+};
+
+const getRunConfidence = (run) => {
+    const decision = getDecisionStep(run);
+
+    return (
+        decision?.confidence ??
+        decision?.output?.confidence ??
+        null
+    );
 };
 
 const getDecisionExplanation = (run) => {
-    const decisionStep = run.steps?.find(
-        (step) => step.type === "DECISION"
-    );
+    const decision = getDecisionStep(run);
+    const action = getRunAction(run);
 
-    const policyStep = run.steps?.find(
-        (step) => step.type === "POLICY"
-    );
+    if (decision?.output?.summary) {
+        return decision.output.summary;
+    }
 
-    const resultStep = run.steps?.find(
-        (step) => step.type === "RESULT"
-    );
-
-    const action =
-        decisionStep?.output?.action ||
-        policyStep?.output?.finalAction ||
-        null;
+    if (decision?.output?.whyThisDecision) {
+        return decision.output.whyThisDecision;
+    }
 
     if (action === "RETRY_PAYMENT") {
         return "The payment showed signs of a temporary problem, so the agent recommended trying the payment again.";
@@ -99,45 +138,46 @@ const getDecisionExplanation = (run) => {
         return "The agent determined that continuing recovery was not safe or useful, so further attempts were stopped.";
     }
 
-    if (resultStep?.reason) {
-        return resultStep.reason;
+    if (decision?.reason) {
+        return decision.reason;
     }
 
-    return "The agent completed its assessment of the payment.";
+    return "The agent reviewed the failed payment and selected the safest available recovery option.";
+};
+
+const getPolicyAllowed = (run) => {
+    const policy = getPolicyStep(run);
+
+    if (!policy) return null;
+
+    return (
+        policy.output?.allowed ??
+        policy.output?.policyDecision?.allowed ??
+        policy.output?.stopResult?.policyDecision?.allowed ??
+        policy.allowed ??
+        null
+    );
 };
 
 const getPolicyExplanation = (run) => {
-    const policyStep = run.steps?.find(
-        (step) => step.type === "POLICY"
-    );
+    const policy = getPolicyStep(run);
+    const allowed = getPolicyAllowed(run);
 
-    if (policyStep) {
-        if (policyStep.output?.allowed === true) {
-            return (
-                policyStep.reason ||
-                "The recommended recovery action passed the configured safety rules."
-            );
-        }
-
-        if (policyStep.output?.allowed === false) {
-            return (
-                policyStep.reason ||
-                "The recommended recovery action was blocked by the configured safety rules."
-            );
-        }
-
+    if (policy) {
         return (
-            policyStep.reason ||
-            "The recovery policy was evaluated before execution."
+            policy.reason ||
+            policy.output?.reason ||
+            policy.output?.policyDecision?.reason ||
+            policy.output?.stopResult?.policyDecision?.reason ||
+            (allowed === true
+                ? "The recommended recovery action passed the configured safety rules."
+                : allowed === false
+                  ? "The recommended recovery action was blocked by the configured safety rules."
+                  : "The recovery policy was evaluated before execution.")
         );
     }
 
-    const action = getRunAction(run);
-
-    if (
-        run.status === "STOPPED" ||
-        action === "STOP_RECOVERY"
-    ) {
+    if (run.status === "STOPPED") {
         return "Recovery was stopped because the configured retry or safety limits did not allow another attempt.";
     }
 
@@ -149,24 +189,18 @@ const getPolicyExplanation = (run) => {
         return "The case was sent for human review because automatic recovery was not permitted.";
     }
 
-    if (run.status === "RECOVERED") {
-        return "The recovery recommendation was allowed and the payment was successfully recovered.";
-    }
-
-    return "The recovery policy was applied before the agent proceeded with the recovery process.";
+    return "The recovery policy was checked before the system proceeded.";
 };
 
 const getActionExplanation = (run) => {
-    const actionStep = run.steps?.find(
-        (step) => step.type === "ACTION"
-    );
+    const action = getActionStep(run);
 
-    if (!actionStep) {
+    if (!action) {
         if (
             run.status === "STOPPED" ||
             run.status === "BLOCKED"
         ) {
-            return "No recovery action was executed.";
+            return "No further recovery action was executed.";
         }
 
         if (run.status === "ESCALATED") {
@@ -176,24 +210,26 @@ const getActionExplanation = (run) => {
         return "No recovery action was recorded.";
     }
 
-    if (actionStep.output?.message) {
-        return actionStep.output.message;
+    if (action.output?.message) {
+        return action.output.message;
     }
 
-    if (actionStep.output?.success === true) {
+    if (action.output?.success === true) {
         return "The recommended recovery action was executed successfully.";
     }
 
-    return "The recovery action was executed by the agent.";
+    return "The recovery action was processed by the agent.";
 };
 
 const getResultExplanation = (run) => {
-    const resultStep = run.steps?.find(
-        (step) => step.type === "RESULT"
-    );
+    const result = getResultStep(run);
 
-    if (resultStep?.reason) {
-        return resultStep.reason;
+    if (result?.reason) {
+        return result.reason;
+    }
+
+    if (result?.output?.message) {
+        return result.output.message;
     }
 
     if (run.status === "RECOVERED") {
@@ -220,186 +256,1176 @@ const getResultExplanation = (run) => {
 };
 
 const formatDate = (date) => {
-    if (!date) {
-        return "—";
+    if (!date) return "—";
+
+    const parsed = new Date(date);
+
+    if (Number.isNaN(parsed.getTime())) {
+        return String(date);
     }
 
-    return new Date(date).toLocaleString();
+    return parsed.toLocaleString();
 };
 
-const getRunConfidence = (run) => {
-    const decisionStep = run.steps?.find(
-        (step) => step.type === "DECISION"
-    );
+const formatAmount = (amount, currency = "INR") => {
+    if (amount == null || amount === "") return "—";
 
-    return decisionStep?.confidence ?? null;
+    try {
+        return new Intl.NumberFormat("en-IN", {
+            style: "currency",
+            currency,
+            maximumFractionDigits: 2,
+        }).format(Number(amount));
+    } catch {
+        return `${currency} ${amount}`;
+    }
 };
 
-const getRunAction = (run) => {
-    const decisionStep = run.steps?.find(
-        (step) => step.type === "DECISION"
-    );
+const extractInspectionContext = (run) => {
+    const steps = Array.isArray(run?.steps)
+        ? run.steps
+        : [];
 
-    const policyStep = run.steps?.find(
-        (step) => step.type === "POLICY"
-    );
+    let payment = {};
+    let customer = {};
+
+    for (
+        let index = steps.length - 1;
+        index >= 0;
+        index -= 1
+    ) {
+        const output = steps[index]?.output;
+
+        const candidates = [
+            output?.payment,
+            output?.stopResult?.payment,
+            output?.executionResult?.payment,
+        ];
+
+        const foundPayment = candidates.find(Boolean);
+
+        if (
+            foundPayment &&
+            !Object.keys(payment).length
+        ) {
+            payment = foundPayment;
+        }
+
+        const foundCustomer =
+            output?.customer ||
+            output?.customerHistory?.customer ||
+            output?.history?.customer;
+
+        if (
+            foundCustomer &&
+            !Object.keys(customer).length
+        ) {
+            customer = foundCustomer;
+        }
+    }
+
+    for (const step of steps) {
+        const output = step?.output;
+
+        if (
+            step?.tool === "get_customer_history" &&
+            output?.customer
+        ) {
+            customer = output.customer;
+            break;
+        }
+    }
+
+    return {
+        payment,
+        customer,
+    };
+};
+
+const getCustomerId = (
+    payment,
+    customer,
+    run
+) =>
+    payment?.customerId ||
+    customer?.customerId ||
+    run?.customerId ||
+    run?.customer?.id ||
+    "—";
+
+const getFailureReason = (payment, run) => {
+    const raw =
+        payment?.failureReason ||
+        payment?.failure?.reason ||
+        payment?.errorCode ||
+        payment?.failureCode ||
+        run?.failureReason ||
+        null;
+
+    if (!raw) {
+        return "The payment failed, but no specific failure reason was recorded.";
+    }
+
+    const labels = {
+        CARD_DECLINED:
+            "The customer's card was declined by the payment provider.",
+        INSUFFICIENT_FUNDS:
+            "The payment could not be completed because there were not enough available funds.",
+        EXPIRED_CARD:
+            "The payment method had expired.",
+        NETWORK_ERROR:
+            "A temporary network problem prevented the payment from completing.",
+        TIMEOUT:
+            "The payment provider did not respond in time.",
+        UNKNOWN:
+            "The exact cause of the payment failure could not be determined.",
+    };
+
+    if (labels[raw]) {
+        return labels[raw];
+    }
+
+    return String(raw)
+        .replace(/[_-]+/g, " ")
+        .replace(/\b\w/g, (letter) =>
+            letter.toUpperCase()
+        );
+};
+
+const getAttemptCount = (payment, run) =>
+    payment?.attemptCount ??
+    payment?.retryCount ??
+    run?.attemptCount ??
+    getResultStep(run)?.output?.attemptsMade ??
+    getActionStep(run)?.input?.attemptNumber ??
+    getPolicyStep(run)?.output?.attemptsMade ??
+    0;
+
+const getMaxAttempts = (payment, run) =>
+    payment?.maxAttempts ??
+    run?.policy?.maxAttempts ??
+    getResultStep(run)?.output?.maxAttempts ??
+    getPolicyStep(run)?.output?.maxAttempts ??
+    getPolicyStep(run)?.input?.maxAttempts ??
+    null;
+
+const getAttemptText = (payment, run) => {
+    const current = getAttemptCount(payment, run);
+    const max = getMaxAttempts(payment, run);
+
+    return max != null
+        ? `${current} / ${max}`
+        : `${current}`;
+};
+
+const getOutcomeTitle = (status) => {
+    const labels = {
+        RECOVERED: "Payment recovered",
+        ESCALATED: "Sent for human review",
+        BLOCKED: "Recovery blocked",
+        STOPPED: "Recovery stopped safely",
+        FAILED: "Recovery failed",
+        RUNNING: "Recovery in progress",
+        PENDING: "Recovery pending",
+        COMPLETED: "Recovery completed",
+    };
 
     return (
-        decisionStep?.output?.action ||
-        policyStep?.output?.finalAction ||
-        null
+        labels[status] ||
+        getStatusLabel(status)
     );
 };
 
-const DetailRow = ({ label, children }) => {
-    return (
-        <div
-            style={{
-                display: "flex",
-                justifyContent: "space-between",
-                alignItems: "flex-start",
-                gap: "1rem",
-                padding: "0.7rem 0",
-                borderBottom: "1px solid var(--line)"
-            }}
-        >
-            <span
-                style={{
-                    fontSize: "0.6875rem",
-                    color: "var(--mute)",
-                    flexShrink: 0
-                }}
-            >
-                {label}
-            </span>
+const getOutcomeDescription = (run) => {
+    if (run.status === "RECOVERED") {
+        return "The recovery action succeeded and the payment was recovered.";
+    }
 
-            <span
-                style={{
-                    fontSize: "0.75rem",
-                    color: "var(--ink)",
-                    textAlign: "right"
-                }}
-            >
-                {children}
-            </span>
-        </div>
-    );
+    if (run.status === "ESCALATED") {
+        return "Automated recovery was not allowed to continue, so the payment was sent for human review.";
+    }
+
+    if (run.status === "BLOCKED") {
+        return "The recovery action was blocked by policy and no further automated action was taken.";
+    }
+
+    if (run.status === "STOPPED") {
+        return "Further automated attempts were stopped to stay within the configured recovery policy.";
+    }
+
+    if (run.status === "FAILED") {
+        return "The recovery process could not complete successfully.";
+    }
+
+    if (run.status === "RUNNING") {
+        return "The recovery agent is still working on this payment.";
+    }
+
+    return "The recovery agent completed its assessment of this payment.";
 };
 
-const FlowStep = ({
-    number,
+const getOutcomeTone = (status) => {
+    if (status === "RECOVERED") {
+        return "success";
+    }
+
+    if (
+        status === "ESCALATED" ||
+        status === "PENDING" ||
+        status === "RUNNING"
+    ) {
+        return "warning";
+    }
+
+    if (
+        status === "BLOCKED" ||
+        status === "STOPPED" ||
+        status === "FAILED"
+    ) {
+        return "danger";
+    }
+
+    return "neutral";
+};
+
+const DetailRow = ({ label, children }) => (
+    <div className="acr-detail-row">
+        <span>{label}</span>
+        <strong>{children}</strong>
+    </div>
+);
+
+const FlowPill = ({
+    children,
+    tone = "neutral",
+    active = false,
+}) => (
+    <div
+        className={`acr-flow-node-card acr-flow-${tone} ${
+            active ? "acr-flow-current" : ""
+        }`}
+    >
+        {children}
+    </div>
+);
+
+const InspectorSection = ({
+    eyebrow,
     title,
-    label,
-    description,
     icon: Icon,
-    last = false
-}) => {
-    return (
-        <div
-            style={{
-                display: "flex",
-                gap: "0.875rem",
-                position: "relative"
-            }}
-        >
-            {!last && (
-                <div
-                    style={{
-                        position: "absolute",
-                        left: "14px",
-                        top: "32px",
-                        bottom: "-14px",
-                        width: "1px",
-                        background: "var(--line)"
-                    }}
-                />
-            )}
-
-            <div
-                style={{
-                    width: "29px",
-                    height: "29px",
-                    borderRadius: "9999px",
-                    background: "var(--primary-soft)",
-                    border: "1px solid var(--primary-border)",
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    color: "var(--primary)",
-                    flexShrink: 0,
-                    position: "relative",
-                    zIndex: 1
-                }}
-            >
-                <Icon size={14} />
+    children,
+    className = "",
+}) => (
+    <section
+        className={`acr-inspector-section ${className}`}
+    >
+        <div className="acr-section-heading">
+            <div className="acr-section-icon">
+                <Icon size={15} />
             </div>
 
-            <div
-                style={{
-                    paddingBottom: last ? 0 : "1.25rem",
-                    flex: 1
-                }}
-            >
-                <div
-                    style={{
-                        display: "flex",
-                        alignItems: "center",
-                        gap: "0.5rem"
-                    }}
-                >
-                    <span
-                        style={{
-                            fontSize: "0.8125rem",
-                            fontWeight: 700,
-                            color: "var(--ink)"
-                        }}
-                    >
-                        {number}. {title}
+            <div>
+                <span className="acr-eyebrow acr-eyebrow-primary">
+                    {eyebrow}
+                </span>
+
+                <h3>{title}</h3>
+            </div>
+        </div>
+
+        {children}
+    </section>
+);
+
+const RecoveryFlow = ({
+    run,
+    payment,
+    tone,
+}) => {
+    const action = getRunAction(run);
+    const policyAllowed =
+        getPolicyAllowed(run);
+    const result = getResultStep(run);
+    const actionStep =
+        getActionStep(run);
+
+    const actionTone =
+        action === "ESCALATE_TO_HUMAN"
+            ? "warning"
+            : action === "STOP_RECOVERY"
+              ? "danger"
+              : "success";
+
+    const finalTone =
+        tone === "success"
+            ? "success"
+            : tone === "warning"
+              ? "warning"
+              : "danger";
+
+    const paymentStatus =
+        payment?.status ||
+        result?.output?.status ||
+        run.status;
+
+    return (
+        <section className="acr-top-flow">
+            <div className="acr-flow-header">
+                <div>
+                    <span className="acr-eyebrow acr-eyebrow-primary">
+                        Recovery flow
                     </span>
 
-                    <span
-                        className="eyebrow"
-                        style={{
-                            fontSize: "0.5625rem"
-                        }}
-                    >
-                        {label}
-                    </span>
+                    <h3>
+                        How this payment was handled
+                    </h3>
+
+                    <p>
+                        Follow the agent from the failed
+                        payment through analysis, policy,
+                        action, and final outcome.
+                    </p>
                 </div>
 
-                <p
-                    style={{
-                        marginTop: "0.3rem",
-                        fontSize: "0.6875rem",
-                        lineHeight: 1.55,
-                        color: "var(--mute)"
-                    }}
+                <span
+                    className={getStatusClass(
+                        paymentStatus
+                    )}
                 >
-                    {description}
-                </p>
+                    {getStatusLabel(
+                        paymentStatus
+                    )}
+                </span>
+            </div>
+
+            <div className="acr-flow-track">
+                <FlowPill tone="danger">
+                    <span className="acr-flow-index">
+                        01
+                    </span>
+
+                    <CreditCard size={16} />
+
+                    <div>
+                        <strong>
+                            Payment failed
+                        </strong>
+
+                        <span>
+                            {getFailureReason(
+                                payment,
+                                run
+                            )}
+                        </span>
+                    </div>
+                </FlowPill>
+
+                <div className="acr-flow-connector">
+                    <span>›</span>
+                </div>
+
+                <FlowPill
+                    tone="primary"
+                    active
+                >
+                    <span className="acr-flow-index">
+                        02
+                    </span>
+
+                    <Bot size={16} />
+
+                    <div>
+                        <strong>
+                            AI analyzed
+                        </strong>
+
+                        <span>
+                            {getActionLabel(
+                                action
+                            )}
+                        </span>
+                    </div>
+                </FlowPill>
+
+                <div className="acr-flow-connector">
+                    <span>›</span>
+                </div>
+
+                <FlowPill
+                    tone={
+                        policyAllowed === false
+                            ? "danger"
+                            : policyAllowed === true
+                              ? "success"
+                              : "neutral"
+                    }
+                >
+                    <span className="acr-flow-index">
+                        03
+                    </span>
+
+                    <ShieldAlert size={16} />
+
+                    <div>
+                        <strong>
+                            Safety checked
+                        </strong>
+
+                        <span>
+                            {policyAllowed ===
+                            false
+                                ? "Policy blocked"
+                                : policyAllowed ===
+                                    true
+                                  ? "Action allowed"
+                                  : "Policy evaluated"}
+                        </span>
+                    </div>
+                </FlowPill>
+
+                <div className="acr-flow-connector">
+                    <span>›</span>
+                </div>
+
+                <FlowPill
+                    tone={actionTone}
+                >
+                    <span className="acr-flow-index">
+                        04
+                    </span>
+
+                    <Zap size={16} />
+
+                    <div>
+                        <strong>
+                            System action
+                        </strong>
+
+                        <span>
+                            {getActionLabel(
+                                actionStep
+                                    ?.input
+                                    ?.requestedAction ||
+                                    actionStep
+                                        ?.output
+                                        ?.action ||
+                                    action
+                            )}
+                        </span>
+                    </div>
+                </FlowPill>
+
+                <div className="acr-flow-connector">
+                    <span>›</span>
+                </div>
+
+                <FlowPill
+                    tone={finalTone}
+                    active
+                >
+                    <span className="acr-flow-index">
+                        05
+                    </span>
+
+                    <CheckCircle2 size={16} />
+
+                    <div>
+                        <strong>
+                            Final result
+                        </strong>
+
+                        <span>
+                            {getOutcomeTitle(
+                                run.status
+                            )}
+                        </span>
+                    </div>
+                </FlowPill>
+            </div>
+        </section>
+    );
+};
+
+const RecoveryInspector = ({
+    run,
+    payment,
+    customer,
+    loading,
+    error,
+    onRetry,
+    onClose,
+}) => {
+    const action = run
+        ? getRunAction(run)
+        : null;
+
+    const confidence = run
+        ? getRunConfidence(run)
+        : null;
+
+    const policyAllowed = run
+        ? getPolicyAllowed(run)
+        : null;
+
+    const actionStep = run
+        ? getActionStep(run)
+        : null;
+
+    const resultStep = run
+        ? getResultStep(run)
+        : null;
+
+    const customerId = getCustomerId(
+        payment,
+        customer,
+        run || {}
+    );
+
+    const amount = payment?.amount;
+    const currency =
+        payment?.currency || "INR";
+
+    const paymentStatus =
+        payment?.status ||
+        resultStep?.output?.status ||
+        run?.status;
+
+    const tone = getOutcomeTone(
+        run?.status
+    );
+
+    const attempts = run
+        ? getAttemptText(payment, run)
+        : "—";
+
+    const actualAction =
+        actionStep?.input?.requestedAction ||
+        actionStep?.output?.action ||
+        actionStep?.tool ||
+        action ||
+        null;
+
+    const actionSucceeded =
+        actionStep?.output?.success === true ||
+        run?.status === "RECOVERED";
+
+    const OutcomeIcon =
+        run?.status === "RECOVERED"
+            ? CheckCircle2
+            : run?.status ===
+                    "ESCALATED" ||
+                run?.status === "PENDING"
+              ? ShieldAlert
+              : run?.status ===
+                      "STOPPED" ||
+                  run?.status ===
+                      "BLOCKED" ||
+                  run?.status === "FAILED"
+                ? AlertOctagon
+                : Activity;
+
+    return (
+        <div
+            className="acr-modal-backdrop"
+            onClick={onClose}
+        >
+            <div
+                className="acr-inspector"
+                onClick={(event) =>
+                    event.stopPropagation()
+                }
+            >
+                <header className="acr-inspector-header">
+                    <div>
+                        <span className="acr-eyebrow acr-eyebrow-primary">
+                            Recovery inspection
+                        </span>
+
+                        <h2>
+                            AI Recovery Decision
+                        </h2>
+
+                        <div className="acr-inspector-payment-id">
+                            {run?.paymentId ||
+                                "Loading payment..."}
+                        </div>
+                    </div>
+
+                    <button
+                        type="button"
+                        className="acr-close-button"
+                        onClick={onClose}
+                        aria-label="Close inspection"
+                    >
+                        <X size={17} />
+                    </button>
+                </header>
+
+                {loading ? (
+                    <div className="acr-inspector-loading">
+                        <Loader text="Loading recovery details..." />
+                    </div>
+                ) : error ? (
+                    <div className="acr-inspector-error">
+                        <ErrorMessage
+                            message={error}
+                            onRetry={onRetry}
+                        />
+                    </div>
+                ) : run ? (
+                    <div className="acr-inspector-body">
+                        <section
+                            className={`acr-outcome acr-tone-${tone}`}
+                        >
+                            <div className="acr-outcome-top">
+                                <div className="acr-outcome-icon">
+                                    <OutcomeIcon size={19} />
+                                </div>
+
+                                <div className="acr-outcome-copy">
+                                    <span className="acr-eyebrow">
+                                        Final outcome
+                                    </span>
+
+                                    <h3>
+                                        {getOutcomeTitle(
+                                            run.status
+                                        )}
+                                    </h3>
+
+                                    <p>
+                                        {getOutcomeDescription(
+                                            run
+                                        )}
+                                    </p>
+                                </div>
+                            </div>
+
+                            <div className="acr-summary-grid">
+                                <div className="acr-summary-card">
+                                    <span>
+                                        AI recommendation
+                                    </span>
+
+                                    <strong>
+                                        {getActionLabel(
+                                            action
+                                        )}
+                                    </strong>
+                                </div>
+
+                                <div className="acr-summary-card">
+                                    <span>
+                                        Confidence
+                                    </span>
+
+                                    <strong className="acr-mono">
+                                        {confidence !=
+                                        null
+                                            ? `${Math.round(
+                                                  Number(
+                                                      confidence
+                                                  ) * 100
+                                              )}%`
+                                            : "—"}
+                                    </strong>
+                                </div>
+
+                                <div className="acr-summary-card">
+                                    <span>
+                                        Attempts
+                                    </span>
+
+                                    <strong className="acr-mono">
+                                        {attempts}
+                                    </strong>
+                                </div>
+                            </div>
+                        </section>
+
+                        <InspectorSection
+                            eyebrow="Payment context"
+                            title="Payment details"
+                            icon={CreditCard}
+                            className="acr-section-payment"
+                        >
+                            <div className="acr-facts-grid">
+                                <div className="acr-info-card">
+                                    <span>
+                                        Amount
+                                    </span>
+
+                                    <strong>
+                                        {formatAmount(
+                                            amount,
+                                            currency
+                                        )}
+                                    </strong>
+                                </div>
+
+                                <div className="acr-info-card">
+                                    <span>
+                                        Customer
+                                    </span>
+
+                                    <strong
+                                        className="acr-break"
+                                        title={
+                                            customerId
+                                        }
+                                    >
+                                        {customerId}
+                                    </strong>
+                                </div>
+
+                                <div className="acr-info-card">
+                                    <span>
+                                        Payment method
+                                    </span>
+
+                                    <strong>
+                                        {payment?.paymentMethod ||
+                                            "—"}
+                                    </strong>
+                                </div>
+
+                                <div className="acr-info-card">
+                                    <span>
+                                        Currency
+                                    </span>
+
+                                    <strong>
+                                        {currency}
+                                    </strong>
+                                </div>
+
+                                <div className="acr-info-card">
+                                    <span>
+                                        Failure type /
+                                        scenario
+                                    </span>
+
+                                    <strong>
+                                        {payment?.scenario ||
+                                            "—"}
+                                    </strong>
+                                </div>
+
+                                <div className="acr-info-card">
+                                    <span>
+                                        Payment status
+                                    </span>
+
+                                    <strong>
+                                        <span
+                                            className={getStatusClass(
+                                                paymentStatus
+                                            )}
+                                        >
+                                            {getStatusLabel(
+                                                paymentStatus
+                                            )}
+                                        </span>
+                                    </strong>
+                                </div>
+                            </div>
+
+                            <div className="acr-payment-id-box">
+                                <span className="acr-eyebrow">
+                                    Payment ID
+                                </span>
+
+                                <strong className="acr-mono acr-break">
+                                    {run.paymentId}
+                                </strong>
+                            </div>
+
+                            <div className="acr-failure-box">
+                                <span className="acr-eyebrow">
+                                    Failure reason
+                                </span>
+
+                                <p>
+                                    {getFailureReason(
+                                        payment,
+                                        run
+                                    )}
+                                </p>
+                            </div>
+                        </InspectorSection>
+
+                        <RecoveryFlow
+                            run={run}
+                            payment={payment}
+                            tone={tone}
+                        />
+
+                        <InspectorSection
+                            eyebrow="Agent reasoning"
+                            title="What AI recommended"
+                            icon={Bot}
+                            className="acr-section-highlight"
+                        >
+                            <div className="acr-recommendation-head">
+                                <div>
+                                    <span className="acr-eyebrow">
+                                        Recommended action
+                                    </span>
+
+                                    <div className="acr-recommendation">
+                                        {getActionLabel(
+                                            action
+                                        )}
+                                    </div>
+                                </div>
+
+                                {confidence != null && (
+                                    <div className="acr-confidence">
+                                        {Math.round(
+                                            Number(
+                                                confidence
+                                            ) * 100
+                                        )}
+                                        % confidence
+                                    </div>
+                                )}
+                            </div>
+
+                            <p className="acr-explanation">
+                                {getDecisionExplanation(
+                                    run
+                                )}
+                            </p>
+
+                            {getDecisionStep(run)
+                                ?.output
+                                ?.whatHappensNext && (
+                                <div className="acr-next-box">
+                                    <span className="acr-eyebrow">
+                                        What happens next
+                                    </span>
+
+                                    <p>
+                                        {
+                                            getDecisionStep(
+                                                run
+                                            ).output
+                                                .whatHappensNext
+                                        }
+                                    </p>
+                                </div>
+                            )}
+                        </InspectorSection>
+
+                        <InspectorSection
+                            eyebrow="Policy enforcement"
+                            title="Safety check"
+                            icon={ShieldAlert}
+                            className="acr-section-safety"
+                        >
+                            <div className="acr-facts-grid">
+                                <div className="acr-info-card">
+                                    <span>
+                                        Decision
+                                    </span>
+
+                                    <strong
+                                        className={
+                                            policyAllowed ===
+                                            false
+                                                ? "acr-text-danger"
+                                                : policyAllowed ===
+                                                    true
+                                                  ? "acr-text-success"
+                                                  : ""
+                                        }
+                                    >
+                                        {policyAllowed ===
+                                        false
+                                            ? "Action blocked"
+                                            : policyAllowed ===
+                                                true
+                                              ? "Action approved"
+                                              : "Policy evaluated"}
+                                    </strong>
+                                </div>
+
+                                <div className="acr-info-card">
+                                    <span>
+                                        Allowed action
+                                    </span>
+
+                                    <strong>
+                                        {getActionLabel(
+                                            getPolicyStep(
+                                                run
+                                            )?.output
+                                                ?.finalAction ||
+                                                action
+                                        )}
+                                    </strong>
+                                </div>
+
+                                <div className="acr-info-card">
+                                    <span>
+                                        Attempts
+                                    </span>
+
+                                    <strong className="acr-mono">
+                                        {attempts}
+                                    </strong>
+                                </div>
+
+                                <div className="acr-info-card">
+                                    <span>
+                                        Max attempts
+                                    </span>
+
+                                    <strong className="acr-mono">
+                                        {getMaxAttempts(
+                                            payment,
+                                            run
+                                        ) ?? "—"}
+                                    </strong>
+                                </div>
+                            </div>
+
+                            <div className="acr-explanation-box">
+                                {getPolicyExplanation(
+                                    run
+                                )}
+                            </div>
+                        </InspectorSection>
+
+                        <InspectorSection
+                            eyebrow="Execution"
+                            title="What the system did"
+                            icon={Zap}
+                            className="acr-section-execution"
+                        >
+                            <div className="acr-facts-grid">
+                                <div className="acr-info-card">
+                                    <span>
+                                        Action taken
+                                    </span>
+
+                                    <strong>
+                                        {actualAction
+                                            ? getActionLabel(
+                                                  actualAction
+                                              )
+                                            : "No automatic action"}
+                                    </strong>
+                                </div>
+
+                                <div className="acr-info-card">
+                                    <span>
+                                        Result
+                                    </span>
+
+                                    <strong
+                                        className={
+                                            actionSucceeded
+                                                ? "acr-text-success"
+                                                : run.status ===
+                                                        "STOPPED" ||
+                                                    run.status ===
+                                                        "BLOCKED"
+                                                  ? "acr-text-danger"
+                                                  : ""
+                                        }
+                                    >
+                                        {getStatusLabel(
+                                            resultStep
+                                                ?.output
+                                                ?.status ||
+                                                run.status
+                                        )}
+                                    </strong>
+                                </div>
+
+                                <div className="acr-info-card">
+                                    <span>
+                                        Executed action
+                                    </span>
+
+                                    <strong>
+                                        {getActionLabel(
+                                            resultStep
+                                                ?.output
+                                                ?.executedAction ||
+                                                resultStep?.tool ||
+                                                actualAction
+                                        )}
+                                    </strong>
+                                </div>
+                            </div>
+
+                            <div className="acr-explanation-box">
+                                {getActionExplanation(
+                                    run
+                                )}
+                            </div>
+
+                            <div
+                                className={`acr-result-box acr-tone-${tone}`}
+                            >
+                                <span className="acr-eyebrow">
+                                    Outcome explanation
+                                </span>
+
+                                <p>
+                                    {getResultExplanation(
+                                        run
+                                    )}
+                                </p>
+                            </div>
+                        </InspectorSection>
+
+                        <InspectorSection
+                            eyebrow="Customer context"
+                            title="Customer history used by the agent"
+                            icon={UserRound}
+                            className="acr-section-secondary"
+                        >
+                            <div className="acr-facts-grid">
+                                <div className="acr-info-card">
+                                    <span>
+                                        Customer
+                                    </span>
+
+                                    <strong className="acr-break">
+                                        {customerId}
+                                    </strong>
+                                </div>
+
+                                <div className="acr-info-card">
+                                    <span>
+                                        Name
+                                    </span>
+
+                                    <strong>
+                                        {customer?.name ||
+                                            "—"}
+                                    </strong>
+                                </div>
+
+                                <div className="acr-info-card">
+                                    <span>
+                                        Total payments
+                                    </span>
+
+                                    <strong className="acr-mono">
+                                        {customer?.totalPayments ??
+                                            "—"}
+                                    </strong>
+                                </div>
+
+                                <div className="acr-info-card">
+                                    <span>
+                                        Successful payments
+                                    </span>
+
+                                    <strong className="acr-mono">
+                                        {customer?.successfulPayments ??
+                                            "—"}
+                                    </strong>
+                                </div>
+
+                                <div className="acr-info-card">
+                                    <span>
+                                        Failed payments
+                                    </span>
+
+                                    <strong className="acr-mono">
+                                        {customer?.failedPayments ??
+                                            "—"}
+                                    </strong>
+                                </div>
+
+                                <div className="acr-info-card">
+                                    <span>
+                                        Total spent
+                                    </span>
+
+                                    <strong>
+                                        {customer?.totalSpent !=
+                                        null
+                                            ? formatAmount(
+                                                  customer.totalSpent,
+                                                  currency
+                                              )
+                                            : "—"}
+                                    </strong>
+                                </div>
+                            </div>
+                        </InspectorSection>
+
+                        <footer className="acr-inspector-footer">
+                            <Clock size={13} />
+
+                            <span>
+                                Started{" "}
+                                {formatDate(
+                                    run.startedAt
+                                )}
+
+                                {run.completedAt
+                                    ? ` · Completed ${formatDate(
+                                          run.completedAt
+                                      )}`
+                                    : ""}
+                            </span>
+                        </footer>
+                    </div>
+                ) : null}
             </div>
         </div>
     );
 };
 
 export const AgentControlRoom = () => {
-    const [data, setData] = useState(null);
-    const [loading, setLoading] = useState(true);
-    const [error, setError] = useState(null);
+    const [data, setData] =
+        useState(null);
 
-    const [selectedRun, setSelectedRun] = useState(null);
-    const [runLoading, setRunLoading] = useState(false);
-    const [runError, setRunError] = useState(null);
+    const [loading, setLoading] =
+        useState(true);
+
+    const [error, setError] =
+        useState(null);
+
+    const [selectedRun, setSelectedRun] =
+        useState(null);
+
+    const [selectedPayment, setSelectedPayment] =
+        useState({});
+
+    const [selectedCustomer, setSelectedCustomer] =
+        useState({});
+
+    const [selectedPaymentId, setSelectedPaymentId] =
+        useState(null);
+
+    const [runLoading, setRunLoading] =
+        useState(false);
+
+    const [runError, setRunError] =
+        useState(null);
 
     const fetchControlRoom = async () => {
         try {
             setLoading(true);
             setError(null);
 
-            const result = await getControlRoom();
+            const result =
+                await getControlRoom();
+
             setData(result);
         } catch (err) {
-            setError(err.message);
+            setError(
+                err.message ||
+                    "Unable to load control room."
+            );
         } finally {
             setLoading(false);
         }
@@ -409,16 +1435,56 @@ export const AgentControlRoom = () => {
         fetchControlRoom();
     }, []);
 
-    const inspectRun = async (paymentId) => {
+    const inspectRun = async (
+        paymentId
+    ) => {
+        setSelectedPaymentId(
+            paymentId
+        );
+
+        setSelectedRun(null);
+        setSelectedPayment({});
+        setSelectedCustomer({});
+        setRunLoading(true);
+        setRunError(null);
+
         try {
-            setRunLoading(true);
-            setRunError(null);
+            const result =
+                await getAgentRun(
+                    paymentId
+                );
 
-            const result = await getAgentRun(paymentId);
+            const run =
+                result?.run || null;
 
-            setSelectedRun(result?.run || null);
+            if (!run) {
+                throw new Error(
+                    "No recovery run was returned for this payment."
+                );
+            }
+
+            const {
+                payment,
+                customer,
+            } =
+                extractInspectionContext(
+                    run
+                );
+
+            setSelectedPayment(
+                payment
+            );
+
+            setSelectedCustomer(
+                customer
+            );
+
+            setSelectedRun(run);
         } catch (err) {
-            setRunError(err.message);
+            setRunError(
+                err.message ||
+                    "Unable to load recovery details."
+            );
         } finally {
             setRunLoading(false);
         }
@@ -426,19 +1492,26 @@ export const AgentControlRoom = () => {
 
     const closeInspector = () => {
         setSelectedRun(null);
+        setSelectedPayment({});
+        setSelectedCustomer({});
+        setSelectedPaymentId(null);
         setRunError(null);
     };
 
     useEffect(() => {
-        if (!selectedRun) {
+        if (!selectedPaymentId) {
             return;
         }
 
-        const previousOverflow = document.body.style.overflow;
+        const previousOverflow =
+            document.body.style.overflow;
 
-        document.body.style.overflow = "hidden";
+        document.body.style.overflow =
+            "hidden";
 
-        const handleKeyDown = (event) => {
+        const handleKeyDown = (
+            event
+        ) => {
             if (event.key === "Escape") {
                 closeInspector();
             }
@@ -450,14 +1523,15 @@ export const AgentControlRoom = () => {
         );
 
         return () => {
-            document.body.style.overflow = previousOverflow;
+            document.body.style.overflow =
+                previousOverflow;
 
             document.removeEventListener(
                 "keydown",
                 handleKeyDown
             );
         };
-    }, [selectedRun]);
+    }, [selectedPaymentId]);
 
     if (loading && !data) {
         return (
@@ -477,385 +1551,250 @@ export const AgentControlRoom = () => {
         );
     }
 
-    const agent = data?.agent || {};
-    const summary = data?.summary || {};
-    const decisions = data?.recentRuns || [];
+    const agent =
+        data?.agent || {};
 
-    const evaluated = summary.evaluated || 0;
-    const recovered = summary.recovered || 0;
-    const escalated = summary.escalated || 0;
-    const blocked = summary.blocked || 0;
-    const stopped = summary.stopped || 0;
-    const failed = summary.failed || 0;
+    const summary =
+        data?.summary || {};
+
+    const decisions =
+        data?.recentRuns || [];
+
+    const evaluated =
+        summary.evaluated || 0;
+
+    const recovered =
+        summary.recovered || 0;
+
+    const escalated =
+        summary.escalated || 0;
+
+    const blocked =
+        summary.blocked || 0;
+
+    const stopped =
+        summary.stopped || 0;
+
+    const failed =
+        summary.failed || 0;
 
     const recoveryRate =
         evaluated > 0
-            ? (recovered / evaluated) * 100
+            ? (recovered / evaluated) *
+              100
             : 0;
 
     return (
         <>
-            <div
-                style={{
-                    display: "flex",
-                    flexDirection: "column",
-                    gap: "1.5rem"
-                }}
-                className="animate-rise"
-            >
-                <div>
-                    <span
-                        className="eyebrow-primary"
-                        style={{
-                            display: "block",
-                            marginBottom: "4px"
-                        }}
-                    >
-                        Agent Control Room
-                    </span>
+            <div className="acr-page animate-rise">
+                <header className="acr-page-header">
+                    <div>
+                        <span className="acr-eyebrow acr-eyebrow-primary">
+                            Agent Control Room
+                        </span>
 
-                    <div
-                        style={{
-                            display: "flex",
-                            alignItems: "center",
-                            justifyContent: "space-between",
-                            gap: "1rem"
-                        }}
-                    >
-                        <div>
-                            <h1
-                                style={{
-                                    fontSize: "1.375rem",
-                                    fontWeight: 700,
-                                    color: "var(--ink)",
-                                    letterSpacing: "-0.025em"
-                                }}
-                            >
-                                AI Recovery Operations
-                            </h1>
+                        <h1>
+                            AI Recovery Operations
+                        </h1>
 
-                            <p
-                                style={{
-                                    marginTop: "0.35rem",
-                                    fontSize: "0.75rem",
-                                    color: "var(--mute)"
-                                }}
-                            >
-                                Monitor how the recovery agent makes
-                                decisions, follows policy, and handles
-                                failed payments.
-                            </p>
-                        </div>
-
-                        <div
-                            style={{
-                                display: "flex",
-                                alignItems: "center",
-                                gap: "0.5rem"
-                            }}
-                        >
-                            <span
-                                className="animate-blip"
-                                style={{
-                                    width: "7px",
-                                    height: "7px",
-                                    borderRadius: "9999px",
-                                    background: "var(--up)",
-                                    display: "inline-block"
-                                }}
-                            />
-
-                            <span
-                                style={{
-                                    fontSize: "0.6875rem",
-                                    color: "var(--up)",
-                                    fontFamily:
-                                        "'JetBrains Mono', monospace",
-                                    fontWeight: 600
-                                }}
-                            >
-                                AGENT {agent.status || "ONLINE"}
-                            </span>
-                        </div>
+                        <p>
+                            Monitor how the recovery
+                            agent makes decisions,
+                            follows policy, and handles
+                            failed payments.
+                        </p>
                     </div>
-                </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                    <div className="panel panel-accent-primary p-5">
-                        <div className="flex items-center justify-between mb-3">
-                            <span className="eyebrow">
-                                Payments Evaluated
+                    <div className="acr-agent-status">
+                        <span className="acr-live-dot" />
+                        AGENT{" "}
+                        {agent.status ||
+                            "ONLINE"}
+                    </div>
+                </header>
+
+                <div className="acr-metrics-grid">
+                    <div className="acr-metric-card acr-metric-primary">
+                        <div className="acr-metric-top">
+                            <span className="acr-eyebrow">
+                                Payments evaluated
                             </span>
 
-                            <div className="icon-box icon-box-sm icon-box-primary">
-                                <Activity size={14} />
-                            </div>
+                            <Activity size={16} />
                         </div>
 
-                        <div
-                            style={{
-                                fontSize: "1.875rem",
-                                fontWeight: 700,
-                                fontFamily:
-                                    "'JetBrains Mono', monospace",
-                                color: "var(--primary)"
-                            }}
-                        >
+                        <strong>
                             <AnimatedNumber
-                                value={evaluated}
+                                value={
+                                    evaluated
+                                }
                                 decimals={0}
                             />
-                        </div>
+                        </strong>
 
-                        <div
-                            style={{
-                                fontSize: "0.75rem",
-                                color: "var(--mute)"
-                            }}
-                        >
+                        <span>
                             reviewed by the agent
-                        </div>
+                        </span>
                     </div>
 
-                    <div className="panel panel-accent-up p-5">
-                        <div className="flex items-center justify-between mb-3">
-                            <span className="eyebrow">
-                                Payments Recovered
+                    <div className="acr-metric-card acr-metric-success">
+                        <div className="acr-metric-top">
+                            <span className="acr-eyebrow">
+                                Payments recovered
                             </span>
 
-                            <div className="icon-box icon-box-sm icon-box-up">
-                                <CheckCircle2 size={14} />
-                            </div>
+                            <CheckCircle2 size={16} />
                         </div>
 
-                        <div
-                            style={{
-                                fontSize: "1.875rem",
-                                fontWeight: 700,
-                                fontFamily:
-                                    "'JetBrains Mono', monospace",
-                                color: "var(--up)"
-                            }}
-                        >
+                        <strong>
                             <AnimatedNumber
-                                value={recovered}
+                                value={
+                                    recovered
+                                }
                                 decimals={0}
                             />
-                        </div>
+                        </strong>
 
-                        <div
-                            style={{
-                                fontSize: "0.75rem",
-                                color: "var(--mute)"
-                            }}
-                        >
+                        <span>
                             successfully recovered
-                        </div>
+                        </span>
                     </div>
 
-                    <div className="panel panel-accent-warn p-5">
-                        <div className="flex items-center justify-between mb-3">
-                            <span className="eyebrow">
-                                Human Review
+                    <div className="acr-metric-card acr-metric-warning">
+                        <div className="acr-metric-top">
+                            <span className="acr-eyebrow">
+                                Human review
                             </span>
 
-                            <div className="icon-box icon-box-sm icon-box-warn">
-                                <ShieldAlert size={14} />
-                            </div>
+                            <ShieldAlert size={16} />
                         </div>
 
-                        <div
-                            style={{
-                                fontSize: "1.875rem",
-                                fontWeight: 700,
-                                fontFamily:
-                                    "'JetBrains Mono', monospace",
-                                color: "var(--warn)"
-                            }}
-                        >
+                        <strong>
                             <AnimatedNumber
-                                value={escalated}
+                                value={
+                                    escalated
+                                }
                                 decimals={0}
                             />
-                        </div>
+                        </strong>
 
-                        <div
-                            style={{
-                                fontSize: "0.75rem",
-                                color: "var(--mute)"
-                            }}
-                        >
+                        <span>
                             cases escalated safely
-                        </div>
+                        </span>
                     </div>
 
-                    <div className="panel panel-accent-down p-5">
-                        <div className="flex items-center justify-between mb-3">
-                            <span className="eyebrow">
-                                Recovery Rate
+                    <div className="acr-metric-card acr-metric-danger">
+                        <div className="acr-metric-top">
+                            <span className="acr-eyebrow">
+                                Recovery rate
                             </span>
 
-                            <div className="icon-box icon-box-sm icon-box-down">
-                                <ArrowUpRight size={14} />
-                            </div>
+                            <ArrowUpRight size={16} />
                         </div>
 
-                        <div
-                            style={{
-                                fontSize: "1.875rem",
-                                fontWeight: 700,
-                                fontFamily:
-                                    "'JetBrains Mono', monospace",
-                                color: "var(--primary)"
-                            }}
-                        >
+                        <strong>
                             <AnimatedNumber
-                                value={recoveryRate}
+                                value={
+                                    recoveryRate
+                                }
                                 decimals={1}
                                 suffix="%"
                             />
-                        </div>
+                        </strong>
 
-                        <div
-                            style={{
-                                fontSize: "0.75rem",
-                                color: "var(--mute)"
-                            }}
-                        >
+                        <span>
                             successful recoveries
-                        </div>
+                        </span>
                     </div>
                 </div>
 
-                <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
-                    <div className="lg:col-span-2 panel p-5">
-                        <div
-                            style={{
-                                display: "flex",
-                                alignItems: "center",
-                                justifyContent: "space-between",
-                                marginBottom: "1.25rem"
-                            }}
-                        >
+                <div className="acr-main-grid">
+                    {/* =================================================
+                        RECENT AI DECISIONS
+                        The list itself is scrollable.
+                        The panel DOES NOT grow indefinitely.
+                       ================================================= */}
+                    <section className="acr-panel acr-decisions-panel">
+                        <div className="acr-panel-header">
                             <div>
-                                <span className="eyebrow-primary">
-                                    Agent Activity
+                                <span className="acr-eyebrow acr-eyebrow-primary">
+                                    Agent activity
                                 </span>
 
-                                <h2
-                                    style={{
-                                        marginTop: "0.25rem",
-                                        fontSize: "1rem",
-                                        fontWeight: 700,
-                                        color: "var(--ink)"
-                                    }}
-                                >
+                                <h2>
                                     Recent AI Decisions
                                 </h2>
                             </div>
 
                             <Bot
                                 size={18}
-                                color="var(--primary)"
+                                className="acr-primary-icon"
                             />
                         </div>
 
-                        {decisions.length === 0 ? (
-                            <div
-                                style={{
-                                    padding: "2rem 0",
-                                    textAlign: "center",
-                                    fontSize: "0.75rem",
-                                    color: "var(--mute)"
-                                }}
-                            >
-                                No recent agent decisions.
+                        {decisions.length ===
+                        0 ? (
+                            <div className="acr-empty">
+                                No recent agent
+                                decisions.
                             </div>
                         ) : (
-                            <div
-                                style={{
-                                    display: "flex",
-                                    flexDirection: "column"
-                                }}
-                            >
-                                {decisions.map((run, index) => {
-                                    const action =
-                                        run.decision?.action ||
-                                        run.policy?.action ||
-                                        null;
+                            <div className="acr-decisions">
+                                {decisions.map(
+                                    (
+                                        run,
+                                        index
+                                    ) => {
+                                        const action =
+                                            run
+                                                .decision
+                                                ?.action ||
+                                            run
+                                                .policy
+                                                ?.action ||
+                                            getRunAction(
+                                                run
+                                            );
 
-                                    const reason =
-                                        run.decision?.reason ||
-                                        run.policy?.reason ||
-                                        run.result?.reason ||
-                                        "Agent completed its assessment.";
+                                        const reason =
+                                            run
+                                                .decision
+                                                ?.reason ||
+                                            run
+                                                .policy
+                                                ?.reason ||
+                                            run
+                                                .result
+                                                ?.reason ||
+                                            "Agent completed its assessment.";
 
-                                    const confidence =
-                                        run.decision?.confidence;
+                                        const confidence =
+                                            run
+                                                .decision
+                                                ?.confidence ??
+                                            getRunConfidence(
+                                                run
+                                            );
 
-                                    return (
-                                        <div
-                                            key={
-                                                run.runId ||
-                                                run.paymentId ||
-                                                index
-                                            }
-                                            style={{
-                                                padding: "0.875rem 0",
-                                                borderBottom:
-                                                    index ===
-                                                    decisions.length - 1
-                                                        ? "none"
-                                                        : "1px solid var(--line)"
-                                            }}
-                                        >
+                                        return (
                                             <div
-                                                style={{
-                                                    display: "flex",
-                                                    alignItems: "center",
-                                                    justifyContent:
-                                                        "space-between",
-                                                    gap: "1rem"
-                                                }}
+                                                className="acr-decision-row"
+                                                key={
+                                                    run.runId ||
+                                                    run.paymentId ||
+                                                    index
+                                                }
                                             >
-                                                <div
-                                                    style={{
-                                                        minWidth: 0,
-                                                        flex: 1
-                                                    }}
-                                                >
-                                                    <div
-                                                        style={{
-                                                            display: "flex",
-                                                            alignItems:
-                                                                "center",
-                                                            gap: "0.5rem",
-                                                            flexWrap: "wrap"
-                                                        }}
-                                                    >
-                                                        <span
-                                                            style={{
-                                                                fontSize:
-                                                                    "0.75rem",
-                                                                fontFamily:
-                                                                    "'JetBrains Mono', monospace",
-                                                                color:
-                                                                    "var(--primary)"
-                                                            }}
-                                                        >
-                                                            {run.paymentId ||
-                                                                "Payment"}
-                                                        </span>
+                                                <div className="acr-decision-copy">
+                                                    <div className="acr-decision-id">
+                                                        {run.paymentId ||
+                                                            "Payment"}
 
                                                         {run.status && (
                                                             <span
                                                                 className={getStatusClass(
                                                                     run.status
                                                                 )}
-                                                                style={{
-                                                                    fontSize:
-                                                                        "0.625rem"
-                                                                }}
                                                             >
                                                                 {getStatusLabel(
                                                                     run.status
@@ -864,691 +1803,190 @@ export const AgentControlRoom = () => {
                                                         )}
                                                     </div>
 
-                                                    <div
-                                                        style={{
-                                                            marginTop:
-                                                                "0.4rem",
-                                                            fontSize:
-                                                                "0.8125rem",
-                                                            fontWeight: 600,
-                                                            color:
-                                                                "var(--ink)"
-                                                        }}
-                                                    >
+                                                    <h3>
                                                         {getActionLabel(
                                                             action
                                                         )}
-                                                    </div>
+                                                    </h3>
 
-                                                    <div
-                                                        style={{
-                                                            marginTop:
-                                                                "0.25rem",
-                                                            fontSize:
-                                                                "0.6875rem",
-                                                            color:
-                                                                "var(--mute)",
-                                                            lineHeight: 1.5
-                                                        }}
-                                                    >
-                                                        {reason}
-                                                    </div>
+                                                    <p>
+                                                        {
+                                                            reason
+                                                        }
+                                                    </p>
 
-                                                    {run.policy?.allowed !==
-                                                        null &&
-                                                        run.policy?.allowed !==
-                                                            undefined && (
-                                                            <div
-                                                                style={{
-                                                                    marginTop:
-                                                                        "0.35rem",
-                                                                    fontSize:
-                                                                        "0.625rem",
-                                                                    color:
-                                                                        run
-                                                                            .policy
-                                                                            .allowed
-                                                                            ? "var(--up)"
-                                                                            : "var(--down)",
-                                                                    fontFamily:
-                                                                        "'JetBrains Mono', monospace"
-                                                                }}
-                                                            >
-                                                                {run.policy
+                                                    {run
+                                                        .policy
+                                                        ?.allowed !=
+                                                        null && (
+                                                        <span
+                                                            className={
+                                                                run
+                                                                    .policy
                                                                     .allowed
-                                                                    ? "Policy approved"
-                                                                    : "Policy blocked"}
-                                                            </div>
-                                                        )}
+                                                                    ? "acr-policy-approved"
+                                                                    : "acr-policy-blocked"
+                                                            }
+                                                        >
+                                                            {run
+                                                                .policy
+                                                                .allowed
+                                                                ? "Policy approved"
+                                                                : "Policy blocked"}
+                                                        </span>
+                                                    )}
                                                 </div>
 
-                                                <div
-                                                    style={{
-                                                        display: "flex",
-                                                        alignItems:
-                                                            "center",
-                                                        gap: "0.75rem",
-                                                        flexShrink: 0
-                                                    }}
-                                                >
-                                                    {confidence != null && (
-                                                        <div
-                                                            style={{
-                                                                textAlign:
-                                                                    "right"
-                                                            }}
-                                                        >
-                                                            <div
-                                                                style={{
-                                                                    fontSize:
-                                                                        "0.875rem",
-                                                                    fontWeight: 700,
-                                                                    fontFamily:
-                                                                        "'JetBrains Mono', monospace",
-                                                                    color:
-                                                                        "var(--primary)"
-                                                                }}
-                                                            >
+                                                <div className="acr-decision-actions">
+                                                    {confidence !=
+                                                        null && (
+                                                        <div className="acr-list-confidence">
+                                                            <strong>
                                                                 {Math.round(
-                                                                    confidence *
+                                                                    Number(
+                                                                        confidence
+                                                                    ) *
                                                                         100
                                                                 )}
                                                                 %
-                                                            </div>
+                                                            </strong>
 
-                                                            <div
-                                                                style={{
-                                                                    fontSize:
-                                                                        "0.625rem",
-                                                                    color:
-                                                                        "var(--mute)"
-                                                                }}
-                                                            >
+                                                            <span>
                                                                 confidence
-                                                            </div>
+                                                            </span>
                                                         </div>
                                                     )}
 
                                                     <button
                                                         type="button"
+                                                        className="acr-inspect-button"
                                                         onClick={() =>
                                                             inspectRun(
                                                                 run.paymentId
                                                             )
                                                         }
-                                                        style={{
-                                                            display: "flex",
-                                                            alignItems:
-                                                                "center",
-                                                            gap: "0.35rem",
-                                                            padding:
-                                                                "0.4rem 0.6rem",
-                                                            borderRadius:
-                                                                "0.375rem",
-                                                            border:
-                                                                "1px solid var(--line)",
-                                                            background:
-                                                                "var(--surface-solid)",
-                                                            color:
-                                                                "var(--primary)",
-                                                            fontSize:
-                                                                "0.625rem",
-                                                            fontWeight: 600,
-                                                            cursor: "pointer"
-                                                        }}
                                                     >
                                                         <Eye size={12} />
                                                         Inspect
                                                     </button>
                                                 </div>
                                             </div>
-                                        </div>
-                                    );
-                                })}
+                                        );
+                                    }
+                                )}
                             </div>
                         )}
-                    </div>
+                    </section>
 
-                    <div className="panel p-5">
-                        <div style={{ marginBottom: "1.25rem" }}>
-                            <span className="eyebrow-primary">
-                                Policy Control
-                            </span>
+                    {/* =================================================
+                        AGENT OUTCOMES
+                        This panel now keeps its natural height.
+                        It will NOT stretch with Recent AI Decisions.
+                       ================================================= */}
+                    <aside className="acr-panel acr-outcomes-panel">
+                        <div className="acr-panel-header">
+                            <div>
+                                <span className="acr-eyebrow acr-eyebrow-primary">
+                                    Policy control
+                                </span>
 
-                            <h2
-                                style={{
-                                    marginTop: "0.25rem",
-                                    fontSize: "1rem",
-                                    fontWeight: 700,
-                                    color: "var(--ink)"
-                                }}
-                            >
-                                Agent Outcomes
-                            </h2>
+                                <h2>
+                                    Agent Outcomes
+                                </h2>
+                            </div>
                         </div>
 
-                        <div
-                            style={{
-                                display: "flex",
-                                flexDirection: "column",
-                                gap: "0.875rem"
-                            }}
-                        >
+                        <div className="acr-outcome-list">
                             <DetailRow label="Recovered">
-                                <strong
-                                    style={{
-                                        color: "var(--up)",
-                                        fontFamily:
-                                            "'JetBrains Mono', monospace"
-                                    }}
-                                >
-                                    {recovered}
-                                </strong>
+                                <span className="acr-text-success">
+                                    {
+                                        recovered
+                                    }
+                                </span>
                             </DetailRow>
 
                             <DetailRow label="Escalated">
-                                <strong
-                                    style={{
-                                        color: "var(--warn)",
-                                        fontFamily:
-                                            "'JetBrains Mono', monospace"
-                                    }}
-                                >
-                                    {escalated}
-                                </strong>
+                                <span className="acr-text-warning">
+                                    {
+                                        escalated
+                                    }
+                                </span>
                             </DetailRow>
 
                             <DetailRow label="Blocked">
-                                <strong
-                                    style={{
-                                        color: "var(--down)",
-                                        fontFamily:
-                                            "'JetBrains Mono', monospace"
-                                    }}
-                                >
-                                    {blocked}
-                                </strong>
+                                <span className="acr-text-danger">
+                                    {
+                                        blocked
+                                    }
+                                </span>
                             </DetailRow>
 
                             <DetailRow label="Stopped">
-                                <strong
-                                    style={{
-                                        color: "var(--down)",
-                                        fontFamily:
-                                            "'JetBrains Mono', monospace"
-                                    }}
-                                >
-                                    {stopped}
-                                </strong>
+                                <span className="acr-text-danger">
+                                    {
+                                        stopped
+                                    }
+                                </span>
                             </DetailRow>
 
                             <DetailRow label="Failed runs">
-                                <strong
-                                    style={{
-                                        color: "var(--down)",
-                                        fontFamily:
-                                            "'JetBrains Mono', monospace"
-                                    }}
-                                >
-                                    {failed}
-                                </strong>
+                                <span className="acr-text-danger">
+                                    {
+                                        failed
+                                    }
+                                </span>
                             </DetailRow>
                         </div>
 
-                        <div
-                            style={{
-                                marginTop: "1.5rem",
-                                padding: "0.875rem",
-                                borderRadius: "var(--radius-sm)",
-                                background:
-                                    "var(--primary-soft)",
-                                border:
-                                    "1px solid var(--primary-border)"
-                            }}
-                        >
-                            <div
-                                style={{
-                                    display: "flex",
-                                    gap: "0.5rem",
-                                    alignItems: "flex-start"
-                                }}
-                            >
-                                <ShieldAlert
-                                    size={15}
-                                    color="var(--primary)"
-                                />
+                        <div className="acr-policy-note">
+                            <ShieldAlert size={15} />
 
-                                <span
-                                    style={{
-                                        fontSize: "0.6875rem",
-                                        lineHeight: 1.5,
-                                        color: "var(--mute)"
-                                    }}
-                                >
-                                    The agent operates within
-                                    predefined recovery policies.
-                                    High-risk or uncertain cases
-                                    are sent for human review.
-                                </span>
-                            </div>
+                            <span>
+                                The agent operates within
+                                predefined recovery
+                                policies. High-risk or
+                                uncertain cases are sent
+                                for human review.
+                            </span>
                         </div>
-                    </div>
+                    </aside>
                 </div>
 
-                <div className="panel panel-accent-down p-4">
-                    <div
-                        style={{
-                            display: "flex",
-                            alignItems: "center",
-                            gap: "0.625rem"
-                        }}
-                    >
-                        <AlertOctagon
-                            size={16}
-                            color="var(--down)"
-                        />
+                <div className="acr-attention">
+                    <AlertOctagon size={16} />
 
-                        <span
-                            style={{
-                                fontSize: "0.75rem",
-                                color: "var(--ink)"
-                            }}
-                        >
-                            <strong>
-                                {escalated + blocked}
-                            </strong>{" "}
-                            cases currently require attention or
-                            were stopped by recovery policy.
-                        </span>
-                    </div>
+                    <span>
+                        <strong>
+                            {escalated +
+                                blocked}
+                        </strong>{" "}
+                        cases currently require
+                        attention or were stopped by
+                        recovery policy.
+                    </span>
                 </div>
             </div>
 
-            {selectedRun && (
-                <div
-                    onClick={closeInspector}
-                    style={{
-                        position: "fixed",
-                        inset: 0,
-                        zIndex: 100,
-                        background: "rgba(0, 0, 0, 0.45)",
-                        display: "flex",
-                        alignItems: "center",
-                        justifyContent: "center",
-                        padding: "1.5rem",
-                        overflow: "hidden"
-                    }}
-                >
-                    <div
-                        onClick={(event) => event.stopPropagation()}
-                        style={{
-                            width: "100%",
-                            maxWidth: "720px",
-                            maxHeight: "90vh",
-                            overflowY: "auto",
-                            overscrollBehavior: "contain",
-                            background: "var(--surface-solid)",
-                            opacity: 1,
-                            border: "1px solid var(--line)",
-                            borderRadius: "0.75rem",
-                            boxShadow:
-                                "0 24px 70px rgba(0, 0, 0, 0.25)"
-                        }}
-                    >
-                        <div
-                            style={{
-                                padding: "1.25rem 1.5rem",
-                                borderBottom:
-                                    "1px solid var(--line)",
-                                display: "flex",
-                                alignItems: "flex-start",
-                                justifyContent: "space-between",
-                                gap: "1rem"
-                            }}
-                        >
-                            <div>
-                                <span className="eyebrow-primary">
-                                    Recovery Inspection
-                                </span>
-
-                                <h2
-                                    style={{
-                                        marginTop: "0.3rem",
-                                        fontSize: "1.125rem",
-                                        fontWeight: 700,
-                                        color: "var(--ink)"
-                                    }}
-                                >
-                                    AI Recovery Decision
-                                </h2>
-
-                                <div
-                                    style={{
-                                        marginTop: "0.35rem",
-                                        fontSize: "0.6875rem",
-                                        color: "var(--primary)",
-                                        fontFamily:
-                                            "'JetBrains Mono', monospace",
-                                        wordBreak: "break-all"
-                                    }}
-                                >
-                                    {selectedRun.paymentId}
-                                </div>
-                            </div>
-
-                            <button
-                                type="button"
-                                onClick={closeInspector}
-                                aria-label="Close inspection"
-                                style={{
-                                    width: "2rem",
-                                    height: "2rem",
-                                    borderRadius: "0.4rem",
-                                    border:
-                                        "1px solid var(--line)",
-                                    background:
-                                        "var(--surface-solid)",
-                                    color: "var(--mute)",
-                                    display: "flex",
-                                    alignItems: "center",
-                                    justifyContent: "center",
-                                    cursor: "pointer",
-                                    flexShrink: 0
-                                }}
-                            >
-                                <X size={15} />
-                            </button>
-                        </div>
-
-                        {runLoading ? (
-                            <div
-                                style={{
-                                    padding: "3rem",
-                                    display: "flex",
-                                    justifyContent: "center"
-                                }}
-                            >
-                                <Loader text="Loading recovery details..." />
-                            </div>
-                        ) : runError ? (
-                            <div
-                                style={{
-                                    padding: "2rem",
-                                    textAlign: "center"
-                                }}
-                            >
-                                <ErrorMessage
-                                    message={runError}
-                                    onRetry={() =>
-                                        inspectRun(
-                                            selectedRun.paymentId
-                                        )
-                                    }
-                                />
-                            </div>
-                        ) : (
-                            <>
-                                <div
-                                    style={{
-                                        padding: "1.25rem 1.5rem",
-                                        display: "grid",
-                                        gridTemplateColumns:
-                                            "repeat(3, minmax(0, 1fr))",
-                                        gap: "0.75rem"
-                                    }}
-                                >
-                                    <div
-                                        style={{
-                                            padding: "0.8rem",
-                                            borderRadius:
-                                                "0.5rem",
-                                            background:
-                                                "var(--surface-solid)",
-                                            border:
-                                                "1px solid var(--line)"
-                                        }}
-                                    >
-                                        <span className="eyebrow">
-                                            Outcome
-                                        </span>
-
-                                        <div
-                                            style={{
-                                                marginTop:
-                                                    "0.3rem",
-                                                fontSize:
-                                                    "0.8125rem",
-                                                fontWeight: 700,
-                                                color:
-                                                    "var(--ink)"
-                                            }}
-                                        >
-                                            {getStatusLabel(
-                                                selectedRun.status
-                                            )}
-                                        </div>
-                                    </div>
-
-                                    <div
-                                        style={{
-                                            padding: "0.8rem",
-                                            borderRadius:
-                                                "0.5rem",
-                                            background:
-                                                "var(--surface-solid)",
-                                            border:
-                                                "1px solid var(--line)"
-                                        }}
-                                    >
-                                        <span className="eyebrow">
-                                            Recommendation
-                                        </span>
-
-                                        <div
-                                            style={{
-                                                marginTop:
-                                                    "0.3rem",
-                                                fontSize:
-                                                    "0.8125rem",
-                                                fontWeight: 700,
-                                                color:
-                                                    "var(--primary)"
-                                            }}
-                                        >
-                                            {getActionLabel(
-                                                getRunAction(
-                                                    selectedRun
-                                                )
-                                            )}
-                                        </div>
-                                    </div>
-
-                                    <div
-                                        style={{
-                                            padding: "0.8rem",
-                                            borderRadius:
-                                                "0.5rem",
-                                            background:
-                                                "var(--surface-solid)",
-                                            border:
-                                                "1px solid var(--line)"
-                                        }}
-                                    >
-                                        <span className="eyebrow">
-                                            Confidence
-                                        </span>
-
-                                        <div
-                                            style={{
-                                                marginTop:
-                                                    "0.3rem",
-                                                fontSize:
-                                                    "0.8125rem",
-                                                fontWeight: 700,
-                                                color:
-                                                    "var(--primary)",
-                                                fontFamily:
-                                                    "'JetBrains Mono', monospace"
-                                            }}
-                                        >
-                                            {getRunConfidence(
-                                                selectedRun
-                                            ) != null
-                                                ? `${Math.round(
-                                                      getRunConfidence(
-                                                          selectedRun
-                                                      ) * 100
-                                                  )}%`
-                                                : "—"}
-                                        </div>
-                                    </div>
-                                </div>
-
-                                <div
-                                    style={{
-                                        margin:
-                                            "0 1.5rem 1.25rem",
-                                        padding: "1rem",
-                                        borderRadius:
-                                            "0.5rem",
-                                        background:
-                                            "var(--primary-soft)",
-                                        border:
-                                            "1px solid var(--primary-border)"
-                                    }}
-                                >
-                                    <div
-                                        style={{
-                                            fontSize:
-                                                "0.625rem",
-                                            fontWeight: 700,
-                                            color:
-                                                "var(--primary)",
-                                            fontFamily:
-                                                "'JetBrains Mono', monospace",
-                                            textTransform:
-                                                "uppercase",
-                                            letterSpacing:
-                                                "0.08em"
-                                        }}
-                                    >
-                                        What happened
-                                    </div>
-
-                                    <p
-                                        style={{
-                                            marginTop:
-                                                "0.4rem",
-                                            fontSize:
-                                                "0.75rem",
-                                            lineHeight: 1.6,
-                                            color:
-                                                "var(--ink)"
-                                        }}
-                                    >
-                                        {getDecisionExplanation(
-                                            selectedRun
-                                        )}
-                                    </p>
-                                </div>
-
-                                <div
-                                    style={{
-                                        padding:
-                                            "0 1.5rem 1.5rem"
-                                    }}
-                                >
-                                    <span
-                                        className="eyebrow-primary"
-                                        style={{
-                                            display: "block",
-                                            marginBottom:
-                                                "1rem"
-                                        }}
-                                    >
-                                        Recovery Flow
-                                    </span>
-
-                                    <FlowStep
-                                        number="1"
-                                        title="Assessment"
-                                        label="AGENT"
-                                        icon={Bot}
-                                        description={getDecisionExplanation(
-                                            selectedRun
-                                        )}
-                                    />
-
-                                    <FlowStep
-                                        number="2"
-                                        title="Safety check"
-                                        label="POLICY"
-                                        icon={ShieldAlert}
-                                        description={getPolicyExplanation(
-                                            selectedRun
-                                        )}
-                                    />
-
-                                    <FlowStep
-                                        number="3"
-                                        title="Recovery action"
-                                        label="ACTION"
-                                        icon={Zap}
-                                        description={getActionExplanation(
-                                            selectedRun
-                                        )}
-                                    />
-
-                                    <FlowStep
-                                        number="4"
-                                        title="Final result"
-                                        label="RESULT"
-                                        icon={CheckCircle2}
-                                        description={getResultExplanation(
-                                            selectedRun
-                                        )}
-                                        last
-                                    />
-                                </div>
-
-                                <div
-                                    style={{
-                                        margin:
-                                            "0 1.5rem 1.5rem",
-                                        padding:
-                                            "0.75rem 1rem",
-                                        borderTop:
-                                            "1px solid var(--line)",
-                                        display: "flex",
-                                        alignItems: "center",
-                                        gap: "0.5rem",
-                                        color: "var(--mute)"
-                                    }}
-                                >
-                                    <Clock size={13} />
-
-                                    <span
-                                        style={{
-                                            fontSize:
-                                                "0.625rem"
-                                        }}
-                                    >
-                                        Started{" "}
-                                        {formatDate(
-                                            selectedRun.startedAt
-                                        )}
-
-                                        {selectedRun.completedAt
-                                            ? ` · Completed ${formatDate(
-                                                  selectedRun.completedAt
-                                              )}`
-                                            : ""}
-                                    </span>
-                                </div>
-                            </>
-                        )}
-                    </div>
-                </div>
+            {selectedPaymentId && (
+                <RecoveryInspector
+                    run={selectedRun}
+                    payment={
+                        selectedPayment
+                    }
+                    customer={
+                        selectedCustomer
+                    }
+                    loading={runLoading}
+                    error={runError}
+                    onRetry={() =>
+                        inspectRun(
+                            selectedPaymentId
+                        )
+                    }
+                    onClose={
+                        closeInspector
+                    }
+                />
             )}
         </>
     );

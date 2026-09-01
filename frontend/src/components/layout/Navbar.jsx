@@ -31,30 +31,58 @@ export const Navbar = ({ timeRange = "7D", onTimeRangeChange }) => {
     const getBreadcrumb = () => {
         const path = location.pathname.toLowerCase();
 
+        /* =========================
+           Dashboard / Overview
+           ========================= */
         if (path === "/" || path === "/overview") {
             return "Overview";
         }
 
+        /* =========================
+           Payment Ledger
+           ========================= */
         if (path === "/ledger" || path === "/payments") {
             return "Payment Ledger";
         }
 
+        /* =========================
+           AI Control Room
+           ========================= */
+        if (path === "/control-room") {
+            return "AI Control Room";
+        }
+
+        /* =========================
+           Failed Payments
+           ========================= */
         if (path === "/failed-payments") {
             return "Failed Payments";
         }
 
+        /* =========================
+           Exceptions
+           ========================= */
         if (path === "/exceptions") {
             return "Exceptions";
         }
 
+        /* =========================
+           Guardrails
+           ========================= */
         if (path === "/guardrails") {
             return "Guardrails";
         }
 
+        /* =========================
+           Payment Details
+           ========================= */
         if (path.startsWith("/payments/")) {
             return "Payment Details";
         }
 
+        /* =========================
+           Fallback
+           ========================= */
         return "Overview";
     };
 
@@ -77,6 +105,9 @@ export const Navbar = ({ timeRange = "7D", onTimeRangeChange }) => {
                 padding: "0 2rem"
             }}
         >
+            {/* =========================
+                Page title
+               ========================= */}
             <div>
                 <span
                     className="eyebrow"
@@ -101,6 +132,9 @@ export const Navbar = ({ timeRange = "7D", onTimeRangeChange }) => {
                 </h2>
             </div>
 
+            {/* =========================
+                Navbar controls
+               ========================= */}
             <div
                 style={{
                     display: "flex",
@@ -108,6 +142,7 @@ export const Navbar = ({ timeRange = "7D", onTimeRangeChange }) => {
                     gap: "0.75rem"
                 }}
             >
+                {/* Time range */}
                 <div
                     style={{
                         display: "flex",
@@ -151,6 +186,7 @@ export const Navbar = ({ timeRange = "7D", onTimeRangeChange }) => {
                     ))}
                 </div>
 
+                {/* Theme toggle */}
                 <button
                     type="button"
                     onClick={() => setDark((value) => !value)}
@@ -200,6 +236,7 @@ export const Navbar = ({ timeRange = "7D", onTimeRangeChange }) => {
                     )}
                 </button>
 
+                {/* Live status */}
                 <div
                     style={{
                         display: "flex",

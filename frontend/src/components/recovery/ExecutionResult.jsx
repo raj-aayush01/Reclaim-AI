@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+
 import {
     Copy,
     ExternalLink,
@@ -7,12 +8,15 @@ import {
     Clock,
     Zap,
     UserCheck,
-    AlertTriangle
+    AlertTriangle,
+    RotateCcw,
+    ShieldAlert
 } from "lucide-react";
 
 import { formatRecoveryAction } from "../../utils/statusHelpers";
 import PaymentStatusBadge from "../payments/PaymentStatusBadge";
 import { formatCurrency } from "../../utils/formatCurrency";
+
 
 const getOutcomeExplanation = ({
     action,
@@ -20,73 +24,93 @@ const getOutcomeExplanation = ({
     payment,
     executionResult
 }) => {
-    if (result === "recovered") {
+
+    if (
+        result === "recovered" ||
+        result === "RECOVERED"
+    ) {
         return {
             title: "Payment recovered successfully",
             description: `${
                 payment.amount !== undefined
                     ? formatCurrency(payment.amount)
                     : "The payment"
-            } has been successfully recovered. The money is no longer at risk.`,
+            } was successfully recovered. The payment is no longer outstanding.`,
             icon: CheckCircle2,
             statusClass: "status-up"
         };
     }
 
+
     if (action === "CREATE_PAYMENT_LINK") {
+
         if (
             executionResult?.paymentLinkId ||
-            executionResult?.paymentLinkUrl
+            executionResult?.paymentLinkUrl ||
+            payment?.paymentLinkId ||
+            payment?.paymentLinkUrl
         ) {
             return {
-                title: "Payment link created",
+                title: "Alternative payment route created",
                 description:
-                    "The customer now has another way to complete the payment. The money has not been recovered yet because the customer still needs to pay.",
+                    "The system created a payment link so the customer has another way to complete the payment. The money has not been recovered yet.",
                 icon: Clock,
                 statusClass: "status-warn"
             };
         }
 
+
         return {
-            title: "Payment link recovery selected",
+            title: "Alternative payment route selected",
             description:
-                "The system selected a payment link as the recovery method. The payment remains unrecovered until the customer completes it.",
+                "The system selected a payment link as the recovery method. The payment remains outstanding until the customer completes it.",
             icon: Clock,
             statusClass: "status-warn"
         };
     }
 
+
     if (action === "RETRY_PAYMENT") {
-        if (result === "failed" || result === "FAILED") {
+
+        if (
+            result === "failed" ||
+            result === "FAILED"
+        ) {
+
             return {
-                title: "Retry did not recover the payment",
+                title: "Payment attempt was unsuccessful",
                 description:
-                    "The additional payment attempt was unsuccessful. The payment remains unrecovered and can only continue through another permitted recovery path.",
+                    "The system made another payment attempt, but the gateway rejected it. The payment remains unrecovered.",
                 icon: XCircle,
                 statusClass: "status-down"
             };
         }
 
+
         return {
-            title: "Payment retry processed",
+            title: "Payment attempt processed",
             description:
-                "The system made another payment attempt. The current payment status determines whether the money was recovered.",
-            icon: Zap,
+                "The system initiated another payment attempt. The latest payment state determines whether recovery was successful.",
+            icon: RotateCcw,
             statusClass: "status-primary"
         };
     }
 
+
     if (action === "ESCALATE_TO_HUMAN") {
+
         return {
             title: "Payment sent for human review",
             description:
-                "No automatic payment attempt was made. The payment has been moved to a human-review workflow.",
+                "No additional automatic payment attempt was made. The payment was moved into a human-review workflow.",
             icon: UserCheck,
             statusClass: "status-primary"
         };
     }
 
+
     if (action === "STOP_RECOVERY") {
+
         return {
             title: "Automatic recovery stopped",
             description:
@@ -96,25 +120,31 @@ const getOutcomeExplanation = ({
         };
     }
 
+
     return {
         title: "Recovery action processed",
         description:
-            "The recovery system processed the selected action. The current payment status shows the resulting state.",
+            "The system processed the selected recovery action. The current payment state shows the resulting outcome.",
         icon: Zap,
         statusClass: "status-primary"
     };
 };
 
+
 export const ExecutionResult = ({
     executionResult = {},
     payment = {}
 }) => {
-    const [copied, setCopied] = useState(false);
+
+    const [copied, setCopied] =
+        useState(false);
+
 
     const actionExecuted =
         executionResult.actionExecuted ||
         executionResult.finalAction ||
         payment.recoveryAction;
+
 
     const resultStatus =
         executionResult.result ||
@@ -123,34 +153,46 @@ export const ExecutionResult = ({
         payment.status ||
         "pending";
 
+
     const linkUrl =
-        actionExecuted === "CREATE_PAYMENT_LINK"
+        actionExecuted ===
+        "CREATE_PAYMENT_LINK"
             ? executionResult.paymentLinkUrl ||
               payment.paymentLinkUrl ||
               null
             : null;
 
-    const outcome = getOutcomeExplanation({
-        action: actionExecuted,
-        result: resultStatus,
-        payment,
-        executionResult
-    });
+
+    const outcome =
+        getOutcomeExplanation({
+            action: actionExecuted,
+            result: resultStatus,
+            payment,
+            executionResult
+        });
+
 
     const handleCopy = async () => {
+
         if (!linkUrl) {
             return;
         }
 
+
         try {
-            await navigator.clipboard.writeText(linkUrl);
+
+            await navigator.clipboard.writeText(
+                linkUrl
+            );
 
             setCopied(true);
 
             setTimeout(() => {
                 setCopied(false);
             }, 2000);
+
         } catch (error) {
+
             console.error(
                 "Unable to copy payment link:",
                 error
@@ -158,33 +200,77 @@ export const ExecutionResult = ({
         }
     };
 
+
     const isRecovered =
         resultStatus === "recovered" ||
         resultStatus === "RECOVERED";
 
-    const OutcomeIcon = outcome.icon;
 
-    const moneyStatusClass = isRecovered
-        ? "status-up"
-        : resultStatus === "pending" || resultStatus === "PENDING"
-            ? "status-warn"
-            : "status-down";
+    const isPending =
+        resultStatus === "pending" ||
+        resultStatus === "PENDING";
 
-    const moneyStatusLabel = isRecovered
-        ? "Money recovered"
-        : resultStatus === "pending" || resultStatus === "PENDING"
-            ? "Waiting for payment"
-            : "Not recovered";
+
+    const isStopped =
+        resultStatus === "stopped" ||
+        resultStatus === "STOPPED";
+
+
+    const OutcomeIcon =
+        outcome.icon;
+
+
+    const moneyStatusClass =
+        isRecovered
+            ? "status-up"
+            : isPending
+                ? "status-warn"
+                : "status-down";
+
+
+    const moneyStatusLabel =
+        isRecovered
+            ? "Money recovered"
+            : isPending
+                ? "Waiting for payment"
+                : "Not recovered";
+
+
+    /*
+     * Retry information can come directly from
+     * the executor / AgentRun action output.
+     */
+    const attemptsMade =
+        executionResult.attemptsMade ??
+        executionResult.attemptNumber ??
+        null;
+
+
+    const maxAttempts =
+        executionResult.maxAttempts ??
+        null;
+
+
+    const attemptsRemaining =
+        executionResult.attemptsRemaining ??
+        null;
+
 
     return (
         <div
             className={`panel recovery-card ${
                 isRecovered
                     ? "panel-accent-up"
-                    : "panel-accent-primary"
+                    : isStopped
+                        ? "panel-accent-down"
+                        : "panel-accent-primary"
             }`}
         >
-            {/* Header */}
+
+            {/* =====================================================
+                HEADER
+            ===================================================== */}
+
             <div
                 style={{
                     display: "flex",
@@ -194,6 +280,7 @@ export const ExecutionResult = ({
                 }}
                 className="sm:flex-row sm:items-center sm:justify-between"
             >
+
                 <div
                     style={{
                         display: "flex",
@@ -201,6 +288,7 @@ export const ExecutionResult = ({
                         gap: "0.75rem"
                     }}
                 >
+
                     <div
                         className={`icon-box icon-box-md ${
                             isRecovered
@@ -216,33 +304,49 @@ export const ExecutionResult = ({
                         />
                     </div>
 
+
                     <div>
+
                         <h4 className="recovery-card-title">
-                            Recovery Outcome
+                            What the System Did
                         </h4>
 
                         <p className="recovery-card-subtitle">
-                            What the system actually did
+                            The actual action taken after the safety checks
                         </p>
+
                     </div>
+
                 </div>
+
 
                 <PaymentStatusBadge
                     status={resultStatus}
                 />
+
             </div>
 
-            {/* Action */}
+
+            {/* =====================================================
+                ACTION TAKEN
+            ===================================================== */}
+
             <div
                 className="sub-card"
-                style={{ marginBottom: "1.25rem" }}
+                style={{
+                    marginBottom: "1.25rem"
+                }}
             >
+
                 <span
                     className="meta-label"
-                    style={{ marginBottom: "0.25rem" }}
+                    style={{
+                        marginBottom: "0.25rem"
+                    }}
                 >
-                    Action Taken
+                    Action actually taken
                 </span>
+
 
                 <span
                     style={{
@@ -253,12 +357,19 @@ export const ExecutionResult = ({
                     }}
                 >
                     {actionExecuted
-                        ? formatRecoveryAction(actionExecuted)
+                        ? formatRecoveryAction(
+                              actionExecuted
+                          )
                         : "No recovery action recorded"}
                 </span>
+
             </div>
 
-            {/* Outcome */}
+
+            {/* =====================================================
+                OUTCOME
+            ===================================================== */}
+
             <div
                 style={{
                     display: "flex",
@@ -267,22 +378,29 @@ export const ExecutionResult = ({
                     marginBottom: "1.25rem"
                 }}
             >
+
                 <div
                     style={{
                         flexShrink: 0,
                         marginTop: "0.125rem"
                     }}
                 >
+
                     <OutcomeIcon
-                        className={outcome.statusClass}
+                        className={
+                            outcome.statusClass
+                        }
                         style={{
                             width: "1.25rem",
                             height: "1.25rem"
                         }}
                     />
+
                 </div>
 
+
                 <div>
+
                     <h5
                         style={{
                             fontSize: "0.8125rem",
@@ -293,21 +411,176 @@ export const ExecutionResult = ({
                         {outcome.title}
                     </h5>
 
+
                     <p
                         className="recovery-card-body-text"
-                        style={{ marginTop: "0.25rem" }}
+                        style={{
+                            marginTop: "0.25rem"
+                        }}
                     >
                         {outcome.description}
                     </p>
+
                 </div>
+
             </div>
 
-            {/* Payment link */}
+
+            {/* =====================================================
+                RETRY PROGRESS
+            ===================================================== */}
+
+            {attemptsMade !== null && (
+                <div
+                    className="sub-card"
+                    style={{
+                        marginBottom: "1.25rem"
+                    }}
+                >
+
+                    <div
+                        style={{
+                            display: "flex",
+                            alignItems: "center",
+                            gap: "0.5rem",
+                            marginBottom: "0.75rem"
+                        }}
+                    >
+
+                        <RotateCcw
+                            size={14}
+                            style={{
+                                color: "var(--primary)"
+                            }}
+                        />
+
+                        <span className="meta-label">
+                            Recovery attempts
+                        </span>
+
+                    </div>
+
+
+                    <div
+                        style={{
+                            display: "flex",
+                            flexWrap: "wrap",
+                            gap: "0.75rem"
+                        }}
+                    >
+
+                        <div>
+
+                            <span
+                                className="meta-label"
+                                style={{
+                                    display: "block"
+                                }}
+                            >
+                                Attempts made
+                            </span>
+
+                            <strong
+                                style={{
+                                    display: "block",
+                                    marginTop: "0.25rem",
+                                    fontSize: "1rem",
+                                    color: "var(--ink)"
+                                }}
+                            >
+                                {attemptsMade}
+                                {maxAttempts !== null
+                                    ? ` / ${maxAttempts}`
+                                    : ""}
+                            </strong>
+
+                        </div>
+
+
+                        {attemptsRemaining !== null && (
+                            <div>
+
+                                <span
+                                    className="meta-label"
+                                    style={{
+                                        display: "block"
+                                    }}
+                                >
+                                    Remaining
+                                </span>
+
+                                <strong
+                                    style={{
+                                        display: "block",
+                                        marginTop: "0.25rem",
+                                        fontSize: "1rem",
+                                        color:
+                                            attemptsRemaining === 0
+                                                ? "var(--down)"
+                                                : "var(--ink)"
+                                    }}
+                                >
+                                    {attemptsRemaining}
+                                </strong>
+
+                            </div>
+                        )}
+
+                    </div>
+
+
+                    {attemptsRemaining === 0 && (
+                        <div
+                            style={{
+                                marginTop: "0.75rem",
+                                paddingTop: "0.75rem",
+                                borderTop:
+                                    "1px solid var(--line)",
+                                display: "flex",
+                                alignItems: "flex-start",
+                                gap: "0.5rem"
+                            }}
+                        >
+
+                            <ShieldAlert
+                                size={14}
+                                style={{
+                                    color: "var(--warn)",
+                                    flexShrink: 0,
+                                    marginTop: "0.125rem"
+                                }}
+                            />
+
+                            <span
+                                style={{
+                                    fontSize: "0.75rem",
+                                    lineHeight: 1.5,
+                                    color: "var(--mute)"
+                                }}
+                            >
+                                The permitted retry limit has been reached.
+                                No additional automatic payment retry will be made.
+                            </span>
+
+                        </div>
+                    )}
+
+                </div>
+            )}
+
+
+            {/* =====================================================
+                PAYMENT LINK
+            ===================================================== */}
+
             {linkUrl && (
                 <div
                     className="sub-card-primary"
-                    style={{ marginBottom: "1.25rem" }}
+                    style={{
+                        marginBottom: "1.25rem"
+                    }}
                 >
+
                     <div
                         style={{
                             display: "flex",
@@ -317,16 +590,21 @@ export const ExecutionResult = ({
                             marginBottom: "0.5rem"
                         }}
                     >
+
                         <span className="eyebrow-primary">
                             Customer Payment Link
                         </span>
+
 
                         <button
                             type="button"
                             onClick={handleCopy}
                             className="back-link"
-                            style={{ fontSize: "0.75rem" }}
+                            style={{
+                                fontSize: "0.75rem"
+                            }}
                         >
+
                             {copied ? (
                                 <CheckCircle2
                                     className="status-up"
@@ -349,8 +627,11 @@ export const ExecutionResult = ({
                                     ? "Copied!"
                                     : "Copy Link"}
                             </span>
+
                         </button>
+
                     </div>
+
 
                     <div
                         className="sub-card"
@@ -361,6 +642,7 @@ export const ExecutionResult = ({
                             padding: "0.625rem"
                         }}
                     >
+
                         <span
                             className="font-mono"
                             style={{
@@ -374,6 +656,7 @@ export const ExecutionResult = ({
                         >
                             {linkUrl}
                         </span>
+
 
                         <a
                             href={linkUrl}
@@ -393,17 +676,25 @@ export const ExecutionResult = ({
                                 }}
                             />
                         </a>
+
                     </div>
+
                 </div>
             )}
 
-            {/* Money state */}
+
+            {/* =====================================================
+                MONEY STATE
+            ===================================================== */}
+
             <div
                 style={{
                     paddingTop: "1rem",
-                    borderTop: "1px solid var(--line)"
+                    borderTop:
+                        "1px solid var(--line)"
                 }}
             >
+
                 <div
                     style={{
                         display: "flex",
@@ -412,6 +703,7 @@ export const ExecutionResult = ({
                         gap: "1rem"
                     }}
                 >
+
                     <span
                         style={{
                             fontSize: "0.75rem",
@@ -420,6 +712,7 @@ export const ExecutionResult = ({
                     >
                         Money recovery status
                     </span>
+
 
                     <span
                         className={moneyStatusClass}
@@ -430,10 +723,14 @@ export const ExecutionResult = ({
                     >
                         {moneyStatusLabel}
                     </span>
+
                 </div>
+
             </div>
+
         </div>
     );
 };
+
 
 export default ExecutionResult;

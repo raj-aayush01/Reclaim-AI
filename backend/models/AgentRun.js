@@ -13,7 +13,6 @@ const agentStepSchema = new mongoose.Schema(
                 "OBSERVATION",
                 "DECISION",
                 "ACTION",
-                "RESULT",
                 "POLICY",
                 "TERMINAL"
             ],
@@ -37,7 +36,9 @@ const agentStepSchema = new mongoose.Schema(
 
         confidence: {
             type: Number,
-            default: null
+            default: null,
+            min: 0,
+            max: 1
         },
 
         reason: {
@@ -52,10 +53,12 @@ const agentStepSchema = new mongoose.Schema(
 
 const agentRunSchema = new mongoose.Schema(
     {
+
         runId: {
             type: String,
             required: true,
-            unique: true
+            unique: true,
+            index: true
         },
 
         paymentId: {
@@ -77,7 +80,8 @@ const agentRunSchema = new mongoose.Schema(
                 "FAILED",
                 "MAX_STEPS_REACHED"
             ],
-            default: "RUNNING"
+            default: "RUNNING",
+            index: true
         },
 
         steps: {
@@ -99,6 +103,11 @@ const agentRunSchema = new mongoose.Schema(
         timestamps: true
     }
 );
+
+agentRunSchema.index({
+    paymentId: 1,
+    createdAt: -1
+});
 
 module.exports = mongoose.model(
     "AgentRun",

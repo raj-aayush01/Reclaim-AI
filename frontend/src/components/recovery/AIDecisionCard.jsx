@@ -4,76 +4,84 @@ import {
     Brain,
     User,
     AlertTriangle,
-    ArrowRight
+    ArrowRight,
+    Target
 } from "lucide-react";
+
 import { formatRecoveryAction } from "../../utils/statusHelpers";
 import { formatCurrency } from "../../utils/formatCurrency";
 
+
 const getActionExplanation = (action) => {
+
     switch (action) {
+
         case "RETRY_PAYMENT":
             return {
                 title: "Try the payment again",
                 explanation:
-                    "The failure looks temporary, so the system chose another payment attempt instead of asking the customer to do anything.",
+                    "The failure appears temporary, so the AI recommended another payment attempt rather than asking the customer to take action.",
                 next:
-                    "If the new attempt succeeds, the payment is recovered. If it fails, the payment remains unrecovered and can move to the next permitted recovery path."
+                    "The system can make another payment attempt. If it succeeds, the payment is recovered. If it fails, the remaining recovery options are evaluated."
             };
 
         case "CREATE_PAYMENT_LINK":
             return {
-                title: "Give the customer another way to pay",
+                title: "Offer another way to pay",
                 explanation:
-                    "The original payment method was declined, so retrying the same method may not help. The system chose an alternative payment route.",
+                    "The original payment method appears unsuitable for another attempt, so the AI recommended giving the customer an alternative payment route.",
                 next:
-                    "A payment link is created and the payment waits for the customer to complete it."
+                    "A payment link can be created so the customer can complete the payment using the alternative route."
             };
 
         case "ESCALATE_TO_HUMAN":
             return {
                 title: "Send the payment for human review",
                 explanation:
-                    "The payment requires additional review before another automatic recovery attempt is appropriate.",
+                    "The AI determined that automatic recovery should not continue without human involvement.",
                 next:
-                    "No automatic charge is made. The payment is moved into a human-review state."
+                    "No additional automatic payment attempt is made. The payment is moved to a human-review workflow."
             };
 
         case "STOP_RECOVERY":
             return {
-                title: "Stop further automatic recovery",
+                title: "Stop automatic recovery",
                 explanation:
-                    "The payment has reached a point where continuing automatic recovery is no longer considered safe or useful.",
+                    "The AI determined that no further automatic recovery should be attempted.",
                 next:
-                    "No further automatic attempt will be made. The payment remains unrecovered unless handled separately."
+                    "The system will stop automated recovery and leave the payment for separate handling."
             };
 
         default:
             return {
                 title: "Recovery strategy selected",
                 explanation:
-                    "The payment was reviewed and a recovery strategy was selected from the available recovery options.",
+                    "The AI reviewed the payment and selected a recovery strategy from the available options.",
                 next:
-                    "The final result depends on the action performed by the recovery system."
+                    "The system will validate the recommendation before taking action."
             };
     }
 };
 
+
 const getFailureExplanation = (payment) => {
+
     switch (payment?.scenario) {
+
         case "TEMPORARY_FAILURE":
-            return "The payment failed because of a temporary issue. These failures can sometimes succeed when attempted again.";
+            return "This type of failure is usually associated with a temporary bank, network, or processing issue and may succeed when attempted again.";
 
         case "CARD_DECLINED":
-            return "The customer's payment method was declined. Trying the same method again may therefore not solve the problem.";
+            return "The payment method was declined, so repeatedly using the same method may not resolve the problem.";
 
         case "REPEATED_FAILURE":
-            return "This payment has already failed multiple times. The system therefore has to be more cautious about attempting another automatic recovery.";
+            return "The payment has already experienced repeated failures, so the system applies stricter controls before allowing another automatic attempt.";
 
         case "HIGH_VALUE_FAILURE":
-            return "This is a high-value payment, so the system applies stricter controls before allowing automatic recovery.";
+            return "This is a high-value payment, so additional safety controls are applied before automatic recovery is allowed.";
 
         case "UNKNOWN_FAILURE":
-            return "The reason for the failure could not be confidently classified, so the system avoids making an unsafe assumption.";
+            return "The failure could not be confidently classified, so the system avoids making an unsafe assumption about how to recover it.";
 
         default:
             return (
@@ -83,12 +91,16 @@ const getFailureExplanation = (payment) => {
     }
 };
 
+
 export const AIDecisionCard = ({
     aiDecision,
     payment = {},
     customer = {}
 }) => {
-    if (!aiDecision) return null;
+
+    if (!aiDecision) {
+        return null;
+    }
 
     const {
         action,
@@ -99,33 +111,52 @@ export const AIDecisionCard = ({
         whatHappensNext
     } = aiDecision;
 
-    const numericConfidence = Number(confidence) || 0;
 
-    const confidencePercent = Math.min(
-        Math.max(
-            Math.round(
-                numericConfidence <= 1
-                    ? numericConfidence * 100
-                    : numericConfidence
+    const numericConfidence =
+        Number(confidence) || 0;
+
+
+    const confidencePercent =
+        Math.min(
+            Math.max(
+                Math.round(
+                    numericConfidence <= 1
+                        ? numericConfidence * 100
+                        : numericConfidence
+                ),
+                0
             ),
-            0
-        ),
-        100
-    );
+            100
+        );
 
-    const actionInfo = getActionExplanation(action);
+
+    const actionInfo =
+        getActionExplanation(action);
+
+
     const customerName =
-        customer?.name || payment?.customerName || "The customer";
+        customer?.name ||
+        payment?.customerName ||
+        "The customer";
+
 
     const amount =
         payment?.amount !== undefined
             ? formatCurrency(payment.amount)
             : null;
 
-    const failureExplanation = getFailureExplanation(payment);
+
+    const failureExplanation =
+        getFailureExplanation(payment);
+
 
     return (
         <div className="panel panel-accent-primary recovery-card">
+
+            {/* =====================================================
+                HEADER
+            ===================================================== */}
+
             <div
                 style={{
                     display: "flex",
@@ -136,6 +167,7 @@ export const AIDecisionCard = ({
                     marginBottom: "1.5rem"
                 }}
             >
+
                 <div
                     style={{
                         display: "flex",
@@ -143,11 +175,13 @@ export const AIDecisionCard = ({
                         gap: "0.75rem"
                     }}
                 >
+
                     <div className="icon-box icon-box-md icon-box-primary">
                         <Brain size={18} />
                     </div>
 
                     <div>
+
                         <h4
                             className="recovery-card-title"
                             style={{
@@ -156,21 +190,34 @@ export const AIDecisionCard = ({
                                 gap: "0.375rem"
                             }}
                         >
-                            AI Recovery Decision
+                            What AI Recommended
+
                             <Sparkles
                                 size={16}
-                                style={{ color: "var(--warn)" }}
+                                style={{
+                                    color: "var(--warn)"
+                                }}
                             />
                         </h4>
 
                         <p className="recovery-card-subtitle">
-                            Why the AI chose this recovery strategy
+                            The recommendation made after reviewing the payment
                         </p>
+
                     </div>
+
                 </div>
 
-                <div style={{ textAlign: "right" }}>
-                    <span className="meta-label">AI Confidence</span>
+
+                <div
+                    style={{
+                        textAlign: "right"
+                    }}
+                >
+
+                    <span className="meta-label">
+                        AI Confidence
+                    </span>
 
                     <span
                         style={{
@@ -178,60 +225,90 @@ export const AIDecisionCard = ({
                             fontSize: "1.125rem",
                             fontWeight: 800,
                             color: "var(--primary)",
-                            fontFamily: "'JetBrains Mono', monospace"
+                            fontFamily:
+                                "'JetBrains Mono', monospace"
                         }}
                     >
                         {confidencePercent}%
                     </span>
+
                 </div>
+
             </div>
 
-            <div style={{ marginBottom: "1.5rem" }}>
+
+            {/* =====================================================
+                WHAT HAPPENED
+            ===================================================== */}
+
+            <div
+                className="sub-card"
+                style={{
+                    marginBottom: "1rem"
+                }}
+            >
+
                 <div
                     style={{
                         display: "flex",
                         alignItems: "center",
                         gap: "0.5rem",
-                        marginBottom: "0.5rem"
+                        marginBottom: "0.625rem"
                     }}
                 >
+
                     <User
                         size={14}
-                        style={{ color: "var(--mute)" }}
+                        style={{
+                            color: "var(--mute)"
+                        }}
                     />
 
-                    <span
-                        style={{
-                            fontSize: "0.75rem",
-                            fontWeight: 600,
-                            color: "var(--ink)"
-                        }}
-                    >
+                    <span className="meta-label">
                         What happened
                     </span>
+
                 </div>
+
 
                 <p
                     className="recovery-card-body-text"
-                    style={{ color: "var(--ink)" }}
+                    style={{
+                        color: "var(--ink)"
+                    }}
                 >
                     {summary ||
                         `${customerName}${
                             amount
                                 ? ` attempted a ${amount}`
                                 : " attempted a"
-                        } payment, but the payment could not be completed.`}
+                        } payment, but it could not be completed.`}
                 </p>
+
 
                 <p
                     className="recovery-card-body-text"
-                    style={{ marginTop: "0.5rem" }}
+                    style={{
+                        marginTop: "0.5rem"
+                    }}
                 >
                     {failureExplanation}
                 </p>
+
             </div>
 
-            <div className="recovery-card-highlight">
+
+            {/* =====================================================
+                AI RECOMMENDATION
+            ===================================================== */}
+
+            <div
+                className="recovery-card-highlight"
+                style={{
+                    marginBottom: "1.25rem"
+                }}
+            >
+
                 <span
                     className="eyebrow-primary"
                     style={{
@@ -239,8 +316,9 @@ export const AIDecisionCard = ({
                         marginBottom: "0.5rem"
                     }}
                 >
-                    AI Decision
+                    Recommended next step
                 </span>
+
 
                 <div
                     style={{
@@ -251,9 +329,12 @@ export const AIDecisionCard = ({
                         gap: "0.75rem"
                     }}
                 >
+
                     <div>
+
                         <span
                             style={{
+                                display: "block",
                                 fontSize: "1.125rem",
                                 fontWeight: 700,
                                 color: "var(--ink)"
@@ -262,36 +343,47 @@ export const AIDecisionCard = ({
                             {formatRecoveryAction(action)}
                         </span>
 
-                        <p
+
+                        <span
                             style={{
+                                display: "block",
                                 fontSize: "0.75rem",
                                 color: "var(--primary)",
                                 marginTop: "0.25rem"
                             }}
                         >
                             {actionInfo.title}
-                        </p>
+                        </span>
+
                     </div>
+
 
                     <ArrowRight
                         size={18}
                         style={{
-                            color: "var(--primary)",
-                            display: "none"
+                            color: "var(--primary)"
                         }}
-                        className="sm-show"
                     />
+
                 </div>
+
             </div>
+
+
+            {/* =====================================================
+                WHY
+            ===================================================== */}
 
             <div
                 style={{
                     display: "flex",
                     flexDirection: "column",
-                    gap: "1.25rem"
+                    gap: "1rem"
                 }}
             >
+
                 <div>
+
                     <div
                         style={{
                             display: "flex",
@@ -300,49 +392,93 @@ export const AIDecisionCard = ({
                             marginBottom: "0.5rem"
                         }}
                     >
-                        <AlertTriangle
+
+                        <Target
                             size={14}
-                            style={{ color: "var(--warn)" }}
+                            style={{
+                                color: "var(--primary)"
+                            }}
                         />
 
-                        <span
-                            style={{
-                                fontSize: "0.75rem",
-                                fontWeight: 600,
-                                color: "var(--ink)"
-                            }}
-                        >
-                            Why this decision?
+                        <span className="meta-label">
+                            Why AI chose this
                         </span>
+
                     </div>
+
 
                     <p className="recovery-card-body-text">
                         {whyThisDecision ||
                             reason ||
                             actionInfo.explanation}
                     </p>
+
                 </div>
 
+
                 <div>
-                    <span
+
+                    <div
                         style={{
-                            fontSize: "0.75rem",
-                            fontWeight: 600,
-                            color: "var(--ink)",
-                            display: "block",
+                            display: "flex",
+                            alignItems: "center",
+                            gap: "0.5rem",
                             marginBottom: "0.5rem"
                         }}
                     >
-                        What happens next?
-                    </span>
+
+                        <ArrowRight
+                            size={14}
+                            style={{
+                                color: "var(--mute)"
+                            }}
+                        />
+
+                        <span className="meta-label">
+                            What would happen next
+                        </span>
+
+                    </div>
+
 
                     <p className="recovery-card-body-text">
-                        {whatHappensNext || actionInfo.next}
+                        {whatHappensNext ||
+                            actionInfo.next}
                     </p>
+
                 </div>
+
             </div>
+
+
+            {/* =====================================================
+                IMPORTANT DISTINCTION
+            ===================================================== */}
+
+            <div
+                style={{
+                    marginTop: "1.25rem",
+                    paddingTop: "1rem",
+                    borderTop:
+                        "1px solid var(--line)",
+                    fontSize: "0.75rem",
+                    color: "var(--mute)"
+                }}
+            >
+                <strong
+                    style={{
+                        color: "var(--ink)"
+                    }}
+                >
+                    Important:
+                </strong>{" "}
+                This is the AI recommendation. The system's safety checks
+                still determine whether this recommendation can actually be executed.
+            </div>
+
         </div>
     );
 };
+
 
 export default AIDecisionCard;

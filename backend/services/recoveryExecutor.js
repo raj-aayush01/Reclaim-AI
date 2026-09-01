@@ -6,14 +6,14 @@ const {
 const MAX_RECOVERY_ATTEMPTS = 3;
 
 /*
- * Count one automated recovery action.
+ * attemptCount represents ONLY actual payment retry attempts.
  *
- * RETRY_PAYMENT, CREATE_PAYMENT_LINK and ESCALATE_TO_HUMAN
- * each consume one recovery attempt.
- *
- * STOP_RECOVERY does not consume an attempt.
+ * RETRY_PAYMENT          -> consumes one attempt
+ * CREATE_PAYMENT_LINK    -> does not consume an attempt
+ * ESCALATE_TO_HUMAN      -> does not consume an attempt
+ * STOP_RECOVERY          -> does not consume an attempt
  */
-const incrementRecoveryAttempt = (payment) => {
+const incrementRetryAttempt = (payment) => {
     const currentCount =
         Number(payment.attemptCount) || 0;
 
@@ -32,17 +32,33 @@ const executeRecoveryAction = async (
 
     switch (action) {
 
+        // =====================================================
+        // RETRY PAYMENT
+        // =====================================================
+
         case "RETRY_PAYMENT": {
 
             const currentAttemptCount =
                 Number(payment.attemptCount) || 0;
 
+            /*
+             * Retry is the ONLY action that consumes
+             * attemptCount.
+             *
+             * Once 3 actual retries have already happened,
+             * another retry is not allowed.
+             */
             if (
                 currentAttemptCount >=
                 MAX_RECOVERY_ATTEMPTS
             ) {
 
-                payment.status = "stopped";
+                payment.recoveryAction =
+                    "STOP_RECOVERY";
+
+                payment.status =
+                    "stopped";
+
                 payment.recoveryResult =
                     "STOPPED";
 
@@ -51,20 +67,29 @@ const executeRecoveryAction = async (
                     result: "STOPPED",
                     recoveredAmount: 0,
                     blocked: true,
-                    actionExecuted: "STOP_RECOVERY",
+                    actionExecuted:
+                        "STOP_RECOVERY",
                     message:
-                        `Recovery stopped because the maximum of ${MAX_RECOVERY_ATTEMPTS} automated recovery attempts has been reached.`
+                        `Recovery stopped because the maximum of ${MAX_RECOVERY_ATTEMPTS} payment retry attempts has been reached.`
                 };
             }
 
-            incrementRecoveryAttempt(payment);
+            /*
+             * Count the actual retry.
+             */
+            incrementRetryAttempt(payment);
 
             const gatewayResult =
                 await processPaymentRetry(payment);
 
+            // -------------------------------------------------
+            // Retry succeeded
+            // -------------------------------------------------
+
             if (gatewayResult.success) {
 
-                payment.status = "recovered";
+                payment.status =
+                    "recovered";
 
                 payment.recoveredAmount =
                     payment.amount;
@@ -86,7 +111,12 @@ const executeRecoveryAction = async (
                 };
             }
 
-            payment.status = "failed";
+            // -------------------------------------------------
+            // Retry failed
+            // -------------------------------------------------
+
+            payment.status =
+                "failed";
 
             payment.recoveryResult =
                 "FAILED";
@@ -104,33 +134,22 @@ const executeRecoveryAction = async (
             };
         }
 
+        // =====================================================
+        // CREATE PAYMENT LINK
+        // =====================================================
+
         case "CREATE_PAYMENT_LINK": {
 
-            const currentAttemptCount =
-                Number(payment.attemptCount) || 0;
-
-            if (
-                currentAttemptCount >=
-                MAX_RECOVERY_ATTEMPTS
-            ) {
-
-                payment.status = "stopped";
-
-                payment.recoveryResult =
-                    "STOPPED";
-
-                return {
-                    success: false,
-                    result: "STOPPED",
-                    recoveredAmount: 0,
-                    blocked: true,
-                    actionExecuted: "STOP_RECOVERY",
-                    message:
-                        `Recovery stopped because the maximum of ${MAX_RECOVERY_ATTEMPTS} automated recovery attempts has been reached.`
-                };
-            }
-
-            incrementRecoveryAttempt(payment);
+            /*
+             * Creating a payment link is NOT a payment retry.
+             *
+             * Therefore:
+             *
+             * attemptCount stays unchanged.
+             *
+             * Even if attemptCount is already 3, creating a
+             * payment link can still be allowed by the policy.
+             */
 
             const gatewayResult =
                 await createPaymentLink(payment);
@@ -141,7 +160,8 @@ const executeRecoveryAction = async (
             payment.paymentLinkUrl =
                 gatewayResult.paymentLinkUrl;
 
-            payment.status = "pending";
+            payment.status =
+                "pending";
 
             payment.recoveryResult =
                 "PENDING";
@@ -149,6 +169,7 @@ const executeRecoveryAction = async (
             return {
                 success: true,
                 result: "PENDING",
+                recoveredAmount: 0,
                 paymentLinkId:
                     gatewayResult.paymentLinkId,
                 paymentLinkUrl:
@@ -158,35 +179,20 @@ const executeRecoveryAction = async (
             };
         }
 
+        // =====================================================
+        // ESCALATE TO HUMAN
+        // =====================================================
+
         case "ESCALATE_TO_HUMAN": {
 
-            const currentAttemptCount =
-                Number(payment.attemptCount) || 0;
+            /*
+             * Escalation is not a payment retry.
+             *
+             * Therefore attemptCount remains unchanged.
+             */
 
-            if (
-                currentAttemptCount >=
-                MAX_RECOVERY_ATTEMPTS
-            ) {
-
-                payment.status = "stopped";
-
-                payment.recoveryResult =
-                    "STOPPED";
-
-                return {
-                    success: false,
-                    result: "STOPPED",
-                    recoveredAmount: 0,
-                    blocked: true,
-                    actionExecuted: "STOP_RECOVERY",
-                    message:
-                        `Recovery stopped because the maximum of ${MAX_RECOVERY_ATTEMPTS} automated recovery attempts has been reached.`
-                };
-            }
-
-            incrementRecoveryAttempt(payment);
-
-            payment.status = "escalated";
+            payment.status =
+                "escalated";
 
             payment.recoveryResult =
                 "ESCALATED";
@@ -200,13 +206,19 @@ const executeRecoveryAction = async (
             };
         }
 
+        // =====================================================
+        // STOP RECOVERY
+        // =====================================================
+
         case "STOP_RECOVERY": {
 
             /*
              * Stopping recovery does not consume
-             * another recovery attempt.
+             * another payment retry attempt.
              */
-            payment.status = "stopped";
+
+            payment.status =
+                "stopped";
 
             payment.recoveryResult =
                 "STOPPED";
@@ -219,6 +231,10 @@ const executeRecoveryAction = async (
                     "No further automated recovery will be attempted."
             };
         }
+
+        // =====================================================
+        // UNKNOWN ACTION
+        // =====================================================
 
         default:
             throw new Error(

@@ -1,27 +1,130 @@
 const AgentRun = require("../models/AgentRun");
+const Payment = require("../models/Payment");
 
-// Get latest agent run for a specific payment
+
+// ---------------------------------------------------------
+// Serialize the current payment state for the frontend
+// ---------------------------------------------------------
+
+const serializePayment = (payment) => {
+
+    if (!payment) {
+        return null;
+    }
+
+    return {
+        paymentId:
+            payment.paymentId,
+
+        orderId:
+            payment.orderId,
+
+        customerId:
+            payment.customerId,
+
+        amount:
+            payment.amount,
+
+        currency:
+            payment.currency,
+
+        paymentMethod:
+            payment.paymentMethod,
+
+        status:
+            payment.status,
+
+        failureReason:
+            payment.failureReason,
+
+        attemptCount:
+            payment.attemptCount,
+
+        recoveredAmount:
+            payment.recoveredAmount,
+
+        scenario:
+            payment.scenario,
+
+        recoveryAction:
+            payment.recoveryAction,
+
+        recoveryResult:
+            payment.recoveryResult,
+
+        paymentLinkId:
+            payment.paymentLinkId,
+
+        paymentLinkUrl:
+            payment.paymentLinkUrl
+    };
+};
+
+
+// ---------------------------------------------------------
+// Get latest agent run + current payment for a payment
+// ---------------------------------------------------------
 
 const getAgentRun = async (req, res) => {
+
     try {
 
         const { paymentId } = req.params;
 
-        const agentRun = await AgentRun.findOne({
-            paymentId
-        }).sort({
-            createdAt: -1
-        });
+
+        /*
+         * Fetch both pieces of information together.
+         *
+         * AgentRun = historical recovery timeline
+         * Payment  = current authoritative payment state
+         */
+
+        const [agentRun, payment] =
+            await Promise.all([
+
+                AgentRun.findOne({
+                    paymentId
+                })
+                    .sort({
+                        createdAt: -1
+                    })
+                    .lean(),
+
+                Payment.findOne({
+                    paymentId
+                }).lean()
+
+            ]);
+
 
         if (!agentRun) {
+
             return res.status(404).json({
-                message: "No agent run found for this payment"
+                message:
+                    "No agent run found for this payment",
+
+                payment:
+                    serializePayment(payment)
             });
         }
 
+
         res.json({
+
             success: true,
-            run: agentRun
+
+            run: agentRun,
+
+            /*
+             * Always return the current payment state.
+             *
+             * This prevents the frontend from relying only
+             * on an older payment snapshot stored inside
+             * AgentRun steps.
+             */
+            payment:
+                serializePayment(payment)
+
         });
 
     } catch (error) {
@@ -32,53 +135,66 @@ const getAgentRun = async (req, res) => {
         );
 
         res.status(500).json({
-            message: "Failed to fetch agent run",
-            error: error.message
+
+            message:
+                "Failed to fetch agent run",
+
+            error:
+                error.message
+
         });
+
     }
 };
 
 
+// ---------------------------------------------------------
 // AI Control Room
+// ---------------------------------------------------------
 
 const getControlRoom = async (req, res) => {
 
     try {
 
         /*
-         * -------------------------------------------------------
+         * ---------------------------------------------------
          * GET ALL AGENT RUNS
-         * -------------------------------------------------------
+         * ---------------------------------------------------
          *
          * Newest runs are returned first.
          */
-        const runs = await AgentRun.find({})
-            .sort({
-                createdAt: -1
-            })
-            .lean();
+
+        const runs =
+            await AgentRun.find({})
+                .sort({
+                    createdAt: -1
+                })
+                .lean();
 
 
         /*
-         * -------------------------------------------------------
+         * ---------------------------------------------------
          * LATEST RUN PER PAYMENT
-         * -------------------------------------------------------
+         * ---------------------------------------------------
          *
          * A payment can have multiple recovery runs.
          *
-         * Because the runs are sorted newest -> oldest,
-         * the first run encountered for a payment is its
-         * latest recovery outcome.
-         *
-         * Overall metrics use only these latest runs so that
-         * one payment is counted only once.
+         * Because runs are sorted newest -> oldest,
+         * the first run encountered for each payment is
+         * its latest recovery run.
          */
 
-        const latestRunByPayment = new Map();
+        const latestRunByPayment =
+            new Map();
+
 
         for (const run of runs) {
 
-            if (!latestRunByPayment.has(run.paymentId)) {
+            if (
+                !latestRunByPayment.has(
+                    run.paymentId
+                )
+            ) {
 
                 latestRunByPayment.set(
                     run.paymentId,
@@ -86,7 +202,9 @@ const getControlRoom = async (req, res) => {
                 );
 
             }
+
         }
+
 
         const latestRuns = [
             ...latestRunByPayment.values()
@@ -94,9 +212,9 @@ const getControlRoom = async (req, res) => {
 
 
         /*
-         * -------------------------------------------------------
+         * ---------------------------------------------------
          * OVERALL AGENT METRICS
-         * -------------------------------------------------------
+         * ---------------------------------------------------
          */
 
         const evaluated =
@@ -106,314 +224,440 @@ const getControlRoom = async (req, res) => {
         const recovered =
             latestRuns.filter(
                 (run) =>
-                    run.status === "RECOVERED"
+                    run.status ===
+                    "RECOVERED"
             ).length;
 
 
         const escalated =
             latestRuns.filter(
                 (run) =>
-                    run.status === "ESCALATED"
+                    run.status ===
+                    "ESCALATED"
             ).length;
 
 
         const blocked =
             latestRuns.filter(
                 (run) =>
-                    run.status === "BLOCKED"
+                    run.status ===
+                    "BLOCKED"
             ).length;
 
 
         const stopped =
             latestRuns.filter(
                 (run) =>
-                    run.status === "STOPPED"
+                    run.status ===
+                    "STOPPED"
             ).length;
 
 
         const failed =
             latestRuns.filter(
                 (run) =>
-                    run.status === "FAILED"
+                    run.status ===
+                    "FAILED"
             ).length;
 
 
         /*
-         * -------------------------------------------------------
+         * ---------------------------------------------------
          * RECENT ACTIVITY
-         * -------------------------------------------------------
+         * ---------------------------------------------------
          *
-         * The AgentRun model uses:
+         * We also retrieve the current Payment documents.
          *
-         * OBSERVATION
-         * DECISION
-         * ACTION
-         * POLICY
-         * TERMINAL
-         *
-         * There is currently no RESULT step in recoveryAgent.js.
-         *
-         * Therefore, the terminal step is exposed to the
-         * frontend as the final result.
+         * AgentRun contains historical execution information.
+         * Payment contains the current source of truth.
          */
 
-        const recentRuns = runs
-            .slice(0, 20)
-            .map((run) => {
-
-                const decisionStep =
-                    run.steps?.find(
-                        (step) =>
-                            step.type === "DECISION"
-                    );
+        const paymentIds =
+            runs
+                .map(
+                    (run) =>
+                        run.paymentId
+                )
+                .filter(Boolean);
 
 
-                const policyStep =
-                    run.steps?.find(
-                        (step) =>
-                            step.type === "POLICY"
-                    );
+        const payments =
+            paymentIds.length > 0
+                ? await Payment.find({
+                    paymentId: {
+                        $in: paymentIds
+                    }
+                }).lean()
+                : [];
 
 
-                const actionStep =
-                    run.steps?.find(
-                        (step) =>
-                            step.type === "ACTION"
-                    );
+        const paymentById =
+            new Map(
+                payments.map(
+                    (payment) => [
+                        payment.paymentId,
+                        payment
+                    ]
+                )
+            );
 
 
-                /*
-                 * The recovery agent records the final outcome
-                 * using TERMINAL rather than RESULT.
-                 *
-                 * Find the last terminal step because a run can
-                 * contain multiple steps.
-                 */
-
-                const terminalSteps =
-                    run.steps?.filter(
-                        (step) =>
-                            step.type === "TERMINAL"
-                    ) || [];
-
-
-                const terminalStep =
-                    terminalSteps.length > 0
-                        ? terminalSteps[
-                              terminalSteps.length - 1
-                          ]
-                        : null;
-
-
-                /*
-                 * Build the Control Room representation.
-                 */
-
-                return {
-
-                    runId:
-                        run.runId,
-
-                    paymentId:
-                        run.paymentId,
-
-                    status:
-                        run.status,
-
-                    startedAt:
-                        run.startedAt,
-
-                    completedAt:
-                        run.completedAt,
-
+        const recentRuns =
+            runs
+                .slice(0, 20)
+                .map((run) => {
 
                     /*
-                     * AI DECISION
-                     */
-
-                    decision:
-                        decisionStep
-                            ? {
-
-                                  action:
-                                      decisionStep
-                                          .output
-                                          ?.action ||
-                                      null,
-
-                                  confidence:
-                                      decisionStep
-                                          .confidence ??
-                                      null,
-
-                                  reason:
-                                      decisionStep
-                                          .reason ||
-                                      null,
-
-                                  summary:
-                                      decisionStep
-                                          .output
-                                          ?.summary ||
-                                      null,
-
-                                  whyThisDecision:
-                                      decisionStep
-                                          .output
-                                          ?.whyThisDecision ||
-                                      null,
-
-                                  whatHappensNext:
-                                      decisionStep
-                                          .output
-                                          ?.whatHappensNext ||
-                                      null
-
-                              }
-                            : null,
-
-
-                    /*
-                     * POLICY / GUARDRAIL
-                     */
-
-                    policy:
-                        policyStep
-                            ? {
-
-                                  action:
-                                      policyStep
-                                          .output
-                                          ?.finalAction ||
-                                      policyStep
-                                          .output
-                                          ?.stopResult
-                                          ?.executionResult
-                                          ?.result ||
-                                      null,
-
-                                  allowed:
-                                      policyStep
-                                          .output
-                                          ?.allowed ??
-                                      policyStep
-                                          .output
-                                          ?.stopResult
-                                          ?.policyDecision
-                                          ?.allowed ??
-                                      false,
-
-                                  reason:
-                                      policyStep
-                                          .reason ||
-                                      policyStep
-                                          .output
-                                          ?.stopResult
-                                          ?.policyDecision
-                                          ?.reason ||
-                                      null,
-
-                                  circuitBreakerTriggered:
-                                      policyStep
-                                          .output
-                                          ?.circuitBreakerTriggered ||
-                                      false,
-
-                                  attemptsMade:
-                                      policyStep
-                                          .output
-                                          ?.attemptsMade ??
-                                      null,
-
-                                  maxAttempts:
-                                      policyStep
-                                          .input
-                                          ?.maxAttempts ??
-                                      null
-
-                              }
-                            : null,
-
-
-                    /*
-                     * ACTION
+                     * ------------------------------------------------
+                     * IMPORTANT:
                      *
-                     * Find the most recent ACTION step because
-                     * retry-based recovery can contain multiple
-                     * ACTION steps.
+                     * Use the LAST ACTION step.
+                     *
+                     * Retry recovery can contain:
+                     *
+                     * ACTION retry 1
+                     * ACTION retry 2
+                     * ACTION retry 3
+                     *
+                     * Array.find() would incorrectly return retry 1.
+                     * ------------------------------------------------
                      */
 
-                    action:
-                        actionStep
-                            ? {
+                    const actionSteps =
+                        run.steps?.filter(
+                            (step) =>
+                                step.type ===
+                                "ACTION"
+                        ) || [];
 
-                                  tool:
-                                      actionStep.tool ||
-                                      null,
 
-                                  output:
-                                      actionStep.output ||
-                                      null,
-
-                                  requestedAction:
-                                      actionStep
-                                          .input
-                                          ?.requestedAction ||
-                                      null,
-
-                                  attemptNumber:
-                                      actionStep
-                                          .input
-                                          ?.attemptNumber ??
-                                      null
-
-                              }
-                            : null,
+                    const actionStep =
+                        actionSteps.length > 0
+                            ? actionSteps[
+                                actionSteps.length - 1
+                            ]
+                            : null;
 
 
                     /*
-                     * FINAL RESULT
-                     *
-                     * Derived from the TERMINAL step.
+                     * ------------------------------------------------
+                     * DECISION
+                     * ------------------------------------------------
                      */
 
-                    result:
-                        terminalStep
-                            ? {
+                    const decisionStep =
+                        run.steps?.find(
+                            (step) =>
+                                step.type ===
+                                "DECISION"
+                        );
 
-                                  output:
-                                      terminalStep.output ||
-                                      null,
 
-                                  reason:
-                                      terminalStep.reason ||
-                                      null,
+                    /*
+                     * ------------------------------------------------
+                     * POLICY
+                     * ------------------------------------------------
+                     */
 
-                                  status:
-                                      terminalStep
-                                          .output
-                                          ?.status ||
-                                      run.status,
+                    const policySteps =
+                        run.steps?.filter(
+                            (step) =>
+                                step.type ===
+                                "POLICY"
+                        ) || [];
 
-                                  executedAction:
-                                      terminalStep
-                                          .output
-                                          ?.executedAction ||
-                                      terminalStep.tool ||
-                                      null
 
-                              }
-                            : null
+                    const policyStep =
+                        policySteps.length > 0
+                            ? policySteps[
+                                policySteps.length - 1
+                            ]
+                            : null;
 
-                };
 
-            });
+                    /*
+                     * ------------------------------------------------
+                     * TERMINAL
+                     * ------------------------------------------------
+                     */
+
+                    const terminalSteps =
+                        run.steps?.filter(
+                            (step) =>
+                                step.type ===
+                                "TERMINAL"
+                        ) || [];
+
+
+                    const terminalStep =
+                        terminalSteps.length > 0
+                            ? terminalSteps[
+                                terminalSteps.length - 1
+                            ]
+                            : null;
+
+
+                    /*
+                     * ------------------------------------------------
+                     * CURRENT PAYMENT
+                     * ------------------------------------------------
+                     */
+
+                    const currentPayment =
+                        paymentById.get(
+                            run.paymentId
+                        ) || null;
+
+
+                    /*
+                     * ------------------------------------------------
+                     * RETURN CONTROL ROOM RUN
+                     * ------------------------------------------------
+                     */
+
+                    return {
+
+                        runId:
+                            run.runId,
+
+                        paymentId:
+                            run.paymentId,
+
+                        status:
+                            run.status,
+
+                        startedAt:
+                            run.startedAt,
+
+                        completedAt:
+                            run.completedAt,
+
+
+                        /*
+                         * CURRENT PAYMENT
+                         *
+                         * This is intentionally separate from
+                         * historical step data.
+                         */
+
+                        payment:
+                            serializePayment(
+                                currentPayment
+                            ),
+
+
+                        /*
+                         * AI DECISION
+                         */
+
+                        decision:
+                            decisionStep
+                                ? {
+
+                                    action:
+                                        decisionStep
+                                            .output
+                                            ?.action ||
+                                        null,
+
+                                    confidence:
+                                        decisionStep
+                                            .confidence ??
+                                        decisionStep
+                                            .output
+                                            ?.confidence ??
+                                        null,
+
+                                    reason:
+                                        decisionStep
+                                            .reason ||
+                                        decisionStep
+                                            .output
+                                            ?.reason ||
+                                        null,
+
+                                    summary:
+                                        decisionStep
+                                            .output
+                                            ?.summary ||
+                                        null,
+
+                                    whyThisDecision:
+                                        decisionStep
+                                            .output
+                                            ?.whyThisDecision ||
+                                        null,
+
+                                    whatHappensNext:
+                                        decisionStep
+                                            .output
+                                            ?.whatHappensNext ||
+                                        null
+
+                                }
+                                : null,
+
+
+                        /*
+                         * POLICY / SAFETY CHECK
+                         */
+
+                        policy:
+                            policyStep
+                                ? {
+
+                                    action:
+                                        policyStep
+                                            .output
+                                            ?.finalAction ||
+                                        policyStep
+                                            .output
+                                            ?.stopResult
+                                            ?.policyDecision
+                                            ?.finalAction ||
+                                        null,
+
+                                    allowed:
+                                        policyStep
+                                            .output
+                                            ?.allowed ??
+                                        policyStep
+                                            .output
+                                            ?.policyDecision
+                                            ?.allowed ??
+                                        policyStep
+                                            .output
+                                            ?.stopResult
+                                            ?.policyDecision
+                                            ?.allowed ??
+                                        null,
+
+                                    reason:
+                                        policyStep
+                                            .reason ||
+                                        policyStep
+                                            .output
+                                            ?.reason ||
+                                        policyStep
+                                            .output
+                                            ?.policyDecision
+                                            ?.reason ||
+                                        policyStep
+                                            .output
+                                            ?.stopResult
+                                            ?.policyDecision
+                                            ?.reason ||
+                                        null,
+
+                                    circuitBreakerTriggered:
+                                        policyStep
+                                            .output
+                                            ?.circuitBreakerTriggered ??
+                                        false,
+
+                                    attemptsMade:
+                                        policyStep
+                                            .output
+                                            ?.attemptsMade ??
+                                        policyStep
+                                            .input
+                                            ?.attemptsMade ??
+                                        null,
+
+                                    maxAttempts:
+                                        policyStep
+                                            .output
+                                            ?.maxAttempts ??
+                                        policyStep
+                                            .input
+                                            ?.maxAttempts ??
+                                        null
+
+                                }
+                                : null,
+
+
+                        /*
+                         * ACTION
+                         */
+
+                        action:
+                            actionStep
+                                ? {
+
+                                    tool:
+                                        actionStep.tool ||
+                                        null,
+
+                                    output:
+                                        actionStep.output ||
+                                        null,
+
+                                    requestedAction:
+                                        actionStep
+                                            .input
+                                            ?.requestedAction ||
+                                        null,
+
+                                    attemptNumber:
+                                        actionStep
+                                            .input
+                                            ?.attemptNumber ??
+                                        null
+
+                                }
+                                : null,
+
+
+                        /*
+                         * FINAL RESULT
+                         */
+
+                        result:
+                            terminalStep
+                                ? {
+
+                                    output:
+                                        terminalStep.output ||
+                                        null,
+
+                                    reason:
+                                        terminalStep.reason ||
+                                        null,
+
+                                    status:
+                                        terminalStep
+                                            .output
+                                            ?.status ||
+                                        run.status,
+
+                                    executedAction:
+                                        terminalStep
+                                            .output
+                                            ?.executedAction ||
+                                        terminalStep.tool ||
+                                        null,
+
+                                    attemptsMade:
+                                        terminalStep
+                                            .output
+                                            ?.attemptsMade ??
+                                        currentPayment
+                                            ?.attemptCount ??
+                                        null
+
+                                }
+                                : null
+
+                    };
+
+                });
 
 
         /*
-         * -------------------------------------------------------
+         * ---------------------------------------------------
          * RESPONSE
-         * -------------------------------------------------------
+         * ---------------------------------------------------
          */
 
         res.json({
@@ -421,7 +665,8 @@ const getControlRoom = async (req, res) => {
             success: true,
 
             agent: {
-                status: "ONLINE"
+                status:
+                    "ONLINE"
             },
 
             summary: {
@@ -463,6 +708,7 @@ const getControlRoom = async (req, res) => {
         });
 
     }
+
 };
 
 
