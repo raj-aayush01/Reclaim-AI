@@ -21,10 +21,9 @@ const getPolicyFirings = async (req, res) => {
         const skip =
             (pageNum - 1) * limitNum;
 
-        /*
-         * A policy firing means the AI recommendation
-         * was rejected/overridden by the recovery policy.
-         */
+
+        // A policy firing means the AI recommendation was rejected/overridden by the recovery policy.
+
         const query = {
             policyAllowed: false
         };
@@ -42,10 +41,9 @@ const getPolicyFirings = async (req, res) => {
             RecoveryLog.countDocuments(query)
         ]);
 
-        /*
-         * RecoveryLog does not store payment amount,
-         * so fetch the corresponding payments separately.
-         */
+
+        // RecoveryLog does not store payment amount, so fetch the corresponding payments separately.
+
         const paymentIds = [
             ...new Set(
                 logs.map(

@@ -1,5 +1,6 @@
 const Payment = require("../models/Payment");
 const RecoveryLog = require("../models/RecoveryLog");
+const AgentRun = require("../models/AgentRun");
 
 const getDashboardSummary = async (req, res) => {
     try {
@@ -28,11 +29,8 @@ const getDashboardSummary = async (req, res) => {
             ? { createdAt: { $gte: startDate } }
             : {};
 
-        // Payments within the selected dashboard time range
         const payments = await Payment.find(dateQuery);
 
-        // Current open exceptions are independent of the selected
-        // dashboard time range.
         const openExceptionsCount = await Payment.countDocuments({
             status: "escalated"
         });
@@ -60,35 +58,102 @@ const getDashboardSummary = async (req, res) => {
         );
 
         const recoveredAmount = payments.reduce(
-            (sum, payment) =>
-                sum + (payment.recoveredAmount || 0),
+            (sum, payment) => sum + (payment.recoveredAmount || 0),
             0
         );
 
         const recoveryRate =
             totalAtRisk > 0
-                ? ((recoveredAmount / totalAtRisk) * 100).toFixed(2)
+                ? (
+                      (recoveredAmount /
+                          (recoveredAmount + totalAtRisk)) *
+                      100
+                  ).toFixed(2)
                 : 0;
 
-        // Action breakdown remains time-range based.
-        const retryCount = payments.filter(
-            payment =>
-                payment.recoveryAction === "RETRY_PAYMENT"
+        const agentRuns = await AgentRun.find(dateQuery).lean();
+
+        const executedActions = agentRuns.flatMap(run =>
+            (run.steps || [])
+                .filter(step => step.type === "ACTION")
+                .map(step => {
+                    const output = step.output || {};
+
+                    const requestedAction =
+                        output.requestedAction ||
+                        step.input?.requestedAction ||
+                        null;
+
+                    const actionExecuted =
+                        output.actionExecuted ||
+                        output.executedAction ||
+                        null;
+
+                    /*
+                     * The executed action is authoritative.
+                     * Requested action is only a fallback for older
+                     * AgentRun records that do not contain execution data.
+                     */
+
+                    if (actionExecuted) {
+                        return [
+                            "RETRY_PAYMENT",
+                            "CREATE_PAYMENT_LINK",
+                            "ESCALATE_TO_HUMAN",
+                            "STOP_RECOVERY"
+                        ].includes(actionExecuted)
+                            ? actionExecuted
+                            : null;
+                    }
+
+                    /*
+                     * A retry can be evidenced by actual attempts even
+                     * when actionExecuted was not persisted.
+                     */
+
+                    if (
+                        requestedAction === "RETRY_PAYMENT" &&
+                        (
+                            Number(output.attemptsMade) > 0 ||
+                            Number(output.retryAttempts?.length) > 0
+                        )
+                    ) {
+                        return "RETRY_PAYMENT";
+                    }
+
+                    /*
+                     * For legacy records without execution metadata,
+                     * retain the requested action only when there is no
+                     * conflicting execution result.
+                     */
+
+                    if (
+                        requestedAction === "CREATE_PAYMENT_LINK" ||
+                        requestedAction === "ESCALATE_TO_HUMAN" ||
+                        requestedAction === "STOP_RECOVERY"
+                    ) {
+                        return requestedAction;
+                    }
+
+                    return null;
+                })
+                .filter(Boolean)
+        );
+
+        const retryCount = executedActions.filter(
+            action => action === "RETRY_PAYMENT"
         ).length;
 
-        const paymentLinkCount = payments.filter(
-            payment =>
-                payment.recoveryAction === "CREATE_PAYMENT_LINK"
+        const paymentLinkCount = executedActions.filter(
+            action => action === "CREATE_PAYMENT_LINK"
         ).length;
 
-        const escalatedCount = payments.filter(
-            payment =>
-                payment.recoveryAction === "ESCALATE_TO_HUMAN"
+        const escalatedCount = executedActions.filter(
+            action => action === "ESCALATE_TO_HUMAN"
         ).length;
 
-        const stoppedCount = payments.filter(
-            payment =>
-                payment.recoveryAction === "STOP_RECOVERY"
+        const stoppedCount = executedActions.filter(
+            action => action === "STOP_RECOVERY"
         ).length;
 
         const recentLogs = await RecoveryLog.find(dateQuery)
@@ -165,7 +230,6 @@ const getDashboardSummary = async (req, res) => {
             recoveredAmount,
             recoveryRate: Number(recoveryRate),
 
-            // Current open exceptions, regardless of selected time range.
             openExceptionsCount,
 
             actions: {

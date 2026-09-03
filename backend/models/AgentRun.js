@@ -53,7 +53,6 @@ const agentStepSchema = new mongoose.Schema(
 
 const agentRunSchema = new mongoose.Schema(
     {
-
         runId: {
             type: String,
             required: true,
@@ -65,6 +64,18 @@ const agentRunSchema = new mongoose.Schema(
             type: String,
             required: true,
             index: true
+        },
+
+        source: {
+            type: String,
+            enum: ["AI_RECOVERY", "VOICE_RECOVERY"],
+            default: "AI_RECOVERY",
+            index: true
+        },
+
+        voiceSessionId: {
+            type: String,
+            default: null
         },
 
         status: {

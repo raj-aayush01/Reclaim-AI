@@ -860,3 +860,12 @@
   from { transform: rotate(0deg); }
   to   { transform: rotate(360deg); }
 }
+
+
+.tf-table-compact thead th {
+    padding: 0.5rem 0.625rem;
+}
+
+.tf-table-compact tbody td {
+    padding: 0.5rem 0.625rem;
+}

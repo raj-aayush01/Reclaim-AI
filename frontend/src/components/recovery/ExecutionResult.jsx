@@ -172,6 +172,19 @@ export const ExecutionResult = ({
         });
 
 
+    const isRecovered =
+        resultStatus === "recovered" ||
+        resultStatus === "RECOVERED";
+
+    const isPending =
+        resultStatus === "pending" ||
+        resultStatus === "PENDING";
+
+    const isStopped =
+        resultStatus === "stopped" ||
+        resultStatus === "STOPPED";
+
+
     const handleCopy = async () => {
 
         if (!linkUrl) {
@@ -199,21 +212,6 @@ export const ExecutionResult = ({
             );
         }
     };
-
-
-    const isRecovered =
-        resultStatus === "recovered" ||
-        resultStatus === "RECOVERED";
-
-
-    const isPending =
-        resultStatus === "pending" ||
-        resultStatus === "PENDING";
-
-
-    const isStopped =
-        resultStatus === "stopped" ||
-        resultStatus === "STOPPED";
 
 
     const OutcomeIcon =
@@ -321,7 +319,11 @@ export const ExecutionResult = ({
 
 
                 <PaymentStatusBadge
-                    status={resultStatus}
+                    status={
+                        isRecovered
+                            ? "recovered"
+                            : resultStatus
+                    }
                 />
 
             </div>

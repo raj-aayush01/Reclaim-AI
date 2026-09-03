@@ -1,16 +1,19 @@
 import React, { useState } from "react";
 import { useSubscriptions } from "../hooks/useSubscriptions";
 import { runAIRecovery } from "../services/recoveryService";
+import { getPaymentById } from "../services/paymentService";
 import AgentRunTimeline from "../components/recovery/AgentRunTimeline";
+import VoiceRecovery from "../components/recovery/VoiceRecovery";
 import PaymentStatusBadge from "../components/payments/PaymentStatusBadge";
 import Loader from "../components/common/Loader";
 import ErrorMessage from "../components/common/ErrorMessage";
 import Modal from "../components/common/Modal";
 import Button from "../components/common/Button";
 import { formatCurrency } from "../utils/formatCurrency";
-import { formatDate } from "../utils/formatDate";
+import { formatDateParts } from "../utils/formatDate";
 import {
     Zap,
+    Mic,
     Repeat,
     ChevronLeft,
     ChevronRight
@@ -33,6 +36,15 @@ export const FailedSubscriptions = () => {
     const [agentRun, setAgentRun] = useState(null);
     const [modalOpen, setModalOpen] = useState(false);
     const [execError, setExecError] = useState(null);
+
+    /*
+     * Voice Recovery — separate state so it never interferes
+     * with the existing "Run AI Recovery" modal/flow above.
+     */
+    const [voiceLoadingId, setVoiceLoadingId] = useState(null);
+    const [voicePayment, setVoicePayment] = useState(null);
+    const [voiceCustomer, setVoiceCustomer] = useState(null);
+    const [voiceModalOpen, setVoiceModalOpen] = useState(false);
 
     const currentPage = Number(pagination?.page) || 1;
     const totalPages = Number(pagination?.pages) || 1;
@@ -132,6 +144,59 @@ export const FailedSubscriptions = () => {
         setExecError(null);
     };
 
+    // ---------------------------------------------------------
+    // Open Voice Recovery for a subscription's current
+    // failed renewal payment
+    //
+    // Subscriptions don't carry customer name either, so we
+    // fetch the full payment + customer record for the
+    // subscription's currentPaymentId before opening the modal.
+    // ---------------------------------------------------------
+
+    const handleOpenVoiceRecovery = async (subscription) => {
+        const paymentId = subscription?.currentPaymentId;
+
+        if (!paymentId || voiceLoadingId) {
+            return;
+        }
+
+        setVoiceLoadingId(paymentId);
+
+        try {
+            const data = await getPaymentById(paymentId);
+
+            setVoicePayment(
+                data?.payment || {
+                    paymentId,
+                    amount: subscription.amount,
+                    customerId: subscription.customerId
+                }
+            );
+            setVoiceCustomer(data?.customer || null);
+        } catch (err) {
+            console.warn(
+                "Voice recovery payment fetch failed:",
+                err
+            );
+
+            setVoicePayment({
+                paymentId,
+                amount: subscription.amount,
+                customerId: subscription.customerId
+            });
+            setVoiceCustomer(null);
+        } finally {
+            setVoiceLoadingId(null);
+            setVoiceModalOpen(true);
+        }
+    };
+
+    const handleCloseVoiceRecovery = () => {
+        setVoiceModalOpen(false);
+        setVoicePayment(null);
+        setVoiceCustomer(null);
+    };
+
     return (
         <div className="page-stack">
 
@@ -197,7 +262,7 @@ export const FailedSubscriptions = () => {
                     style={{ overflow: "hidden" }}
                 >
                     <div style={{ overflowX: "auto" }}>
-                        <table className="tf-table">
+                        <table className="tf-table tf-table-compact">
                             <thead>
                                 <tr>
                                     <th>Subscription ID</th>
@@ -207,7 +272,9 @@ export const FailedSubscriptions = () => {
                                     <th>Billing Cycle</th>
                                     <th>Failed Renewals</th>
                                     <th>Status</th>
-                                    <th>Last Renewal</th>
+                                    <th style={{ minWidth: "92px" }}>
+                                        Last Renewal
+                                    </th>
                                     <th style={{ textAlign: "right" }}>
                                         Actions
                                     </th>
@@ -235,6 +302,15 @@ export const FailedSubscriptions = () => {
                                             executing &&
                                             selectedSubscription?.subscriptionId ===
                                                 subscription.subscriptionId;
+
+                                        const isVoiceLoading =
+                                            voiceLoadingId ===
+                                            subscription.currentPaymentId;
+
+                                        const { date, time } =
+                                            formatDateParts(
+                                                subscription.lastRenewalDate
+                                            );
 
                                         return (
                                             <tr
@@ -303,12 +379,13 @@ export const FailedSubscriptions = () => {
                                                 <td
                                                     style={{
                                                         color: "var(--mute)",
-                                                        fontSize: "0.6875rem"
+                                                        fontSize: "0.6875rem",
+                                                        lineHeight: 1.4,
+                                                        whiteSpace: "normal"
                                                     }}
                                                 >
-                                                    {formatDate(
-                                                        subscription.lastRenewalDate
-                                                    )}
+                                                    <div>{date}</div>
+                                                    <div>{time}</div>
                                                 </td>
 
                                                 <td
@@ -316,27 +393,57 @@ export const FailedSubscriptions = () => {
                                                         textAlign: "right"
                                                     }}
                                                 >
-                                                    <Button
-                                                        variant="glow"
-                                                        size="sm"
-                                                        loading={
-                                                            isCurrentSubscriptionExecuting
-                                                        }
-                                                        disabled={
-                                                            executing ||
-                                                            !subscription.currentPaymentId
-                                                        }
-                                                        onClick={() =>
-                                                            handleTriggerAgent(
-                                                                subscription
-                                                            )
-                                                        }
-                                                        icon={Zap}
+                                                    <div
+                                                        style={{
+                                                            display: "inline-flex",
+                                                            alignItems: "center",
+                                                            gap: "0.375rem"
+                                                        }}
                                                     >
-                                                        {isCurrentSubscriptionExecuting
-                                                            ? "Checking..."
-                                                            : "AI Recovery"}
-                                                    </Button>
+                                                        <Button
+                                                            variant="ghost"
+                                                            size="sm"
+                                                            title="Voice Recovery"
+                                                            loading={
+                                                                isVoiceLoading
+                                                            }
+                                                            disabled={
+                                                                executing ||
+                                                                Boolean(
+                                                                    voiceLoadingId
+                                                                ) ||
+                                                                !subscription.currentPaymentId
+                                                            }
+                                                            onClick={() =>
+                                                                handleOpenVoiceRecovery(
+                                                                    subscription
+                                                                )
+                                                            }
+                                                            icon={Mic}
+                                                        />
+
+                                                        <Button
+                                                            variant="glow"
+                                                            size="sm"
+                                                            loading={
+                                                                isCurrentSubscriptionExecuting
+                                                            }
+                                                            disabled={
+                                                                executing ||
+                                                                !subscription.currentPaymentId
+                                                            }
+                                                            onClick={() =>
+                                                                handleTriggerAgent(
+                                                                    subscription
+                                                                )
+                                                            }
+                                                            icon={Zap}
+                                                        >
+                                                            {isCurrentSubscriptionExecuting
+                                                                ? "Checking..."
+                                                                : "AI Recovery"}
+                                                        </Button>
+                                                    </div>
                                                 </td>
                                             </tr>
                                         );
@@ -551,6 +658,21 @@ export const FailedSubscriptions = () => {
                     </div>
                 )}
             </Modal>
+
+            {/* =================================================
+                VOICE RECOVERY
+            ================================================== */}
+
+            <VoiceRecovery
+                isOpen={voiceModalOpen}
+                onClose={handleCloseVoiceRecovery}
+                payment={voicePayment}
+                customer={voiceCustomer}
+                onRecoveryComplete={async () => {
+                    handleCloseVoiceRecovery();
+                    await refetch();
+                }}
+            />
         </div>
     );
 };

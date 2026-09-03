@@ -148,8 +148,8 @@ export const Sidebar = () => {
 
                         const isCurrentPath =
                             location.pathname === item.path ||
-                            (item.altPath &&
-                                location.pathname === item.altPath);
+                            (item.altPath && location.pathname === item.altPath) ||
+                            (item.altPath && location.pathname.startsWith(item.altPath + "/"));
 
                         return (
                             <NavLink
@@ -180,10 +180,7 @@ export const Sidebar = () => {
                                     };
                                 }}
                                 onMouseEnter={(e) => {
-                                    const active =
-                                        e.currentTarget.getAttribute(
-                                            "aria-current"
-                                        ) === "page";
+                                    const active = isCurrentPath;
 
                                     if (!active) {
                                         e.currentTarget.style.backgroundColor =
@@ -193,10 +190,7 @@ export const Sidebar = () => {
                                     }
                                 }}
                                 onMouseLeave={(e) => {
-                                    const active =
-                                        e.currentTarget.getAttribute(
-                                            "aria-current"
-                                        ) === "page";
+                                    const active = isCurrentPath;
 
                                     if (!active) {
                                         e.currentTarget.style.backgroundColor =
@@ -276,7 +270,7 @@ export const Sidebar = () => {
                             paddingLeft: "0.875rem"
                         }}
                     >
-                        Gemini Flash 3.6
+                        Gemini 3.1 Flash Lite
                     </span>
                 </div>
             </div>

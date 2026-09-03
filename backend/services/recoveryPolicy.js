@@ -21,7 +21,7 @@ const evaluateRecoveryPolicy = (payment, aiDecision = null) => {
     // Rule 3: High-value payments must be escalated
     if (payment.amount >= 20000) {
         return {
-            allowed: true,
+            allowed: false,
             finalAction: "ESCALATE_TO_HUMAN",
             reason: "High-value payment requires human approval"
         };
@@ -30,7 +30,7 @@ const evaluateRecoveryPolicy = (payment, aiDecision = null) => {
     // Rule 4: Unknown failures must be escalated
     if (payment.scenario === "UNKNOWN_FAILURE") {
         return {
-            allowed: true,
+            allowed: false,
             finalAction: "ESCALATE_TO_HUMAN",
             reason: "Unknown failure requires human investigation"
         };

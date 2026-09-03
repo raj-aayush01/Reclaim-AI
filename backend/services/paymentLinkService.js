@@ -1,10 +1,9 @@
 const Payment = require("../models/Payment");
+const { syncSubscriptionAfterRecovery } = require("./subscriptionSync");
 
 const completePaymentLink = async (paymentLinkId) => {
 
-    const payment = await Payment.findOne({
-        paymentLinkId
-    });
+    const payment = await Payment.findOne({ paymentLinkId });
 
     if (!payment) {
         throw new Error("Payment link not found");
@@ -31,6 +30,7 @@ const completePaymentLink = async (paymentLinkId) => {
         payment.recoveryResult = "RECOVERED";
 
         await payment.save();
+        await syncSubscriptionAfterRecovery(payment);
 
         return {
             success: true,

@@ -1,4 +1,8 @@
-import React, { useEffect, useRef } from "react";
+import React, {
+    useEffect,
+    useRef
+} from "react";
+import { createPortal } from "react-dom";
 import { X } from "lucide-react";
 
 export const Modal = ({
@@ -22,15 +26,24 @@ export const Modal = ({
             }
         };
 
-        window.addEventListener("keydown", handleKeyDown);
+        window.addEventListener(
+            "keydown",
+            handleKeyDown
+        );
 
         return () => {
-            window.removeEventListener("keydown", handleKeyDown);
+            window.removeEventListener(
+                "keydown",
+                handleKeyDown
+            );
         };
     }, [isOpen, onClose]);
 
     useEffect(() => {
-        if (isOpen && scrollContainerRef.current) {
+        if (
+            isOpen &&
+            scrollContainerRef.current
+        ) {
             scrollContainerRef.current.scrollTop = 0;
         }
     }, [isOpen]);
@@ -40,12 +53,14 @@ export const Modal = ({
             return;
         }
 
-        const originalOverflow = document.body.style.overflow;
+        const originalOverflow =
+            document.body.style.overflow;
 
         document.body.style.overflow = "hidden";
 
         return () => {
-            document.body.style.overflow = originalOverflow;
+            document.body.style.overflow =
+                originalOverflow;
         };
     }, [isOpen]);
 
@@ -53,60 +68,74 @@ export const Modal = ({
         return null;
     }
 
-    return (
+    const modal = (
         <div
             onMouseDown={(event) => {
-                if (event.target === event.currentTarget) {
+                if (
+                    event.target ===
+                    event.currentTarget
+                ) {
                     onClose();
                 }
             }}
             style={{
                 position: "fixed",
                 inset: 0,
-                zIndex: 100,
+                zIndex: 9999,
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "center",
                 padding: "0.75rem",
-                background: "oklch(0.1 0.01 250 / 0.55)",
+                background:
+                    "oklch(0.1 0.01 250 / 0.55)",
                 backdropFilter: "blur(6px)",
-                WebkitBackdropFilter: "blur(6px)",
-                animation:
-                    "rise 300ms cubic-bezier(0.32, 0.72, 0, 1) both"
+                WebkitBackdropFilter:
+                    "blur(6px)"
             }}
         >
             <div
-                onMouseDown={(event) => event.stopPropagation()}
+                onMouseDown={(event) =>
+                    event.stopPropagation()
+                }
                 className={maxWidth}
                 style={{
                     position: "relative",
                     width: "100%",
-                    maxHeight: "calc(100vh - 1.5rem)",
+                    maxHeight:
+                        "calc(100vh - 1.5rem)",
                     display: "flex",
                     flexDirection: "column",
                     overflow: "hidden",
                     borderRadius: "0.875rem",
-                    border: "1px solid var(--line)",
-                    background: "var(--surface-solid)",
+                    border:
+                        "1px solid var(--line)",
+                    background:
+                        "var(--surface-solid)",
                     boxShadow:
                         "0 24px 64px -16px oklch(0.1 0.01 250 / 0.4), 0 0 0 1px var(--line)",
                     animation:
                         "fadeInScale 400ms cubic-bezier(0.32, 0.72, 0, 1) both"
                 }}
             >
-                {/* Header */}
                 <div
                     style={{
                         flexShrink: 0,
                         display: "flex",
                         alignItems: "center",
-                        justifyContent: "space-between",
+                        justifyContent:
+                            "space-between",
                         gap: "1rem",
-                        padding: "1rem 1.25rem",
-                        borderBottom: "1px solid var(--line)"
+                        padding:
+                            "1rem 1.25rem",
+                        borderBottom:
+                            "1px solid var(--line)"
                     }}
                 >
-                    <div style={{ minWidth: 0 }}>
+                    <div
+                        style={{
+                            minWidth: 0
+                        }}
+                    >
                         <span
                             className="eyebrow-primary"
                             style={{
@@ -119,14 +148,21 @@ export const Modal = ({
 
                         <h3
                             style={{
-                                fontSize: "0.9375rem",
+                                fontSize:
+                                    "0.9375rem",
                                 fontWeight: 600,
-                                color: "var(--ink)",
-                                fontFamily: "'Inter', sans-serif",
-                                letterSpacing: "-0.01em",
-                                whiteSpace: "nowrap",
-                                overflow: "hidden",
-                                textOverflow: "ellipsis"
+                                color:
+                                    "var(--ink)",
+                                fontFamily:
+                                    "'Inter', sans-serif",
+                                letterSpacing:
+                                    "-0.01em",
+                                whiteSpace:
+                                    "nowrap",
+                                overflow:
+                                    "hidden",
+                                textOverflow:
+                                    "ellipsis"
                             }}
                         >
                             {title}
@@ -138,16 +174,24 @@ export const Modal = ({
                         onClick={onClose}
                         style={{
                             flexShrink: 0,
-                            padding: "0.375rem",
-                            borderRadius: "0.375rem",
-                            border: "1px solid var(--line)",
-                            background: "transparent",
-                            color: "var(--mute)",
+                            padding:
+                                "0.375rem",
+                            borderRadius:
+                                "0.375rem",
+                            border:
+                                "1px solid var(--line)",
+                            background:
+                                "transparent",
+                            color:
+                                "var(--mute)",
                             cursor: "pointer",
                             display: "flex",
-                            alignItems: "center",
-                            justifyContent: "center",
-                            transition: "all 150ms ease"
+                            alignItems:
+                                "center",
+                            justifyContent:
+                                "center",
+                            transition:
+                                "all 150ms ease"
                         }}
                         onMouseEnter={(event) => {
                             event.currentTarget.style.background =
@@ -167,27 +211,28 @@ export const Modal = ({
                     </button>
                 </div>
 
-                {/* Scrollable Body */}
                 <div
                     ref={scrollContainerRef}
                     style={{
                         flex: 1,
                         minHeight: 0,
                         overflowY: "auto",
-                        overscrollBehavior: "contain",
+                        overscrollBehavior:
+                            "contain",
                         padding: "1.25rem"
                     }}
                 >
                     {children}
                 </div>
 
-                {/* Footer */}
                 {footer && (
                     <div
                         style={{
                             flexShrink: 0,
-                            padding: "0.875rem 1.25rem",
-                            borderTop: "1px solid var(--line)"
+                            padding:
+                                "0.875rem 1.25rem",
+                            borderTop:
+                                "1px solid var(--line)"
                         }}
                     >
                         {footer}
@@ -195,6 +240,11 @@ export const Modal = ({
                 )}
             </div>
         </div>
+    );
+
+    return createPortal(
+        modal,
+        document.body
     );
 };
 

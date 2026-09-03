@@ -1,16 +1,19 @@
 import React, { useState } from "react";
 import { usePayments } from "../hooks/usePayments";
 import { runAIRecovery } from "../services/recoveryService";
+import { getPaymentById } from "../services/paymentService";
 import AgentRunTimeline from "../components/recovery/AgentRunTimeline";
+import VoiceRecovery from "../components/recovery/VoiceRecovery";
 import PaymentStatusBadge from "../components/payments/PaymentStatusBadge";
 import Loader from "../components/common/Loader";
 import ErrorMessage from "../components/common/ErrorMessage";
 import Modal from "../components/common/Modal";
 import Button from "../components/common/Button";
 import { formatCurrency } from "../utils/formatCurrency";
-import { formatDate } from "../utils/formatDate";
+import { formatDateParts } from "../utils/formatDate";
 import {
     Zap,
+    Mic,
     AlertOctagon,
     ChevronLeft,
     ChevronRight
@@ -33,6 +36,15 @@ export const FailedPayments = () => {
     const [agentRun, setAgentRun] = useState(null);
     const [modalOpen, setModalOpen] = useState(false);
     const [execError, setExecError] = useState(null);
+
+    /*
+     * Voice Recovery — separate state so it never interferes
+     * with the existing "Run AI Recovery" modal/flow above.
+     */
+    const [voiceLoadingId, setVoiceLoadingId] = useState(null);
+    const [voicePayment, setVoicePayment] = useState(null);
+    const [voiceCustomer, setVoiceCustomer] = useState(null);
+    const [voiceModalOpen, setVoiceModalOpen] = useState(false);
 
     /*
      * Pagination values are normalized so the component
@@ -163,6 +175,49 @@ export const FailedPayments = () => {
         setExecError(null);
     };
 
+    // ---------------------------------------------------------
+    // Open Voice Recovery for a row
+    //
+    // The row only carries customerId (not the customer's name),
+    // so we fetch the full payment + customer record first —
+    // the same call PaymentDetails already uses — then open the
+    // modal. If the fetch fails, we fall back to the summary data
+    // already in the row so the feature still works, just without
+    // a personalized greeting.
+    // ---------------------------------------------------------
+
+    const handleOpenVoiceRecovery = async (payment) => {
+        if (!payment?.paymentId || voiceLoadingId) {
+            return;
+        }
+
+        setVoiceLoadingId(payment.paymentId);
+
+        try {
+            const data = await getPaymentById(payment.paymentId);
+
+            setVoicePayment(data?.payment || payment);
+            setVoiceCustomer(data?.customer || null);
+        } catch (err) {
+            console.warn(
+                "Voice recovery payment fetch failed:",
+                err
+            );
+
+            setVoicePayment(payment);
+            setVoiceCustomer(null);
+        } finally {
+            setVoiceLoadingId(null);
+            setVoiceModalOpen(true);
+        }
+    };
+
+    const handleCloseVoiceRecovery = () => {
+        setVoiceModalOpen(false);
+        setVoicePayment(null);
+        setVoiceCustomer(null);
+    };
+
     return (
         <div className="page-stack">
 
@@ -228,7 +283,7 @@ export const FailedPayments = () => {
                     style={{ overflow: "hidden" }}
                 >
                     <div style={{ overflowX: "auto" }}>
-                        <table className="tf-table">
+                        <table className="tf-table tf-table-compact">
                             <thead>
                                 <tr>
                                     <th>Payment ID</th>
@@ -236,7 +291,9 @@ export const FailedPayments = () => {
                                     <th>Amount</th>
                                     <th>Scenario</th>
                                     <th>Status</th>
-                                    <th>Created At</th>
+                                    <th style={{ minWidth: "92px" }}>
+                                        Created At
+                                    </th>
                                     <th style={{ textAlign: "right" }}>
                                         Actions
                                     </th>
@@ -264,6 +321,15 @@ export const FailedPayments = () => {
                                             executing &&
                                             selectedPayment?.paymentId ===
                                                 payment.paymentId;
+
+                                        const isVoiceLoading =
+                                            voiceLoadingId ===
+                                            payment.paymentId;
+
+                                        const { date, time } =
+                                            formatDateParts(
+                                                payment.createdAt
+                                            );
 
                                         return (
                                             <tr
@@ -314,12 +380,13 @@ export const FailedPayments = () => {
                                                 <td
                                                     style={{
                                                         color: "var(--mute)",
-                                                        fontSize: "0.6875rem"
+                                                        fontSize: "0.6875rem",
+                                                        lineHeight: 1.4,
+                                                        whiteSpace: "normal"
                                                     }}
                                                 >
-                                                    {formatDate(
-                                                        payment.createdAt
-                                                    )}
+                                                    <div>{date}</div>
+                                                    <div>{time}</div>
                                                 </td>
 
                                                 <td
@@ -327,26 +394,55 @@ export const FailedPayments = () => {
                                                         textAlign: "right"
                                                     }}
                                                 >
-                                                    <Button
-                                                        variant="glow"
-                                                        size="sm"
-                                                        loading={
-                                                            isCurrentPaymentExecuting
-                                                        }
-                                                        disabled={
-                                                            executing
-                                                        }
-                                                        onClick={() =>
-                                                            handleTriggerAgent(
-                                                                payment
-                                                            )
-                                                        }
-                                                        icon={Zap}
+                                                    <div
+                                                        style={{
+                                                            display: "inline-flex",
+                                                            alignItems: "center",
+                                                            gap: "0.375rem"
+                                                        }}
                                                     >
-                                                        {isCurrentPaymentExecuting
-                                                            ? "Checking..."
-                                                            : "AI Recovery"}
-                                                    </Button>
+                                                        <Button
+                                                            variant="ghost"
+                                                            size="sm"
+                                                            title="Voice Recovery"
+                                                            loading={
+                                                                isVoiceLoading
+                                                            }
+                                                            disabled={
+                                                                executing ||
+                                                                Boolean(
+                                                                    voiceLoadingId
+                                                                )
+                                                            }
+                                                            onClick={() =>
+                                                                handleOpenVoiceRecovery(
+                                                                    payment
+                                                                )
+                                                            }
+                                                            icon={Mic}
+                                                        />
+
+                                                        <Button
+                                                            variant="glow"
+                                                            size="sm"
+                                                            loading={
+                                                                isCurrentPaymentExecuting
+                                                            }
+                                                            disabled={
+                                                                executing
+                                                            }
+                                                            onClick={() =>
+                                                                handleTriggerAgent(
+                                                                    payment
+                                                                )
+                                                            }
+                                                            icon={Zap}
+                                                        >
+                                                            {isCurrentPaymentExecuting
+                                                                ? "Checking..."
+                                                                : "AI Recovery"}
+                                                        </Button>
+                                                    </div>
                                                 </td>
                                             </tr>
                                         );
@@ -569,6 +665,21 @@ export const FailedPayments = () => {
                     </div>
                 )}
             </Modal>
+
+            {/* =================================================
+                VOICE RECOVERY
+            ================================================== */}
+
+            <VoiceRecovery
+                isOpen={voiceModalOpen}
+                onClose={handleCloseVoiceRecovery}
+                payment={voicePayment}
+                customer={voiceCustomer}
+                onRecoveryComplete={async () => {
+                    handleCloseVoiceRecovery();
+                    await refetch();
+                }}
+            />
         </div>
     );
 };

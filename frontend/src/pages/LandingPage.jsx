@@ -4,10 +4,10 @@ import { ArrowRight, ShieldCheck, Zap, Activity, BookOpen, Check, X, Sun, Moon }
 
 /* ─── Recovery Ledger Demo Data ─────────────────────────── */
 const ledgerRows = [
-    { id: "inv_8f21c", amount: "$2,480.00", status: "Recovered", statusKey: "recovered", agent: "retry 1" },
-    { id: "inv_a39e0", amount: "$1,120.00", status: "Recovered", statusKey: "recovered", agent: "retry 2" },
-    { id: "inv_51b77", amount: "$960.00",   status: "Retrying",  statusKey: "retrying",  agent: "next 1.4h" },
-    { id: "inv_c04d2", amount: "$3,300.00", status: "Failed",    statusKey: "failed",    agent: "3 attempts" },
+    { id: "pay_8f21c", amount: "₹2,480.00", status: "Recovered", statusKey: "recovered", agent: "retry 1" },
+    { id: "pay_a39e0", amount: "₹1,120.00", status: "Recovered", statusKey: "recovered", agent: "retry 2" },
+    { id: "pay_51b77", amount: "₹960.00",   status: "Retrying",  statusKey: "retrying",  agent: "retry available" },
+    { id: "pay_c04d2", amount: "₹3,300.00", status: "Pending",   statusKey: "retrying", agent: "payment link" },
 ];
 
 const statusStyles = {
@@ -96,7 +96,7 @@ function RecoveryLedger() {
                         borderBottom: "1px solid var(--line)"
                     }}
                 >
-                    {["Invoice", "Amount", "Status", "Agent"].map((h) => (
+                    {["Payment", "Amount", "Status", "Agent"].map((h) => (
                         <span
                             key={h}
                             style={{
@@ -196,7 +196,7 @@ function RecoveryLedger() {
                     }}
                 >
                     total recovered{" "}
-                    <span style={{ color: "var(--up)", fontWeight: 600 }}>$4,215,980.00</span>
+                    <span style={{ color: "var(--up)", fontWeight: 600 }}>₹8,080.00</span>
                 </span>
                 <span
                     style={{
@@ -205,7 +205,7 @@ function RecoveryLedger() {
                         color: "var(--mute)"
                     }}
                 >
-                    38.6% of volume
+                    demo recovery volume
                 </span>
             </div>
         </div>
@@ -452,7 +452,7 @@ export const LandingPage = () => {
                             maxWidth: "36rem"
                         }}
                     >
-                        Reclaim AI's agent re-routes declined charges, corrects failure scenarios, and re-submits within the recovery window — so revenue that slips through never stays gone.
+                        Reclaim AI's agent diagnoses failed payments, chooses the safest recovery action, and executes it within defined guardrails — so revenue that slips through doesn't stay lost.
                     </p>
 
                     <div
@@ -496,9 +496,9 @@ export const LandingPage = () => {
                         }}
                     >
                         {[
-                            { value: "$4.2M", label: "Recovered · 90d" },
-                            { value: "38.6%", label: "Recovery Rate" },
-                            { value: "1.9m", label: "Median Recovery Time" }
+                            { value: "3", label: "Max Payment Retries" },
+                            { value: "₹20K", label: "Human Review Threshold" },
+                            { value: "0.70", label: "Minimum AI Confidence" }
                         ].map((kpi) => (
                             <div key={kpi.label}>
                                 <div
@@ -569,7 +569,7 @@ export const LandingPage = () => {
                         {[
                             { step: "01", title: "Detect", desc: "Every decline is classified by code and wallet the moment it drops." },
                             { step: "02", title: "Diagnose", desc: "Agent reads the reject reason and the customer's payment history." },
-                            { step: "03", title: "Act", desc: "Re-route, correct address, or schedule a smart retry within window." },
+                            { step: "03", title: "Decide & Act", desc: "Choose a policy-safe recovery action, then retry, send a payment link, or escalate." },
                             { step: "04", title: "Log", desc: "Each decision is written to an auditable, replayable log." }
                         ].map((item, i) => (
                             <div
@@ -677,19 +677,19 @@ export const LandingPage = () => {
                     <table className="tf-table">
                         <thead>
                             <tr>
-                                <th>Invoice</th>
+                                <th>Payment</th>
                                 <th>Amount</th>
                                 <th>Code</th>
-                                <th>Retry State</th>
+                                <th>Recovery State</th>
                             </tr>
                         </thead>
                         <tbody>
                             {[
-                                { id: "inv_8f21c", amount: "$2,480.00", code: "expired card",    state: "Recovered · retry 1", stateKey: "recovered" },
-                                { id: "inv_a39e0", amount: "$1,120.00", code: "insufficient",    state: "Recovered · retry 2", stateKey: "recovered" },
-                                { id: "inv_51b77", amount: "$960.00",   code: "expired card",    state: "Retrying · next 1.4h", stateKey: "retrying" },
-                                { id: "inv_c04d2", amount: "$3,300.00", code: "card declined",   state: "Failed · 3 attempts",  stateKey: "failed" },
-                                { id: "inv_77ba1", amount: "$12,400.00", code: "over auto-cap",  state: "Held · awaiting sign-off", stateKey: "held" }
+                                { id: "pay_8f21c", amount: "₹2,480.00", code: "temporary failure", state: "Recovered · retry 1", stateKey: "recovered" },
+                                { id: "pay_a39e0", amount: "₹1,120.00", code: "temporary failure", state: "Recovered · retry 2", stateKey: "recovered" },
+                                { id: "pay_51b77", amount: "₹960.00", code: "temporary failure", state: "Retry available", stateKey: "retrying" },
+                                { id: "pay_c04d2", amount: "₹3,300.00", code: "card declined", state: "Pending · payment link", stateKey: "held" },
+                                { id: "pay_77ba1", amount: "₹24,000.00", code: "high-value payment", state: "Escalated · human review", stateKey: "held" }
                             ].map((row, i) => (
                                 <tr
                                     key={row.id}
@@ -768,7 +768,7 @@ export const LandingPage = () => {
                                 marginBottom: "1.5rem"
                             }}
                         >
-                            Hard caps, a human-approval layer above a threshold, and a replayable decision log mean every recovery is explainable before it happens — not after.
+                            A bounded retry budget, human escalation for high-value payments, confidence checks, and a replayable decision log keep every recovery explainable before it happens — not after.
                         </p>
 
                         {/* Policy Table */}
@@ -777,10 +777,10 @@ export const LandingPage = () => {
                             style={{ overflow: "hidden" }}
                         >
                             {[
-                                { label: "max retry per invoice", value: "4", color: "var(--ink)" },
-                                { label: "auto-recover cap", value: "$5,000.00", color: "var(--ink)" },
-                                { label: "approval required above", value: "$10,000.00", color: "var(--warn)" },
-                                { label: "quiet hours (customer local)", value: "20:00 – 08:00", color: "var(--ink)" }
+                                { label: "max payment retries", value: "3", color: "var(--ink)" },
+                                { label: "human review threshold", value: "₹20,000.00", color: "var(--warn)" },
+                                { label: "minimum AI confidence", value: "0.70", color: "var(--ink)" },
+                                { label: "unknown failure", value: "ESCALATE", color: "var(--warn)" }
                             ].map((row, i, arr) => (
                                 <div
                                     key={row.label}
@@ -854,10 +854,10 @@ export const LandingPage = () => {
                                 </span>
                             </div>
                             {[
-                                { time: "14:02:11", id: "inv_51b77", action: "schedule retry in 1.4h", color: "var(--primary)" },
-                                { time: "14:02:07", id: "inv_a39e0", action: "re-route via acquirer B", color: "var(--up)" },
-                                { time: "14:01:58", id: "inv_c04d2", action: "hold · 3 fails, escalate", color: "var(--down)" },
-                                { time: "14:01:22", id: "inv_77ba1", action: "route to human · above cap", color: "var(--warn)" }
+                                { time: "14:02:11", id: "pay_51b77", action: "retry payment", color: "var(--primary)" },
+                                { time: "14:02:07", id: "pay_a39e0", action: "retry payment", color: "var(--up)" },
+                                { time: "14:01:58", id: "pay_c04d2", action: "create payment link", color: "var(--primary)" },
+                                { time: "14:01:22", id: "pay_77ba1", action: "escalate to human · ₹20K+", color: "var(--warn)" }
                             ].map((entry, i) => (
                                 <div
                                     key={entry.id}
@@ -920,10 +920,10 @@ export const LandingPage = () => {
                         <ul style={{ listStyle: "none", padding: 0, display: "flex", flexDirection: "column", gap: "0.625rem" }}>
                             {[
                                 "Retries only safe, temporary failures — never invalid ones",
-                                "Sends payment links for declined cards with no retry budget",
-                                "Escalates to a human for high-value payments above ₹20,000",
+                                "Offers payment links for declined cards without consuming retry budget",
+                                "Escalates payments of ₹20,000 or more to human review",
                                 "Logs every decision with AI reason and confidence score",
-                                "Halts after 3 attempts to prevent compounding losses"
+                                "Halts automated retries after 3 attempts to prevent compounding losses"
                             ].map((item) => (
                                 <li
                                     key={item}

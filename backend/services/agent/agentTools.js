@@ -2,22 +2,16 @@ const Payment = require("../../models/Payment");
 const Customer = require("../../models/Customer");
 const RecoveryLog = require("../../models/RecoveryLog");
 
-const {
-    evaluateRecoveryPolicy
-} = require("../recoveryPolicy");
+const { evaluateRecoveryPolicy } = require("../recoveryPolicy");
 
 const {
-    executeRecoveryAction
+    executeRecoveryAction,
+    executeRecoveryRetryLoop
 } = require("../recoveryExecutor");
 
 
-/*
- * Convert a Mongoose payment document into the
- * payment object that should be returned to the frontend.
- *
- * This always reads the CURRENT values from the payment
- * document after recovery execution and saving.
- */
+// Convert a Mongoose payment document into the payment object returned to the frontend.
+
 const serializePayment = (payment) => {
     return {
         paymentId: payment.paymentId,
@@ -39,14 +33,11 @@ const serializePayment = (payment) => {
 };
 
 
-/*
- * Retrieve the current state of a payment.
- */
+// Retrieve the current state of a payment.
+
 const getPayment = async ({ paymentId }) => {
 
-    const payment = await Payment.findOne({
-        paymentId
-    });
+    const payment = await Payment.findOne({ paymentId });
 
     if (!payment) {
         return {
@@ -62,14 +53,11 @@ const getPayment = async ({ paymentId }) => {
 };
 
 
-/*
- * Retrieve customer information and recent payment history.
- */
+// Retrieve customer information and recent payment history.
+
 const getCustomerHistory = async ({ customerId }) => {
 
-    const customer = await Customer.findOne({
-        customerId
-    });
+    const customer = await Customer.findOne({ customerId });
 
     if (!customer) {
         return {
@@ -78,9 +66,7 @@ const getCustomerHistory = async ({ customerId }) => {
         };
     }
 
-    const payments = await Payment.find({
-        customerId
-    })
+    const payments = await Payment.find({ customerId })
         .sort({ createdAt: -1 })
         .limit(10);
 
@@ -98,39 +84,23 @@ const getCustomerHistory = async ({ customerId }) => {
 
         recentPayments: payments.map(
             payment => ({
-                paymentId:
-                    payment.paymentId,
-
-                amount:
-                    payment.amount,
-
-                currency:
-                    payment.currency,
-
-                status:
-                    payment.status,
-
-                failureReason:
-                    payment.failureReason,
-
-                attemptCount:
-                    payment.attemptCount,
-
-                scenario:
-                    payment.scenario,
-
-                recoveredAmount:
-                    payment.recoveredAmount
+                paymentId: payment.paymentId,
+                amount: payment.amount,
+                currency: payment.currency,
+                status: payment.status,
+                failureReason: payment.failureReason,
+                attemptCount: payment.attemptCount,
+                scenario: payment.scenario,
+                recoveredAmount: payment.recoveredAmount
             })
         )
     };
 };
 
 
-/*
- * Execute one recovery action after the recovery policy
- * has approved or overridden the AI recommendation.
- */
+/* RETRY_PAYMENT uses the shared retry-loop implementation
+ * so voice recovery and the normal recovery agent follow the same retry behavior. */
+
 const performRecoveryAction = async ({
     paymentId,
     action,
@@ -138,14 +108,77 @@ const performRecoveryAction = async ({
     reason
 }) => {
 
-    const payment = await Payment.findOne({
-        paymentId
-    });
+    const payment = await Payment.findOne({ paymentId });
 
     if (!payment) {
         return {
             success: false,
             error: "Payment not found"
+        };
+    }
+
+    const terminalPaymentStatuses = [
+        "recovered",
+        "escalated",
+        "stopped"
+    ];
+
+    if (
+        terminalPaymentStatuses.includes(
+            payment.status
+        )
+    ) {
+        return {
+            success: false,
+
+            executed: false,
+
+            blocked: true,
+
+            terminal: true,
+
+            actionRequested:
+                action,
+
+            actionExecuted:
+                null,
+
+            policyDecision: {
+                allowed: false,
+
+                finalAction:
+                    "STOP_RECOVERY",
+
+                reason:
+                    "Payment is already in a terminal state"
+            },
+
+            payment:
+                serializePayment(payment),
+
+            message:
+                "Recovery cannot be executed because the payment has already been resolved."
+        };
+    }
+
+    if (payment.status === "pending") {
+        return {
+            success: false,
+            executed: false,
+            blocked: true,
+            terminal: false,
+            actionRequested: action,
+            actionExecuted: null,
+            policyDecision: {
+                allowed: false,
+                finalAction: null,
+                reason:
+                    "Payment is awaiting completion of its payment link"
+            },
+            payment:
+                serializePayment(payment),
+            message:
+                "Recovery cannot be started while the payment link is awaiting customer payment."
         };
     }
 
@@ -155,20 +188,16 @@ const performRecoveryAction = async ({
         reason
     };
 
+    // First evaluate the recovery policy.
 
-    /*
-     * First evaluate the recovery policy.
-     */
     const policyDecision =
         evaluateRecoveryPolicy(
             payment,
             aiDecision
         );
 
+    // AI recommendation was NOT allowed.
 
-    /*
-     * AI recommendation was NOT allowed.
-     */
     if (!policyDecision.allowed) {
 
         const finalAction =
@@ -179,11 +208,9 @@ const performRecoveryAction = async ({
             "STOP_RECOVERY"
         ];
 
+        /* If policy redirected the request to a safe
+         * action, execute that safe action. */
 
-        /*
-         * If policy redirected the request to a safe
-         * action, execute that safe action.
-         */
         if (
             safePolicyActions.includes(
                 finalAction
@@ -196,29 +223,10 @@ const performRecoveryAction = async ({
                     finalAction
                 );
 
-
-            /*
-             * IMPORTANT:
-             *
-             * executeRecoveryAction modifies the
-             * Mongoose payment document in memory.
-             *
-             * Save those changes to MongoDB.
-             */
             await payment.save();
 
-
-            /*
-             * IMPORTANT:
-             *
-             * Build the payment object AFTER save().
-             *
-             * This contains the latest attemptCount,
-             * status, recoveredAmount, recoveryResult, etc.
-             */
             const updatedPayment =
                 serializePayment(payment);
-
 
             await RecoveryLog.create({
                 paymentId:
@@ -254,7 +262,6 @@ const performRecoveryAction = async ({
                     `AI action was overridden by policy. ${policyDecision.reason}`
             });
 
-
             return {
                 success:
                     executionResult.success,
@@ -271,17 +278,27 @@ const performRecoveryAction = async ({
 
                 policyDecision: {
                     allowed: false,
+
                     finalAction:
                         finalAction,
+
                     reason:
                         policyDecision.reason
                 },
 
-                executionResult,
+                executionResult: {
+                    ...(executionResult || {}),
 
-                /*
-                 * Latest payment state.
-                 */
+                    actionRequested:
+                        action,
+
+                    actionExecuted:
+                        finalAction,
+
+                    result:
+                        executionResult.result
+                },
+
                 payment:
                     updatedPayment,
 
@@ -292,10 +309,8 @@ const performRecoveryAction = async ({
             };
         }
 
+        // Policy completely blocked the action.
 
-        /*
-         * Policy completely blocked the action.
-         */
         await RecoveryLog.create({
             paymentId:
                 payment.paymentId,
@@ -328,7 +343,6 @@ const performRecoveryAction = async ({
                 `Agent action blocked by policy: ${policyDecision.reason}`
         });
 
-
         return {
             success: false,
 
@@ -346,19 +360,14 @@ const performRecoveryAction = async ({
 
             policyDecision: {
                 allowed: false,
+
                 finalAction:
                     finalAction,
+
                 reason:
                     policyDecision.reason
             },
 
-            /*
-             * Return the current payment as well.
-             *
-             * This is useful even when the action was
-             * blocked because the frontend should always
-             * have the latest payment state.
-             */
             payment:
                 serializePayment(payment),
 
@@ -371,44 +380,166 @@ const performRecoveryAction = async ({
     /*
      * AI recommendation was allowed.
      *
-     * Execute the final action approved by policy.
+     * RETRY_PAYMENT is handled by the shared retry loop.
+     *
+     * This makes voice-confirmed retries behave the same
+     * way as retries initiated by the normal recovery agent.
      */
+
+    if (
+        policyDecision.finalAction ===
+        "RETRY_PAYMENT"
+    ) {
+
+        const retryResult =
+            await executeRecoveryRetryLoop(
+                payment,
+                {
+                    confidence,
+                    reason
+                }
+            );
+
+        /* Persist the final payment state after the
+         * complete retry strategy has finished.
+         */
+
+        await payment.save();
+
+        const updatedPayment =
+            serializePayment(payment);
+
+        /*
+         * Log the overall recovery decision.
+         */
+
+        await RecoveryLog.create({
+            paymentId:
+                payment.paymentId,
+
+            customerId:
+                payment.customerId,
+
+            aiAction:
+                action,
+
+            aiReason:
+                reason,
+
+            aiConfidence:
+                confidence,
+
+            policyAllowed:
+                true,
+
+            finalAction:
+                retryResult.actionExecuted ||
+                "RETRY_PAYMENT",
+
+            executionResult:
+                retryResult.result ||
+                "UNKNOWN",
+
+            recoveredAmount:
+                retryResult.recoveredAmount ||
+                0,
+
+            message:
+                retryResult.reason ||
+                retryResult.executionResult?.message ||
+                null
+        });
+
+        return {
+            success:
+                retryResult.success,
+
+            executed: true,
+
+            blocked: false,
+
+            terminal:
+                retryResult.result ===
+                    "RECOVERED" ||
+                retryResult.result ===
+                    "STOPPED",
+
+            actionRequested:
+                action,
+
+            actionExecuted:
+                retryResult.actionExecuted,
+
+            policyDecision: {
+                allowed: true,
+
+                finalAction:
+                    "RETRY_PAYMENT",
+
+                reason:
+                    policyDecision.reason
+            },
+
+            executionResult: {
+                ...(retryResult.executionResult || {}),
+
+                actionRequested:
+                    action,
+
+                actionExecuted:
+                    retryResult.actionExecuted,
+
+                attemptsMade:
+                    retryResult.attemptsMade,
+
+                maxAttempts:
+                    retryResult.maxAttempts,
+
+                attemptsRemaining:
+                    retryResult.attemptsRemaining,
+
+                recoveredAmount:
+                    retryResult.recoveredAmount,
+
+                result:
+                    retryResult.result
+            },
+
+            retryAttempts:
+                retryResult.attempts,
+
+            attemptsMade:
+                retryResult.attemptsMade,
+
+            maxAttempts:
+                retryResult.maxAttempts,
+
+            attemptsRemaining:
+                retryResult.attemptsRemaining,
+
+            payment:
+                updatedPayment,
+
+            message:
+                retryResult.reason ||
+                retryResult.executionResult?.message ||
+                null
+        };
+    }
+
+
+    // Non-retry actions are still executed exactly once.
+
     const executionResult =
         await executeRecoveryAction(
             payment,
             policyDecision.finalAction
         );
 
-
-    /*
-     * IMPORTANT:
-     *
-     * Persist all changes made by the recovery executor.
-     *
-     * This includes:
-     *
-     * attemptCount
-     * status
-     * recoveredAmount
-     * recoveryAction
-     * recoveryResult
-     * paymentLinkId
-     * paymentLinkUrl
-     */
     await payment.save();
 
-
-    /*
-     * IMPORTANT:
-     *
-     * Read the payment AFTER save().
-     *
-     * This guarantees that the returned payment object
-     * contains the latest values.
-     */
     const updatedPayment =
         serializePayment(payment);
-
 
     await RecoveryLog.create({
         paymentId:
@@ -445,7 +576,6 @@ const performRecoveryAction = async ({
             null
     });
 
-
     return {
         success:
             executionResult.success,
@@ -470,30 +600,39 @@ const performRecoveryAction = async ({
 
         policyDecision: {
             allowed: true,
+
+            finalAction:
+                policyDecision.finalAction,
+
             reason:
                 policyDecision.reason
         },
 
-        executionResult,
+        executionResult: {
+            ...(executionResult || {}),
 
-        /*
-         * THIS IS THE IMPORTANT FIX.
-         *
-         * The frontend can now use:
-         *
-         * runData.result.payment
-         *
-         * and receive the updated attemptCount.
-         */
+            actionRequested:
+                action,
+
+            actionExecuted:
+                policyDecision.finalAction,
+
+            result:
+                executionResult.result
+        },
+
         payment:
-            updatedPayment
+            updatedPayment,
+
+        message:
+            executionResult.message ||
+            null
     };
 };
 
 
-/*
- * Retry a failed payment.
- */
+// Retry a failed payment.
+
 const retryPayment = async ({
     paymentId,
     confidence,
@@ -502,17 +641,19 @@ const retryPayment = async ({
 
     return performRecoveryAction({
         paymentId,
+
         action:
             "RETRY_PAYMENT",
+
         confidence,
+
         reason
     });
 };
 
 
-/*
- * Create an alternative payment link.
- */
+// Create an alternative payment link.
+
 const createPaymentLink = async ({
     paymentId,
     confidence,
@@ -521,17 +662,19 @@ const createPaymentLink = async ({
 
     return performRecoveryAction({
         paymentId,
+
         action:
             "CREATE_PAYMENT_LINK",
+
         confidence,
+
         reason
     });
 };
 
 
-/*
- * Escalate the payment to human review.
- */
+// Escalate the payment to human review.
+
 const escalateToHuman = async ({
     paymentId,
     confidence,
@@ -540,17 +683,19 @@ const escalateToHuman = async ({
 
     return performRecoveryAction({
         paymentId,
+
         action:
             "ESCALATE_TO_HUMAN",
+
         confidence,
+
         reason
     });
 };
 
 
-/*
- * Stop automated recovery.
- */
+// Stop automated recovery.
+
 const stopRecovery = async ({
     paymentId,
     confidence,
@@ -559,17 +704,19 @@ const stopRecovery = async ({
 
     return performRecoveryAction({
         paymentId,
+
         action:
             "STOP_RECOVERY",
+
         confidence,
+
         reason
     });
 };
 
 
-/*
- * Gemini tool declarations.
- */
+// Gemini tool declarations.
+
 const toolDeclarations = [
     {
         functionDeclarations: [
@@ -600,8 +747,7 @@ const toolDeclarations = [
 
 
             {
-                name:
-                    "get_customer_history",
+                name: "get_customer_history",
 
                 description:
                     "Retrieve customer information and recent payment history.",
@@ -800,9 +946,8 @@ const toolDeclarations = [
 ];
 
 
-/*
- * Map tool names to their handlers.
- */
+// Map tool names to their handlers.
+
 const toolHandlers = {
 
     get_payment:
@@ -825,9 +970,8 @@ const toolHandlers = {
 };
 
 
-/*
- * Execute an agent tool safely.
- */
+// Execute an agent tool safely.
+
 const executeTool = async (
     functionName,
     args
@@ -859,6 +1003,7 @@ const executeTool = async (
 
         return {
             success: false,
+
             error:
                 error.message
         };
@@ -868,5 +1013,6 @@ const executeTool = async (
 
 module.exports = {
     toolDeclarations,
-    executeTool
+    executeTool,
+    performRecoveryAction
 };

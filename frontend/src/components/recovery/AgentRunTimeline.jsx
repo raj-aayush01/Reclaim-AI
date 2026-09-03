@@ -234,7 +234,6 @@ export const AgentRunTimeline = ({
         policyInfo?.finalAction ||
         terminalStep?.tool ||
         runData?.finalAction ||
-        recommendedAction ||
         ""
     );
 
@@ -809,11 +808,28 @@ export const AgentRunTimeline = ({
                         <span
                             className="meta-value capitalize"
                             style={{
-                                color: "var(--down)"
+                                color:
+                                    finalResult === "RECOVERED"
+                                        ? "var(--up)"
+                                        : finalResult === "PENDING" ||
+                                        finalResult === "ESCALATED"
+                                            ? "var(--warn)"
+                                            : "var(--down)"
                             }}
                         >
-                            {payment?.status ||
-                                "Failed"}
+                            {finalResult === "RECOVERED"
+                                ? "Recovered"
+                                : finalResult === "PENDING"
+                                    ? "Pending"
+                                    : finalResult === "ESCALATED"
+                                        ? "Escalated"
+                                        : finalResult === "STOPPED"
+                                            ? "Stopped"
+                                            : finalResult === "BLOCKED"
+                                                ? "Blocked"
+                                                : finalResult === "FAILED"
+                                                    ? "Failed"
+                                                    : "Unknown"}
                         </span>
                     </div>
                 </div>
@@ -1221,10 +1237,7 @@ export const AgentRunTimeline = ({
                                     color: "var(--primary)"
                                 }}
                             >
-                                {formatActionName(
-                                    executedAction ||
-                                    recommendedAction
-                                )}
+                                {formatActionName(executedAction)}
                             </span>
                         </div>
 

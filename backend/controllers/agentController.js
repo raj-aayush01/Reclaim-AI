@@ -2,9 +2,7 @@ const AgentRun = require("../models/AgentRun");
 const Payment = require("../models/Payment");
 
 
-// ---------------------------------------------------------
 // Serialize the current payment state for the frontend
-// ---------------------------------------------------------
 
 const serializePayment = (payment) => {
 
@@ -61,9 +59,7 @@ const serializePayment = (payment) => {
 };
 
 
-// ---------------------------------------------------------
 // Get latest agent run + current payment for a payment
-// ---------------------------------------------------------
 
 const getAgentRun = async (req, res) => {
 
@@ -72,12 +68,11 @@ const getAgentRun = async (req, res) => {
         const { paymentId } = req.params;
 
 
-        /*
-         * Fetch both pieces of information together.
-         *
-         * AgentRun = historical recovery timeline
-         * Payment  = current authoritative payment state
-         */
+
+        // Fetch both pieces of information together.
+
+        // AgentRun = historical recovery timeline
+        // Payment  = current authoritative payment state
 
         const [agentRun, payment] =
             await Promise.all([
@@ -115,13 +110,8 @@ const getAgentRun = async (req, res) => {
 
             run: agentRun,
 
-            /*
-             * Always return the current payment state.
-             *
-             * This prevents the frontend from relying only
-             * on an older payment snapshot stored inside
-             * AgentRun steps.
-             */
+            // Always return the current payment state.
+
             payment:
                 serializePayment(payment)
 
@@ -148,41 +138,18 @@ const getAgentRun = async (req, res) => {
 };
 
 
-// ---------------------------------------------------------
 // AI Control Room
-// ---------------------------------------------------------
 
 const getControlRoom = async (req, res) => {
 
     try {
+        // GET ALL AGENT RUNS
 
-        /*
-         * ---------------------------------------------------
-         * GET ALL AGENT RUNS
-         * ---------------------------------------------------
-         *
-         * Newest runs are returned first.
-         */
-
-        const runs =
-            await AgentRun.find({})
-                .sort({
-                    createdAt: -1
-                })
-                .lean();
+        const runs = await AgentRun.find({}).sort({ createdAt: -1 }).lean();
 
 
-        /*
-         * ---------------------------------------------------
-         * LATEST RUN PER PAYMENT
-         * ---------------------------------------------------
-         *
-         * A payment can have multiple recovery runs.
-         *
-         * Because runs are sorted newest -> oldest,
-         * the first run encountered for each payment is
-         * its latest recovery run.
-         */
+        // LATEST RUN PER PAYMENT
+        // A payment can have multiple recovery runs.
 
         const latestRunByPayment =
             new Map();
@@ -190,32 +157,20 @@ const getControlRoom = async (req, res) => {
 
         for (const run of runs) {
 
-            if (
-                !latestRunByPayment.has(
-                    run.paymentId
-                )
-            ) {
+            if ( !latestRunByPayment.has( run.paymentId ) ) {
 
                 latestRunByPayment.set(
                     run.paymentId,
                     run
                 );
-
             }
-
         }
 
 
-        const latestRuns = [
-            ...latestRunByPayment.values()
-        ];
+        const latestRuns = [...latestRunByPayment.values()];
 
 
-        /*
-         * ---------------------------------------------------
-         * OVERALL AGENT METRICS
-         * ---------------------------------------------------
-         */
+        // OVERALL AGENT METRICS
 
         const evaluated =
             latestRuns.length;
@@ -261,24 +216,9 @@ const getControlRoom = async (req, res) => {
             ).length;
 
 
-        /*
-         * ---------------------------------------------------
-         * RECENT ACTIVITY
-         * ---------------------------------------------------
-         *
-         * We also retrieve the current Payment documents.
-         *
-         * AgentRun contains historical execution information.
-         * Payment contains the current source of truth.
-         */
+        // RECENT ACTIVITY
 
-        const paymentIds =
-            runs
-                .map(
-                    (run) =>
-                        run.paymentId
-                )
-                .filter(Boolean);
+        const paymentIds = runs.map( (run) => run.paymentId ).filter(Boolean);
 
 
         const payments =
@@ -338,12 +278,7 @@ const getControlRoom = async (req, res) => {
                             ]
                             : null;
 
-
-                    /*
-                     * ------------------------------------------------
-                     * DECISION
-                     * ------------------------------------------------
-                     */
+                    // DECISION
 
                     const decisionStep =
                         run.steps?.find(
@@ -353,11 +288,7 @@ const getControlRoom = async (req, res) => {
                         );
 
 
-                    /*
-                     * ------------------------------------------------
-                     * POLICY
-                     * ------------------------------------------------
-                     */
+                    // POLICY
 
                     const policySteps =
                         run.steps?.filter(
@@ -375,11 +306,7 @@ const getControlRoom = async (req, res) => {
                             : null;
 
 
-                    /*
-                     * ------------------------------------------------
-                     * TERMINAL
-                     * ------------------------------------------------
-                     */
+                    // TERMINAL
 
                     const terminalSteps =
                         run.steps?.filter(
@@ -397,23 +324,14 @@ const getControlRoom = async (req, res) => {
                             : null;
 
 
-                    /*
-                     * ------------------------------------------------
-                     * CURRENT PAYMENT
-                     * ------------------------------------------------
-                     */
+                    // CURRENT PAYMENT
 
                     const currentPayment =
                         paymentById.get(
                             run.paymentId
                         ) || null;
 
-
-                    /*
-                     * ------------------------------------------------
-                     * RETURN CONTROL ROOM RUN
-                     * ------------------------------------------------
-                     */
+                    // RETURN CONTROL ROOM RUN
 
                     return {
 
@@ -422,6 +340,20 @@ const getControlRoom = async (req, res) => {
 
                         paymentId:
                             run.paymentId,
+
+
+                        // Identifies whether this run came from, normal AI Recovery or Voice Recovery.
+
+                        source:
+                            run.source ||
+                            "AI_RECOVERY",
+
+
+                        // Allows the Control Room to associate, a Voice Recovery run with its conversation.
+
+                        voiceSessionId:
+                            run.voiceSessionId ||
+                            null,
 
                         status:
                             run.status,
@@ -433,22 +365,14 @@ const getControlRoom = async (req, res) => {
                             run.completedAt,
 
 
-                        /*
-                         * CURRENT PAYMENT
-                         *
-                         * This is intentionally separate from
-                         * historical step data.
-                         */
+                        // CURRENT PAYMENT
 
                         payment:
                             serializePayment(
                                 currentPayment
                             ),
 
-
-                        /*
-                         * AI DECISION
-                         */
+                        // AI DECISION
 
                         decision:
                             decisionStep
@@ -498,9 +422,7 @@ const getControlRoom = async (req, res) => {
                                 : null,
 
 
-                        /*
-                         * POLICY / SAFETY CHECK
-                         */
+                        // POLICY / SAFETY CHECK
 
                         policy:
                             policyStep
@@ -577,9 +499,7 @@ const getControlRoom = async (req, res) => {
                                 : null,
 
 
-                        /*
-                         * ACTION
-                         */
+                        // ACTION
 
                         action:
                             actionStep
@@ -609,9 +529,7 @@ const getControlRoom = async (req, res) => {
                                 : null,
 
 
-                        /*
-                         * FINAL RESULT
-                         */
+                        // FINAL RESULT
 
                         result:
                             terminalStep
@@ -654,11 +572,7 @@ const getControlRoom = async (req, res) => {
                 });
 
 
-        /*
-         * ---------------------------------------------------
-         * RESPONSE
-         * ---------------------------------------------------
-         */
+        // RESPONSE
 
         res.json({
 
@@ -672,17 +586,11 @@ const getControlRoom = async (req, res) => {
             summary: {
 
                 evaluated,
-
                 recovered,
-
                 escalated,
-
                 blocked,
-
                 stopped,
-
                 failed
-
             },
 
             recentRuns

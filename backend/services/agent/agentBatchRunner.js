@@ -1,29 +1,19 @@
 const Payment = require("../../models/Payment");
 
-const {
-    runRecoveryAgent
-} = require("./recoveryAgent");
+const { runRecoveryAgent } = require("./recoveryAgent");
 
 const runAgentBatch = async (limit = 10) => {
 
-    const payments = await Payment.find({
-        status: "failed"
-    }).limit(limit);
+    const payments = await Payment.find({ status: "failed" }).limit(limit);
 
     const results = [];
 
     for (const payment of payments) {
-
-        console.log(
-            `\n[Batch] Starting agent for ${payment.paymentId}`
-        );
+        console.log(`\n[Batch] Starting agent for ${payment.paymentId}`);
 
         try {
 
-            const result =
-                await runRecoveryAgent(
-                    payment.paymentId
-                );
+            const result =await runRecoveryAgent( payment.paymentId );
 
             results.push({
                 paymentId: payment.paymentId,
@@ -34,10 +24,7 @@ const runAgentBatch = async (limit = 10) => {
 
         } catch (error) {
 
-            console.error(
-                `[Batch] Agent failed for ${payment.paymentId}:`,
-                error.message
-            );
+            console.error( `[Batch] Agent failed for ${payment.paymentId}:`, error.message );
 
             results.push({
                 paymentId: payment.paymentId,

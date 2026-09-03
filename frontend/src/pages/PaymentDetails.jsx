@@ -13,6 +13,8 @@ import PolicyDecision from "../components/recovery/PolicyDecision";
 import ExecutionResult from "../components/recovery/ExecutionResult";
 import RecoveryTimeline from "../components/recovery/RecoveryTimeline";
 import Button from "../components/common/Button";
+import Modal from "../components/common/Modal";
+import VoiceRecovery from "../components/recovery/VoiceRecovery";
 
 import { formatCurrency } from "../utils/formatCurrency";
 import {
@@ -24,6 +26,7 @@ import { formatDate } from "../utils/formatDate";
 import {
     ArrowLeft,
     Zap,
+    Mic as MicIcon,
     User,
     Brain,
     Clock,
@@ -46,7 +49,13 @@ export const PaymentDetails = () => {
     const [error, setError] = useState(null);
 
     const [executionError, setExecutionError] = useState(null);
+    const [aiUnavailable, setAiUnavailable] = useState(false);
     const [latestExecution, setLatestExecution] = useState(null);
+    const [voiceRecoveryOpen, setVoiceRecoveryOpen] = useState(false);
+    const [recoveryModalOpen, setRecoveryModalOpen] = useState(false);
+
+    const [voiceAIDecision, setVoiceAIDecision] =
+        useState(null);
 
     const {
         executeRecovery,
@@ -116,50 +125,34 @@ export const PaymentDetails = () => {
     }, [paymentId]);
 
 
+    useEffect(() => {
+
+        setVoiceAIDecision(null);
+
+    }, [paymentId]);
+
+
     // ---------------------------------------------------------
     // Run AI recovery
     // ---------------------------------------------------------
 
     const handleTriggerAIRecovery = async () => {
 
+        if (executing || payment.status !== "failed") {
+            return;
+        }
+
         setExecutionError(null);
+        setAiUnavailable(false);
+        setVoiceAIDecision(null);
+        setLatestExecution(null);
+        setRecoveryModalOpen(true);
 
         try {
 
-            const response =
-                await executeRecovery(paymentId);
+            const response = await executeRecovery(paymentId);
 
-            /*
-             * Recovery endpoint:
-             *
-             * {
-             *   message,
-             *   result: { ...agent result }
-             * }
-             *
-             * We only keep the actual result here.
-             */
-
-            if (response?.result) {
-
-                setLatestExecution(
-                    response.result
-                );
-
-            } else {
-
-                setLatestExecution(
-                    response
-                );
-            }
-
-            /*
-             * Refresh the payment and AgentRun.
-             *
-             * This means the Inspect page immediately
-             * reflects the persisted recovery result.
-             */
-
+            setLatestExecution(response);
             await fetchDetail();
 
         } catch (err) {
@@ -169,18 +162,32 @@ export const PaymentDetails = () => {
                 err
             );
 
-            /*
-             * Never create fake AI information
-             * when Gemini/API execution fails.
-             */
+            const responseData =
+                err.responseData || {};
 
             setLatestExecution(null);
 
+            setAiUnavailable(
+                responseData.aiUnavailable === true
+            );
+
             setExecutionError(
+                responseData.userMessage ||
                 err.message ||
                 "AI recovery could not be completed. No recovery action was executed."
             );
         }
+    };
+
+    const handleCloseRecoveryModal = () => {
+        if (executing) {
+            return;
+        }
+
+        setRecoveryModalOpen(false);
+        setLatestExecution(null);
+        setExecutionError(null);
+        setAiUnavailable(false);
     };
 
 
@@ -246,10 +253,6 @@ export const PaymentDetails = () => {
 
     // ---------------------------------------------------------
     // Remove exact duplicate audit entries
-    //
-    // This prevents the same recovery event from being
-    // displayed twice when duplicate RecoveryLog records
-    // exist in the database.
     // ---------------------------------------------------------
 
     const seen = new Set();
@@ -277,12 +280,6 @@ export const PaymentDetails = () => {
         return true;
     });
 
-
-    /*
-     * The latest persisted log is the most recent recovery
-     * record, not necessarily the first record returned by
-     * the backend.
-     */
 
     const latestLog =
         uniqueLogs.length > 0
@@ -322,6 +319,7 @@ export const PaymentDetails = () => {
     const currentAIDecision =
         latestExecution?.aiDecision ||
         latestExecution?.aiRecommendation ||
+        voiceAIDecision ||
         decisionStep?.output ||
         agentRun?.aiDecision ||
         (
@@ -391,32 +389,104 @@ export const PaymentDetails = () => {
     // ---------------------------------------------------------
 
     const currentExecutionResult =
-        latestExecution?.executionResult ||
-        actionStep?.output?.executionResult ||
-        agentRun?.executionResult ||
-        (
-            latestLog
-                ? {
-                    result:
-                        latestLog.executionResult,
+        latestExecution?.executionResult
+            ? {
+                ...latestExecution.executionResult,
 
-                    recoveredAmount:
-                        latestLog.recoveredAmount,
+                actionExecuted:
+                    latestExecution.actionExecuted ||
+                    latestExecution.executionResult?.actionExecuted ||
+                    null,
+
+                attemptsMade:
+                    latestExecution.attemptsMade ??
+                    latestExecution.executionResult?.attemptsMade ??
+                    latestExecution.result?.attemptsMade ??
+                    null,
+
+                maxAttempts:
+                    latestExecution.maxAttempts ??
+                    latestExecution.executionResult?.maxAttempts ??
+                    latestExecution.result?.maxAttempts ??
+                    null,
+
+                attemptsRemaining:
+                    latestExecution.attemptsRemaining ??
+                    latestExecution.executionResult?.attemptsRemaining ??
+                    latestExecution.result?.attemptsRemaining ??
+                    null
+            }
+            : actionStep?.output?.executionResult
+                ? {
+                    ...actionStep.output.executionResult,
 
                     actionExecuted:
-                        latestLog.finalAction,
+                        actionStep.output.actionExecuted ||
+                        actionStep.output.executionResult?.actionExecuted ||
+                        null,
 
-                    message:
-                        latestLog.message,
+                    attemptsMade:
+                        actionStep.output.attemptsMade ??
+                        actionStep.output.executionResult?.attemptsMade ??
+                        null,
 
-                    paymentLinkId:
-                        payment.paymentLinkId,
+                    maxAttempts:
+                        actionStep.output.maxAttempts ??
+                        actionStep.output.executionResult?.maxAttempts ??
+                        null,
 
-                    paymentLinkUrl:
-                        payment.paymentLinkUrl
+                    attemptsRemaining:
+                        actionStep.output.attemptsRemaining ??
+                        actionStep.output.executionResult?.attemptsRemaining ??
+                        null
                 }
-                : null
-        );
+                : agentRun?.executionResult
+                    ? {
+                        ...agentRun.executionResult,
+
+                        actionExecuted:
+                            agentRun.actionExecuted ||
+                            agentRun.executionResult?.actionExecuted ||
+                            null,
+
+                        attemptsMade:
+                            agentRun.attemptsMade ??
+                            agentRun.executionResult?.attemptsMade ??
+                            null,
+
+                        maxAttempts:
+                            agentRun.maxAttempts ??
+                            agentRun.executionResult?.maxAttempts ??
+                            null,
+
+                        attemptsRemaining:
+                            agentRun.attemptsRemaining ??
+                            agentRun.executionResult?.attemptsRemaining ??
+                            null
+                    }
+                    : (
+                        latestLog
+                            ? {
+                                result:
+                                    latestLog.executionResult,
+
+                                recoveredAmount:
+                                    latestLog.recoveredAmount,
+
+                                actionExecuted:
+                                    latestLog.finalAction,
+
+                                message:
+                                    latestLog.message,
+
+                                paymentLinkId:
+                                    payment.paymentLinkId,
+
+                                paymentLinkUrl:
+                                    payment.paymentLinkUrl
+                            }
+                            : null
+                    );
 
 
     // ---------------------------------------------------------
@@ -435,6 +505,10 @@ export const PaymentDetails = () => {
     const hasRunRecovery =
         Boolean(
             latestExecution ||
+            voiceAIDecision ||
+            currentAIDecision ||
+            currentPolicyDecision ||
+            currentExecutionResult ||
             hasExistingRecovery
         );
 
@@ -463,9 +537,6 @@ export const PaymentDetails = () => {
 
     const displayedAction =
         currentExecutionResult?.actionExecuted ||
-        currentPolicyDecision?.finalAction ||
-        currentAIDecision?.action ||
-        latestLog?.finalAction ||
         null;
 
 
@@ -488,6 +559,7 @@ export const PaymentDetails = () => {
             ================================================= */}
 
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+
                 <button
                     onClick={() => navigate("/payments")}
                     className="back-link"
@@ -496,22 +568,207 @@ export const PaymentDetails = () => {
                     <span>Back to Payments List</span>
                 </button>
 
-                <div className="flex items-center gap-3">
-                    <PaymentStatusBadge status={payment.status} />
 
-                    {payment.status !== "recovered" && (
-                        <Button
-                            variant="glow"
-                            size="md"
-                            icon={Zap}
-                            loading={executing}
-                            onClick={handleTriggerAIRecovery}
-                        >
-                            Run AI Recovery
-                        </Button>
+                <div className="flex items-center gap-3 flex-wrap justify-end">
+
+                    <PaymentStatusBadge
+                        status={payment.status}
+                    />
+
+
+                    {payment.status === "failed" && (
+                        <>
+                            <Button
+                                variant="secondary"
+                                size="md"
+                                onClick={() =>
+                                    setVoiceRecoveryOpen(true)
+                                }
+                            >
+                                <span className="flex items-center gap-2">
+                                    <MicIcon />
+                                    Voice Recovery
+                                </span>
+                            </Button>
+
+
+                            <Button
+                                variant="glow"
+                                size="md"
+                                icon={Zap}
+                                loading={executing}
+                                onClick={
+                                    handleTriggerAIRecovery
+                                }
+                            >
+                                Run AI Recovery
+                            </Button>
+                        </>
                     )}
+
                 </div>
+
             </div>
+
+
+            <Modal
+                isOpen={recoveryModalOpen}
+                onClose={handleCloseRecoveryModal}
+                title={`AI Recovery — ${payment.paymentId || paymentId || ""}`}
+                maxWidth="max-w-2xl"
+            >
+                {executing ? (
+                    <div
+                        style={{
+                            padding: "3rem 0",
+                            textAlign: "center"
+                        }}
+                    >
+                        <Loader
+                            text="AI Recovery Agent is executing..."
+                        />
+
+                        <p
+                            style={{
+                                fontSize: "0.75rem",
+                                color: "var(--mute)",
+                                marginTop: "1rem",
+                                lineHeight: 1.6
+                            }}
+                        >
+                            Inspecting the payment, reviewing customer
+                            history, selecting the safest recovery action,
+                            and enforcing guardrails.
+                        </p>
+                    </div>
+                ) : executionError ? (
+                    <ErrorMessage
+                        message={executionError}
+                        onRetry={() =>
+                            handleTriggerAIRecovery()
+                        }
+                    />
+                ) : latestExecution ? (
+                    <div className="page-stack">
+
+                        <div className="banner-up">
+
+                            <CheckCircle2
+                                size={16}
+                                style={{
+                                    flexShrink: 0
+                                }}
+                            />
+
+                            <span>
+                                AI Recovery Engine completed
+                                for payment{" "}
+
+                                <strong
+                                    style={{
+                                        color: "var(--ink)"
+                                    }}
+                                >
+                                    {latestExecution.payment?.paymentId ||
+                                        payment.paymentId ||
+                                        paymentId ||
+                                        "Unknown"}
+                                </strong>.
+                            </span>
+
+                        </div>
+
+                        <AIDecisionCard
+                            aiDecision={
+                                latestExecution.aiDecision ||
+                                latestExecution.aiRecommendation
+                            }
+                            payment={
+                                latestExecution.payment ||
+                                payment
+                            }
+                            customer={customer}
+                        />
+
+                        <PolicyDecision
+                            policyDecision={
+                                latestExecution.policyDecision ||
+                                latestExecution.policyCheck ||
+                                latestExecution.result?.policyDecision
+                            }
+                            aiDecision={
+                                latestExecution.aiDecision ||
+                                latestExecution.aiRecommendation
+                            }
+                            payment={
+                                latestExecution.payment ||
+                                payment
+                            }
+                        />
+
+                        {(latestExecution.executionResult ||
+                            latestExecution.result?.executionResult) && (
+                            <ExecutionResult
+                                executionResult={{
+                                    ...(latestExecution.executionResult ||
+                                        latestExecution.result?.executionResult ||
+                                        {}),
+
+                                    actionExecuted:
+                                        latestExecution.actionExecuted ||
+                                        latestExecution.executionResult
+                                            ?.actionExecuted ||
+                                        latestExecution.result
+                                            ?.actionExecuted ||
+                                        latestExecution.result
+                                            ?.executionResult
+                                            ?.actionExecuted,
+
+                                    attemptsMade:
+                                        latestExecution.attemptsMade ??
+                                        latestExecution.executionResult
+                                            ?.attemptsMade ??
+                                        latestExecution.result
+                                            ?.attemptsMade ??
+                                        latestExecution.result
+                                            ?.executionResult
+                                            ?.attemptsMade,
+
+                                    maxAttempts:
+                                        latestExecution.maxAttempts ??
+                                        latestExecution.executionResult
+                                            ?.maxAttempts ??
+                                        latestExecution.result
+                                            ?.maxAttempts ??
+                                        latestExecution.result
+                                            ?.executionResult
+                                            ?.maxAttempts
+                                }}
+                                payment={
+                                    latestExecution.payment ||
+                                    payment
+                                }
+                            />
+                        )}
+
+                        <div
+                            style={{
+                                display: "flex",
+                                justifyContent: "flex-end",
+                                paddingTop: "0.5rem"
+                            }}
+                        >
+                            <Button
+                                variant="primary"
+                                onClick={handleCloseRecoveryModal}
+                            >
+                                Close &amp; Continue
+                            </Button>
+                        </div>
+
+                    </div>
+                ) : null}
+            </Modal>
 
             {/* =================================================
                 EXECUTION ERROR
@@ -519,42 +776,70 @@ export const PaymentDetails = () => {
 
             {executionError && (
                 <div className="banner-down">
+
                     <div className="icon-box icon-box-sm icon-box-down">
                         <Zap className="w-4 h-4" />
                     </div>
 
+
                     <div>
+
                         <h3 className="banner-down-title">
-                            AI Recovery Could Not Be Completed
+                            {aiUnavailable
+                                ? "AI Service Unavailable"
+                                : "AI Recovery Could Not Be Completed"}
                         </h3>
 
+
                         <p className="banner-down-text">
-                            The payment was not automatically recovered because the AI decision could not be completed. No recovery action was executed.
+                            {aiUnavailable
+                                ? "The connected AI service could not complete the recovery decision. Reclaim-AI itself did not execute a recovery action."
+                                : "The AI recovery decision could not be completed. No recovery action was executed."}
                         </p>
 
-                        <p className="font-mono text-xs mt-2" style={{ color: "var(--down)" }}>
+
+                        <p
+                            className="font-mono text-xs mt-2"
+                            style={{
+                                color: "var(--down)"
+                            }}
+                        >
                             {executionError}
                         </p>
+
                     </div>
+
                 </div>
             )}
+
 
             {/* =================================================
                 PAYMENT OVERVIEW
             ================================================= */}
 
             <div className="panel panel-accent-primary p-6 rounded-xl">
+
                 <div className="flex flex-col xl:flex-row xl:items-center xl:justify-between gap-6">
+
                     <div className="min-w-0">
-                        <span className="eyebrow-primary" style={{ display: "block", marginBottom: "4px" }}>
+
+                        <span
+                            className="eyebrow-primary"
+                            style={{
+                                display: "block",
+                                marginBottom: "4px"
+                            }}
+                        >
                             Transaction Overview
                         </span>
+
 
                         <h2
                             style={{
                                 fontSize: "1.25rem",
                                 fontWeight: 800,
-                                fontFamily: "'JetBrains Mono', monospace",
+                                fontFamily:
+                                    "'JetBrains Mono', monospace",
                                 color: "var(--ink)",
                                 wordBreak: "break-all"
                             }}
@@ -562,33 +847,64 @@ export const PaymentDetails = () => {
                             {payment.paymentId}
                         </h2>
 
+
                         {payment.orderId && (
-                            <p style={{ fontSize: "0.75rem", color: "var(--mute)", marginTop: "0.5rem" }}>
+                            <p
+                                style={{
+                                    fontSize: "0.75rem",
+                                    color: "var(--mute)",
+                                    marginTop: "0.5rem"
+                                }}
+                            >
                                 Order ID:{" "}
-                                <span className="font-mono" style={{ color: "var(--ink)", fontWeight: 500 }}>
+                                <span
+                                    className="font-mono"
+                                    style={{
+                                        color: "var(--ink)",
+                                        fontWeight: 500
+                                    }}
+                                >
                                     {payment.orderId}
                                 </span>
                             </p>
                         )}
+
                     </div>
 
+
                     <div className="grid grid-cols-2 sm:grid-cols-3 gap-6 xl:min-w-[420px]">
+
                         <div>
-                            <span className="meta-label">Amount</span>
+
+                            <span className="meta-label">
+                                Amount
+                            </span>
+
+
                             <span
                                 style={{
                                     fontSize: "1.25rem",
                                     fontWeight: 700,
-                                    fontFamily: "'JetBrains Mono', monospace",
+                                    fontFamily:
+                                        "'JetBrains Mono', monospace",
                                     color: "var(--ink)"
                                 }}
                             >
-                                {formatCurrency(payment.amount)}
+                                {formatCurrency(
+                                    payment.amount
+                                )}
                             </span>
+
                         </div>
 
+
                         <div>
-                            <span className="meta-label">Failure Type</span>
+
+                            <span className="meta-label">
+                                Failure Type
+                            </span>
+
+
                             <span
                                 style={{
                                     fontSize: "0.8125rem",
@@ -598,17 +914,29 @@ export const PaymentDetails = () => {
                                     marginTop: "2px"
                                 }}
                             >
-                                {payment.scenario ? formatScenario(payment.scenario) : "Not available"}
+                                {payment.scenario
+                                    ? formatScenario(
+                                          payment.scenario
+                                      )
+                                    : "Not available"}
                             </span>
+
                         </div>
 
+
                         <div>
-                            <span className="meta-label">Attempts</span>
+
+                            <span className="meta-label">
+                                Attempts
+                            </span>
+
+
                             <span
                                 style={{
                                     fontSize: "0.875rem",
                                     fontWeight: 700,
-                                    fontFamily: "'JetBrains Mono', monospace",
+                                    fontFamily:
+                                        "'JetBrains Mono', monospace",
                                     color: "var(--ink)",
                                     display: "block",
                                     marginTop: "2px"
@@ -616,10 +944,15 @@ export const PaymentDetails = () => {
                             >
                                 {payment.attemptCount ?? 0}
                             </span>
+
                         </div>
+
                     </div>
+
                 </div>
+
             </div>
+
 
             {/* =================================================
                 CUSTOMER INFORMATION
@@ -627,41 +960,95 @@ export const PaymentDetails = () => {
 
             {customer && customer.name && (
                 <div className="panel p-5 rounded-xl flex flex-col lg:flex-row lg:items-center lg:justify-between gap-5">
+
                     <div className="flex items-center gap-3">
+
                         <div className="icon-box icon-box-md icon-box-neutral">
                             <User className="w-5 h-5" />
                         </div>
 
+
                         <div>
-                            <h4 style={{ fontSize: "0.875rem", fontWeight: 700, color: "var(--ink)" }}>
+
+                            <h4
+                                style={{
+                                    fontSize: "0.875rem",
+                                    fontWeight: 700,
+                                    color: "var(--ink)"
+                                }}
+                            >
                                 {customer.name}
                             </h4>
 
-                            <p style={{ fontSize: "0.75rem", color: "var(--mute)", fontFamily: "'JetBrains Mono', monospace", marginTop: "2px" }}>
-                                {customer.email || "No email"}
+
+                            <p
+                                style={{
+                                    fontSize: "0.75rem",
+                                    color: "var(--mute)",
+                                    fontFamily:
+                                        "'JetBrains Mono', monospace",
+                                    marginTop: "2px"
+                                }}
+                            >
+                                {customer.email ||
+                                    "No email"}
                                 {" • "}
-                                {customer.phone || "No phone"}
+                                {customer.phone ||
+                                    "No phone"}
                             </p>
+
                         </div>
+
                     </div>
 
-                    <div className="text-left lg:text-right" style={{ fontSize: "0.75rem", color: "var(--mute)" }}>
+
+                    <div
+                        className="text-left lg:text-right"
+                        style={{
+                            fontSize: "0.75rem",
+                            color: "var(--mute)"
+                        }}
+                    >
+
                         <span className="block">
+
                             Customer ID:{" "}
-                            <strong className="font-mono" style={{ color: "var(--ink)" }}>
-                                {customer.customerId || payment.customerId || "Not available"}
+
+                            <strong
+                                className="font-mono"
+                                style={{
+                                    color: "var(--ink)"
+                                }}
+                            >
+                                {customer.customerId ||
+                                    payment.customerId ||
+                                    "Not available"}
                             </strong>
+
                         </span>
+
 
                         <span className="block mt-1">
+
                             Customer Segment:{" "}
-                            <strong style={{ color: "var(--primary)" }}>
-                                {customer.segment || "STANDARD"}
+
+                            <strong
+                                style={{
+                                    color:
+                                        "var(--primary)"
+                                }}
+                            >
+                                {customer.segment ||
+                                    "STANDARD"}
                             </strong>
+
                         </span>
+
                     </div>
+
                 </div>
             )}
+
 
             {/* =================================================
                 NO RECOVERY YET
@@ -669,26 +1056,57 @@ export const PaymentDetails = () => {
 
             {!hasRunRecovery && (
                 <div className="panel p-8 rounded-xl">
+
                     <div className="flex flex-col items-center text-center max-w-2xl mx-auto">
+
                         <div className="icon-box icon-box-lg icon-box-primary mb-4">
                             <Brain className="w-6 h-6" />
                         </div>
 
-                        <h3 style={{ fontSize: "1.125rem", fontWeight: 700, color: "var(--ink)" }}>
+
+                        <h3
+                            style={{
+                                fontSize: "1.125rem",
+                                fontWeight: 700,
+                                color: "var(--ink)"
+                            }}
+                        >
                             Ready for AI Recovery
                         </h3>
 
-                        <p style={{ fontSize: "0.8125rem", color: "var(--mute)", marginTop: "0.5rem", lineHeight: 1.6 }}>
+
+                        <p
+                            style={{
+                                fontSize: "0.8125rem",
+                                color: "var(--mute)",
+                                marginTop: "0.5rem",
+                                lineHeight: 1.6
+                            }}
+                        >
                             This payment has been inspected, but AI has not made a recovery decision yet. Run AI Recovery to analyze the failure, review customer history, choose a recovery strategy, and execute the permitted action.
                         </p>
 
-                        <div className="flex items-center gap-2 mt-5" style={{ fontSize: "0.75rem", color: "var(--mute)" }}>
+
+                        <div
+                            className="flex items-center gap-2 mt-5"
+                            style={{
+                                fontSize: "0.75rem",
+                                color: "var(--mute)"
+                            }}
+                        >
                             <Clock className="w-4 h-4" />
-                            <span>No automatic recovery action has been executed.</span>
+
+                            <span>
+                                No automatic recovery action has been executed.
+                            </span>
+
                         </div>
+
                     </div>
+
                 </div>
             )}
+
 
             {/* =================================================
                 RECOVERY RESULTS
@@ -696,42 +1114,62 @@ export const PaymentDetails = () => {
 
             {hasRunRecovery && (
                 <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-                    {/* LEFT SIDE — EXPLANATION */}
+
                     <div className="lg:col-span-7 space-y-6">
+
                         {currentAIDecision && (
                             <AIDecisionCard
-                                aiDecision={currentAIDecision}
+                                aiDecision={
+                                    currentAIDecision
+                                }
                                 payment={payment}
                                 customer={customer}
                             />
                         )}
 
+
                         {currentPolicyDecision && (
                             <PolicyDecision
-                                policyDecision={currentPolicyDecision}
+                                policyDecision={
+                                    currentPolicyDecision
+                                }
                                 payment={payment}
                             />
                         )}
+
 
                         {currentExecutionResult && (
                             <ExecutionResult
-                                executionResult={currentExecutionResult}
+                                executionResult={
+                                    currentExecutionResult
+                                }
                                 payment={payment}
                             />
                         )}
+
                     </div>
 
-                    {/* RIGHT SIDE — RECOVERY JOURNEY */}
+
                     <div className="lg:col-span-5">
+
                         <RecoveryTimeline
                             payment={payment}
-                            aiDecision={currentAIDecision}
-                            policyDecision={currentPolicyDecision}
-                            executionResult={currentExecutionResult}
+                            aiDecision={
+                                currentAIDecision
+                            }
+                            policyDecision={
+                                currentPolicyDecision
+                            }
+                            executionResult={
+                                currentExecutionResult
+                            }
                         />
+
                     </div>
+
                 </div>
             )}
+
 
             {/* =================================================
                 HIGH LEVEL RECOVERY SUMMARY
@@ -739,110 +1177,250 @@ export const PaymentDetails = () => {
 
             {hasRunRecovery && (
                 <div className="panel rounded-xl overflow-hidden">
+
                     <div className="panel-header">
+
                         <div className="flex items-center gap-3">
+
                             <div className="icon-box icon-box-sm icon-box-primary">
                                 <CheckCircle2 className="w-4 h-4" />
                             </div>
 
+
                             <div>
+
                                 <h3 className="panel-section-title">
                                     Recovery Summary
                                 </h3>
 
+
                                 <p className="panel-section-desc">
                                     What the system decided and what happened next
                                 </p>
+
                             </div>
+
                         </div>
+
 
                         {isRecovered && (
                             <span className="count-pill count-pill-up">
+
                                 <CheckCircle2 className="w-3.5 h-3.5" />
+
                                 Money Recovered
+
                             </span>
                         )}
+
                     </div>
 
-                    <div className="panel-body grid grid-cols-1 md:grid-cols-3 gap-4">
-                        {/* AI DECISION */}
-                        <div className="sub-card">
-                            <span className="meta-label">AI Decision</span>
 
-                            <div style={{ marginTop: "0.5rem", fontSize: "0.875rem", fontWeight: 700, color: "var(--primary)" }}>
+                    <div className="panel-body grid grid-cols-1 md:grid-cols-3 gap-4">
+
+                        <div className="sub-card">
+
+                            <span className="meta-label">
+                                AI Decision
+                            </span>
+
+
+                            <div
+                                style={{
+                                    marginTop: "0.5rem",
+                                    fontSize: "0.875rem",
+                                    fontWeight: 700,
+                                    color: "var(--primary)"
+                                }}
+                            >
                                 {currentAIDecision?.action
-                                    ? formatRecoveryAction(currentAIDecision.action)
+                                    ? formatRecoveryAction(
+                                          currentAIDecision.action
+                                      )
                                     : "Not available"}
                             </div>
 
-                            {currentAIDecision?.confidence !== null && currentAIDecision?.confidence !== undefined && (
-                                <div style={{ marginTop: "0.375rem", fontSize: "0.75rem", color: "var(--mute)" }}>
-                                    Confidence:{" "}
-                                    <span style={{ color: "var(--ink)", fontWeight: 600 }}>
-                                        {Math.round(
-                                            currentAIDecision.confidence <= 1
-                                                ? currentAIDecision.confidence * 100
-                                                : currentAIDecision.confidence
-                                        )}%
-                                    </span>
-                                </div>
-                            )}
+
+                            {currentAIDecision?.confidence !== null &&
+                                currentAIDecision?.confidence !== undefined && (
+                                    <div
+                                        style={{
+                                            marginTop: "0.375rem",
+                                            fontSize: "0.75rem",
+                                            color: "var(--mute)"
+                                        }}
+                                    >
+                                        Confidence:{" "}
+
+                                        <span
+                                            style={{
+                                                color:
+                                                    "var(--ink)",
+                                                fontWeight: 600
+                                            }}
+                                        >
+                                            {Math.round(
+                                                currentAIDecision.confidence <= 1
+                                                    ? currentAIDecision.confidence * 100
+                                                    : currentAIDecision.confidence
+                                            )}
+                                            %
+                                        </span>
+
+                                    </div>
+                                )}
+
                         </div>
 
-                        {/* SAFETY */}
-                        <div className="sub-card">
-                            <span className="meta-label">Safety Check</span>
 
-                            <div style={{ marginTop: "0.5rem", display: "flex", alignItems: "center", gap: "0.5rem" }}>
+                        <div className="sub-card">
+
+                            <span className="meta-label">
+                                Safety Check
+                            </span>
+
+
+                            <div
+                                style={{
+                                    marginTop: "0.5rem",
+                                    display: "flex",
+                                    alignItems: "center",
+                                    gap: "0.5rem"
+                                }}
+                            >
+
                                 {currentPolicyDecision?.allowed ? (
                                     <>
                                         <ShieldCheck className="w-4 h-4 status-up" />
-                                        <span style={{ fontSize: "0.875rem", fontWeight: 700, color: "var(--up)" }}>
+
+                                        <span
+                                            style={{
+                                                fontSize:
+                                                    "0.875rem",
+                                                fontWeight: 700,
+                                                color:
+                                                    "var(--up)"
+                                            }}
+                                        >
                                             Approved
                                         </span>
                                     </>
                                 ) : (
                                     <>
                                         <XCircle className="w-4 h-4 status-down" />
-                                        <span style={{ fontSize: "0.875rem", fontWeight: 700, color: "var(--down)" }}>
+
+                                        <span
+                                            style={{
+                                                fontSize:
+                                                    "0.875rem",
+                                                fontWeight: 700,
+                                                color:
+                                                    "var(--down)"
+                                            }}
+                                        >
                                             Blocked
                                         </span>
                                     </>
                                 )}
+
                             </div>
 
-                            <p style={{ marginTop: "0.375rem", fontSize: "0.75rem", color: "var(--mute)", lineHeight: 1.5 }}>
-                                {currentPolicyDecision?.reason || "No policy explanation available."}
+
+                            <p
+                                style={{
+                                    marginTop: "0.375rem",
+                                    fontSize: "0.75rem",
+                                    color: "var(--mute)",
+                                    lineHeight: 1.5
+                                }}
+                            >
+                                {currentPolicyDecision?.reason ||
+                                    "No policy explanation available."}
                             </p>
+
                         </div>
 
-                        {/* OUTCOME */}
-                        <div className="sub-card">
-                            <span className="meta-label">Outcome</span>
 
-                            <div style={{ marginTop: "0.5rem", fontSize: "0.875rem", fontWeight: 700, color: "var(--ink)" }}>
-                                {currentExecutionResult?.result || "Processed"}
+                        <div className="sub-card">
+
+                            <span className="meta-label">
+                                Outcome
+                            </span>
+
+
+                            <div
+                                style={{
+                                    marginTop: "0.5rem",
+                                    fontSize: "0.875rem",
+                                    fontWeight: 700,
+                                    color: "var(--ink)"
+                                }}
+                            >
+                                {currentExecutionResult?.result ||
+                                    "Processed"}
                             </div>
+
 
                             {recoveredAmount > 0 && (
-                                <div style={{ marginTop: "0.375rem", fontSize: "0.75rem", fontWeight: 600, color: "var(--up)" }}>
-                                    {formatCurrency(recoveredAmount)} recovered
+                                <div
+                                    style={{
+                                        marginTop: "0.375rem",
+                                        fontSize: "0.75rem",
+                                        fontWeight: 600,
+                                        color: "var(--up)"
+                                    }}
+                                >
+                                    {formatCurrency(
+                                        recoveredAmount
+                                    )}{" "}
+                                    recovered
                                 </div>
                             )}
+
                         </div>
+
                     </div>
 
-                    {/* Simple human-readable explanation */}
-                    <div className="sub-card-primary" style={{ margin: "0 1.25rem 1.25rem" }}>
+
+                    <div
+                        className="sub-card-primary"
+                        style={{
+                            margin:
+                                "0 1.25rem 1.25rem"
+                        }}
+                    >
+
                         <div className="flex items-start gap-3">
+
                             <Brain className="w-5 h-5 shrink-0 status-primary mt-0.5" />
 
+
                             <div>
-                                <h4 style={{ fontSize: "0.8125rem", fontWeight: 700, color: "var(--ink)" }}>
+
+                                <h4
+                                    style={{
+                                        fontSize:
+                                            "0.8125rem",
+                                        fontWeight: 700,
+                                        color:
+                                            "var(--ink)"
+                                    }}
+                                >
                                     In simple terms
                                 </h4>
 
-                                <p style={{ fontSize: "0.75rem", color: "var(--mute)", marginTop: "0.25rem", lineHeight: 1.6 }}>
+
+                                <p
+                                    style={{
+                                        fontSize:
+                                            "0.75rem",
+                                        color:
+                                            "var(--mute)",
+                                        marginTop:
+                                            "0.25rem",
+                                        lineHeight: 1.6
+                                    }}
+                                >
                                     {currentAIDecision?.whyThisDecision ||
                                         currentAIDecision?.reason ||
                                         latestLog?.aiReason ||
@@ -852,13 +1430,20 @@ export const PaymentDetails = () => {
                                         ? "The selected recovery action was executed successfully and the payment was recovered."
                                         : currentPolicyDecision?.allowed === false
                                             ? "The recommended action was not allowed by the system safety policy."
-                                            : "The selected recovery strategy was processed by the recovery system."}
+                                            : currentExecutionResult
+                                                ? "The selected recovery strategy was processed by the recovery system."
+                                                : "The AI recommendation is waiting for customer confirmation or further recovery action."}
                                 </p>
+
                             </div>
+
                         </div>
+
                     </div>
+
                 </div>
             )}
+
 
             {/* =================================================
                 AUDIT LOGS
@@ -866,27 +1451,53 @@ export const PaymentDetails = () => {
 
             {uniqueLogs.length > 0 && (
                 <div className="panel rounded-xl overflow-hidden">
+
                     <div className="panel-header">
+
                         <div className="flex items-center gap-2.5">
+
                             <FileText className="w-4 h-4 status-primary" />
+
+
                             <div>
+
                                 <h3 className="panel-section-title">
                                     Recovery Execution Audit
                                 </h3>
+
+
                                 <p className="panel-section-desc">
                                     Recorded recovery events
                                 </p>
+
                             </div>
+
                         </div>
 
-                        <span style={{ fontSize: "0.6875rem", fontWeight: 600, color: "var(--mute)", whiteSpace: "nowrap" }}>
-                            {uniqueLogs.length} {uniqueLogs.length === 1 ? "event" : "events"}
+
+                        <span
+                            style={{
+                                fontSize: "0.6875rem",
+                                fontWeight: 600,
+                                color: "var(--mute)",
+                                whiteSpace: "nowrap"
+                            }}
+                        >
+                            {uniqueLogs.length}{" "}
+                            {uniqueLogs.length === 1
+                                ? "event"
+                                : "events"}
                         </span>
+
                     </div>
 
+
                     <div className="overflow-x-auto">
+
                         <table className="tf-table">
+
                             <thead>
+
                                 <tr>
                                     <th>Time</th>
                                     <th>AI Decision</th>
@@ -896,79 +1507,235 @@ export const PaymentDetails = () => {
                                     <th>Result</th>
                                     <th>Amount</th>
                                 </tr>
+
                             </thead>
 
+
                             <tbody>
-                                {uniqueLogs.map((log, index) => (
-                                    <tr
-                                        key={log._id || `${log.createdAt}-${index}`}
-                                        className="row-hover"
-                                    >
-                                        <td className="font-mono text-xs" style={{ color: "var(--mute)", whiteSpace: "nowrap" }}>
-                                            {formatDate(log.createdAt)}
-                                        </td>
 
-                                        <td className="font-semibold status-primary" style={{ whiteSpace: "nowrap" }}>
-                                            {formatRecoveryAction(log.aiAction)}
-                                        </td>
+                                {uniqueLogs.map(
+                                    (log, index) => (
 
-                                        <td className="font-mono text-xs">
-                                            {log.aiConfidence !== null && log.aiConfidence !== undefined
-                                                ? `${Math.round(
-                                                    log.aiConfidence <= 1
-                                                        ? log.aiConfidence * 100
-                                                        : log.aiConfidence
-                                                )}%`
-                                                : "—"}
-                                        </td>
+                                        <tr
+                                            key={
+                                                log._id ||
+                                                `${log.createdAt}-${index}`
+                                            }
+                                            className="row-hover"
+                                        >
 
-                                        <td>
-                                            {log.policyAllowed ? (
-                                                <span className="badge-up" style={{ display: "inline-flex", alignItems: "center", gap: "3px", padding: "2px 6px", borderRadius: "4px", fontSize: "0.625rem", fontWeight: 700 }}>
-                                                    <ShieldCheck className="w-3 h-3" />
-                                                    Approved
+                                            <td
+                                                className="font-mono text-xs"
+                                                style={{
+                                                    color:
+                                                        "var(--mute)",
+                                                    whiteSpace:
+                                                        "nowrap"
+                                                }}
+                                            >
+                                                {formatDate(
+                                                    log.createdAt
+                                                )}
+                                            </td>
+
+
+                                            <td
+                                                className="font-semibold status-primary"
+                                                style={{
+                                                    whiteSpace:
+                                                        "nowrap"
+                                                }}
+                                            >
+                                                {formatRecoveryAction(
+                                                    log.aiAction
+                                                )}
+                                            </td>
+
+
+                                            <td className="font-mono text-xs">
+
+                                                {log.aiConfidence !==
+                                                    null &&
+                                                log.aiConfidence !==
+                                                    undefined
+                                                    ? `${Math.round(
+                                                          log.aiConfidence <=
+                                                              1
+                                                              ? log.aiConfidence *
+                                                                100
+                                                              : log.aiConfidence
+                                                      )}%`
+                                                    : "—"}
+
+                                            </td>
+
+
+                                            <td>
+
+                                                {log.policyAllowed ? (
+                                                    <span
+                                                        className="badge-up"
+                                                        style={{
+                                                            display:
+                                                                "inline-flex",
+                                                            alignItems:
+                                                                "center",
+                                                            gap: "3px",
+                                                            padding:
+                                                                "2px 6px",
+                                                            borderRadius:
+                                                                "4px",
+                                                            fontSize:
+                                                                "0.625rem",
+                                                            fontWeight:
+                                                                700
+                                                        }}
+                                                    >
+                                                        <ShieldCheck className="w-3 h-3" />
+                                                        Approved
+                                                    </span>
+                                                ) : (
+                                                    <span
+                                                        className="badge-down"
+                                                        style={{
+                                                            display:
+                                                                "inline-flex",
+                                                            alignItems:
+                                                                "center",
+                                                            gap: "3px",
+                                                            padding:
+                                                                "2px 6px",
+                                                            borderRadius:
+                                                                "4px",
+                                                            fontSize:
+                                                                "0.625rem",
+                                                            fontWeight:
+                                                                700
+                                                        }}
+                                                    >
+                                                        <XCircle className="w-3 h-3" />
+                                                        Blocked
+                                                    </span>
+                                                )}
+
+                                            </td>
+
+
+                                            <td
+                                                style={{
+                                                    fontWeight:
+                                                        700,
+                                                    color:
+                                                        "var(--ink)",
+                                                    whiteSpace:
+                                                        "nowrap"
+                                                }}
+                                            >
+                                                {formatRecoveryAction(
+                                                    log.finalAction
+                                                )}
+                                            </td>
+
+
+                                            <td>
+
+                                                <span
+                                                    className={
+                                                        log.executionResult ===
+                                                        "RECOVERED"
+                                                            ? "badge-up"
+                                                            : log.executionResult ===
+                                                              "PENDING"
+                                                                ? "badge-warn"
+                                                                : log.executionResult ===
+                                                                  "ESCALATED"
+                                                                    ? "badge-warn"
+                                                                    : "badge-down"
+                                                    }
+                                                    style={{
+                                                        display:
+                                                            "inline-flex",
+                                                        padding:
+                                                            "2px 6px",
+                                                        borderRadius:
+                                                            "4px",
+                                                        fontSize:
+                                                            "0.625rem",
+                                                        fontWeight:
+                                                            700
+                                                    }}
+                                                >
+                                                    {log.executionResult ||
+                                                        "—"}
                                                 </span>
-                                            ) : (
-                                                <span className="badge-down" style={{ display: "inline-flex", alignItems: "center", gap: "3px", padding: "2px 6px", borderRadius: "4px", fontSize: "0.625rem", fontWeight: 700 }}>
-                                                    <XCircle className="w-3 h-3" />
-                                                    Blocked
-                                                </span>
-                                            )}
-                                        </td>
 
-                                        <td style={{ fontWeight: 700, color: "var(--ink)", whiteSpace: "nowrap" }}>
-                                            {formatRecoveryAction(log.finalAction)}
-                                        </td>
+                                            </td>
 
-                                        <td>
-                                            <span className={
-                                                log.executionResult === "RECOVERED"
-                                                    ? "badge-up"
-                                                    : log.executionResult === "PENDING"
-                                                        ? "badge-warn"
-                                                        : log.executionResult === "ESCALATED"
-                                                            ? "badge-warn"
-                                                            : "badge-down"
-                                            } style={{ display: "inline-flex", padding: "2px 6px", borderRadius: "4px", fontSize: "0.625rem", fontWeight: 700 }}>
-                                                {log.executionResult || "—"}
-                                            </span>
-                                        </td>
 
-                                        <td className="font-mono" style={{ fontWeight: 600, color: "var(--ink)" }}>
-                                            {log.recoveredAmount > 0
-                                                ? formatCurrency(log.recoveredAmount)
-                                                : "—"}
-                                        </td>
-                                    </tr>
-                                ))}
+                                            <td
+                                                className="font-mono"
+                                                style={{
+                                                    fontWeight:
+                                                        600,
+                                                    color:
+                                                        "var(--ink)"
+                                                }}
+                                            >
+                                                {log.recoveredAmount >
+                                                0
+                                                    ? formatCurrency(
+                                                          log.recoveredAmount
+                                                      )
+                                                    : "—"}
+                                            </td>
+
+                                        </tr>
+
+                                    )
+                                )}
+
                             </tbody>
+
                         </table>
+
                     </div>
+
                 </div>
             )}
+
+
+            {/* =================================================
+                VOICE RECOVERY
+            ================================================= */}
+
+            <VoiceRecovery
+                isOpen={voiceRecoveryOpen}
+                onClose={() =>
+                    setVoiceRecoveryOpen(false)
+                }
+                payment={payment}
+                customer={customer}
+                onDecisionReady={(decision) => {
+
+                    if (
+                        decision?.action &&
+                        decision.action !== "NONE"
+                    ) {
+                        setVoiceAIDecision(
+                            decision
+                        );
+                    }
+
+                }}
+                onRecoveryComplete={async () => {
+                    setVoiceRecoveryOpen(false);
+                    await fetchDetail();
+                }}
+            />
 
         </div>
     );
 };
+
 
 export default PaymentDetails;

@@ -182,7 +182,7 @@ export const PaymentRow = ({
                         Inspect
                     </Button>
 
-                    {payment.status !== "recovered" && (
+                    {payment.status === "failed" && (
                         <Button
                             variant="primary"
                             size="sm"

@@ -86,6 +86,41 @@ const getActionStep = (run) => getLastStep(run, ["ACTION"]);
 const getResultStep = (run) =>
     getLastStep(run, ["RESULT", "TERMINAL"]);
 
+const getExecutedAction = (run) => {
+    if (!run) {
+        return null;
+    }
+
+    const resultStep =
+        run.steps?.find(
+            (step) =>
+                step.type === "TERMINAL" ||
+                step.type === "RESULT"
+        ) || null;
+
+    const actionStep =
+        [...(run.steps || [])]
+            .reverse()
+            .find(
+                (step) =>
+                    step.type === "ACTION"
+            ) || null;
+
+    const executionResult =
+        resultStep?.output?.executionResult ||
+        resultStep?.output ||
+        actionStep?.output?.executionResult ||
+        actionStep?.output ||
+        null;
+
+    return (
+        executionResult?.actionExecuted ||
+        resultStep?.output?.executedAction ||
+        actionStep?.output?.actionExecuted ||
+        null
+    );
+};
+
 const getRunAction = (run) => {
     const decision = getDecisionStep(run);
     const policy = getPolicyStep(run);
@@ -143,6 +178,16 @@ const getDecisionExplanation = (run) => {
     }
 
     return "The agent reviewed the failed payment and selected the safest available recovery option.";
+};
+
+const getDecisionDetails = (run) => {
+    const decision = getDecisionStep(run);
+
+    return {
+        summary: decision?.output?.summary || null,
+        whyThisDecision: decision?.output?.whyThisDecision || null,
+        whatHappensNext: decision?.output?.whatHappensNext || null,
+    };
 };
 
 const getPolicyAllowed = (run) => {
@@ -381,24 +426,20 @@ const getFailureReason = (payment, run) => {
             "The exact cause of the payment failure could not be determined.",
     };
 
-    if (labels[raw]) {
-        return labels[raw];
-    }
+    if (labels[raw]) return labels[raw];
 
     return String(raw)
         .replace(/[_-]+/g, " ")
-        .replace(/\b\w/g, (letter) =>
-            letter.toUpperCase()
-        );
+        .replace(/\b\w/g, (letter) => letter.toUpperCase());
 };
 
 const getAttemptCount = (payment, run) =>
     payment?.attemptCount ??
     payment?.retryCount ??
-    run?.attemptCount ??
     getResultStep(run)?.output?.attemptsMade ??
     getActionStep(run)?.input?.attemptNumber ??
     getPolicyStep(run)?.output?.attemptsMade ??
+    run?.attemptCount ??
     0;
 
 const getMaxAttempts = (payment, run) =>
@@ -549,10 +590,12 @@ const RecoveryFlow = ({
     const actionStep =
         getActionStep(run);
 
+    const executedAction = getExecutedAction(run);
+
     const actionTone =
-        action === "ESCALATE_TO_HUMAN"
+        executedAction === "ESCALATE_TO_HUMAN"
             ? "warning"
-            : action === "STOP_RECOVERY"
+            : executedAction === "STOP_RECOVERY"
               ? "danger"
               : "success";
 
@@ -703,13 +746,7 @@ const RecoveryFlow = ({
 
                         <span>
                             {getActionLabel(
-                                actionStep
-                                    ?.input
-                                    ?.requestedAction ||
-                                    actionStep
-                                        ?.output
-                                        ?.action ||
-                                    action
+                                executedAction
                             )}
                         </span>
                     </div>
@@ -763,6 +800,14 @@ const RecoveryInspector = ({
         ? getRunConfidence(run)
         : null;
 
+    const decisionDetails = run
+        ? getDecisionDetails(run)
+        : {
+              summary: null,
+              whyThisDecision: null,
+              whatHappensNext: null,
+          };
+
     const policyAllowed = run
         ? getPolicyAllowed(run)
         : null;
@@ -799,11 +844,7 @@ const RecoveryInspector = ({
         : "—";
 
     const actualAction =
-        actionStep?.input?.requestedAction ||
-        actionStep?.output?.action ||
-        actionStep?.tool ||
-        action ||
-        null;
+        getExecutedAction(run);
 
     const actionSucceeded =
         actionStep?.output?.success === true ||
@@ -842,7 +883,9 @@ const RecoveryInspector = ({
                         </span>
 
                         <h2>
-                            AI Recovery Decision
+                            {run?.source === "VOICE_RECOVERY"
+                                ? "Voice Recovery Decision"
+                                : "AI Recovery Decision"}
                         </h2>
 
                         <div className="acr-inspector-payment-id">
@@ -1091,27 +1134,45 @@ const RecoveryInspector = ({
                                 )}
                             </div>
 
-                            <p className="acr-explanation">
-                                {getDecisionExplanation(
-                                    run
-                                )}
-                            </p>
+                            {decisionDetails.summary && (
+                                <div className="acr-explanation-box">
+                                    <span className="acr-eyebrow">
+                                        Decision summary
+                                    </span>
 
-                            {getDecisionStep(run)
-                                ?.output
-                                ?.whatHappensNext && (
+                                    <p>
+                                        {decisionDetails.summary}
+                                    </p>
+                                </div>
+                            )}
+
+                            {decisionDetails.whyThisDecision && (
+                                <div className="acr-explanation-box">
+                                    <span className="acr-eyebrow">
+                                        Why this decision
+                                    </span>
+
+                                    <p>
+                                        {decisionDetails.whyThisDecision}
+                                    </p>
+                                </div>
+                            )}
+
+                            {!decisionDetails.summary &&
+                                !decisionDetails.whyThisDecision && (
+                                    <p className="acr-explanation">
+                                        {getDecisionExplanation(run)}
+                                    </p>
+                                )}
+
+                            {decisionDetails.whatHappensNext && (
                                 <div className="acr-next-box">
                                     <span className="acr-eyebrow">
                                         What happens next
                                     </span>
 
                                     <p>
-                                        {
-                                            getDecisionStep(
-                                                run
-                                            ).output
-                                                .whatHappensNext
-                                        }
+                                        {decisionDetails.whatHappensNext}
                                     </p>
                                 </div>
                             )}
@@ -1250,13 +1311,7 @@ const RecoveryInspector = ({
                                     </span>
 
                                     <strong>
-                                        {getActionLabel(
-                                            resultStep
-                                                ?.output
-                                                ?.executedAction ||
-                                                resultStep?.tool ||
-                                                actualAction
-                                        )}
+                                        {getActionLabel(actualAction)}
                                     </strong>
                                 </div>
                             </div>
@@ -1435,13 +1490,8 @@ export const AgentControlRoom = () => {
         fetchControlRoom();
     }, []);
 
-    const inspectRun = async (
-        paymentId
-    ) => {
-        setSelectedPaymentId(
-            paymentId
-        );
-
+    const inspectRun = async (paymentId) => {
+        setSelectedPaymentId(paymentId);
         setSelectedRun(null);
         setSelectedPayment({});
         setSelectedCustomer({});
@@ -1449,13 +1499,8 @@ export const AgentControlRoom = () => {
         setRunError(null);
 
         try {
-            const result =
-                await getAgentRun(
-                    paymentId
-                );
-
-            const run =
-                result?.run || null;
+            const result = await getAgentRun(paymentId);
+            const run = result?.run || null;
 
             if (!run) {
                 throw new Error(
@@ -1464,21 +1509,17 @@ export const AgentControlRoom = () => {
             }
 
             const {
-                payment,
+                payment: extractedPayment,
                 customer,
-            } =
-                extractInspectionContext(
-                    run
-                );
+            } = extractInspectionContext(run);
 
             setSelectedPayment(
-                payment
+                result?.payment ||
+                    extractedPayment ||
+                    {}
             );
 
-            setSelectedCustomer(
-                customer
-            );
-
+            setSelectedCustomer(customer);
             setSelectedRun(run);
         } catch (err) {
             setRunError(
@@ -1786,34 +1827,42 @@ export const AgentControlRoom = () => {
                                                 }
                                             >
                                                 <div className="acr-decision-copy">
-                                                    <div className="acr-decision-id">
-                                                        {run.paymentId ||
-                                                            "Payment"}
+                                                        <div className="acr-decision-id">
+                                                            {run.paymentId || "Payment"}
 
-                                                        {run.status && (
-                                                            <span
-                                                                className={getStatusClass(
-                                                                    run.status
-                                                                )}
-                                                            >
-                                                                {getStatusLabel(
-                                                                    run.status
-                                                                )}
-                                                            </span>
+                                                            {run.status && (
+                                                                <span
+                                                                    className={getStatusClass(
+                                                                        run.status
+                                                                    )}
+                                                                >
+                                                                    {getStatusLabel(
+                                                                        run.status
+                                                                    )}
+                                                                </span>
+                                                            )}
+
+                                                            {run.source === "VOICE_RECOVERY" && (
+                                                                <span className="acr-status">
+                                                                    Voice Recovery
+                                                                </span>
+                                                            )}
+                                                        </div>
+
+                                                        {run.startedAt && (
+                                                            <div className="acr-decision-time">
+                                                                <Clock size={12} />
+                                                                {formatDate(run.startedAt)}
+                                                            </div>
                                                         )}
-                                                    </div>
 
-                                                    <h3>
-                                                        {getActionLabel(
-                                                            action
-                                                        )}
-                                                    </h3>
+                                                        <h3>
+                                                            {getActionLabel(action)}
+                                                        </h3>
 
-                                                    <p>
-                                                        {
-                                                            reason
-                                                        }
-                                                    </p>
+                                                        <p>
+                                                            {reason}
+                                                        </p>
 
                                                     {run
                                                         .policy

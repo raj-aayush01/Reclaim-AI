@@ -1,13 +1,8 @@
 const Subscription = require("../models/Subscription");
 
-/*
- * Called once, right after the existing recovery agent
- * pipeline finishes for a payment.
- *
- * This makes NO additional Gemini calls — it only reads
- * the already-computed payment outcome and updates the
- * linked Subscription document to match.
- */
+
+// Called once, right after the existing recovery agent, pipeline finishes for a payment.
+
 const syncSubscriptionAfterRecovery = async (payment) => {
 
     if (!payment) {
@@ -44,27 +39,21 @@ const syncSubscriptionAfterRecovery = async (payment) => {
 
         case "pending": {
 
-            /*
-             * A payment link was created. The subscription
-             * stays past_due until the customer completes
-             * the payment.
-             */
-            subscription.status = "past_due";
+            // A payment link was created. The subscription, stays past_due until the customer completes the payment.
 
+            subscription.status = "past_due";
             break;
         }
 
         case "escalated": {
 
             subscription.status = "past_due";
-
             break;
         }
 
         case "stopped": {
 
             subscription.status = "canceled";
-
             break;
         }
 

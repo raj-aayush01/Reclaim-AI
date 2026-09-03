@@ -1,8 +1,9 @@
 /**
  * Formats ISO date string to human-readable date and time format
- * @param {string|Date} dateInput 
+ * @param {string|Date} dateInput
  * @returns {string} Formatted date string
  */
+
 export const formatDate = (dateInput) => {
     if (!dateInput) return "N/A";
 
@@ -20,8 +21,37 @@ export const formatDate = (dateInput) => {
 };
 
 /**
+ * Splits a date into separate date and time strings, for
+ * compact two-line table cells.
+ * @param {string|Date} dateInput
+ * @returns {{date: string, time: string}}
+ */
+export const formatDateParts = (dateInput) => {
+    if (!dateInput) return { date: "N/A", time: "" };
+
+    const date = new Date(dateInput);
+
+    if (isNaN(date.getTime())) {
+        return { date: "Invalid Date", time: "" };
+    }
+
+    return {
+        date: date.toLocaleDateString("en-IN", {
+            day: "2-digit",
+            month: "short",
+            year: "numeric"
+        }),
+        time: date.toLocaleTimeString("en-IN", {
+            hour: "2-digit",
+            minute: "2-digit",
+            hour12: true
+        })
+    };
+};
+
+/**
  * Returns a relative time string (e.g. "5 mins ago", "2 hours ago")
- * @param {string|Date} dateInput 
+ * @param {string|Date} dateInput
  * @returns {string}
  */
 export const formatRelativeTime = (dateInput) => {

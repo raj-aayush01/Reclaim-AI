@@ -17,10 +17,15 @@ export const runAIRecovery = async (paymentId) => {
             error
         );
 
-        throw new Error(
-            error.response?.data?.message ||
+        const apiError = new Error(
+            error.message ||
             "Failed to execute AI recovery"
         );
+
+        apiError.status = error.status || null;
+        apiError.responseData = error.responseData || null;
+
+        throw apiError;
     }
 };
 

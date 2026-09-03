@@ -64,15 +64,6 @@ const subscriptionSchema = new mongoose.Schema(
             default: 0
         },
 
-        /*
-         * The Payment record representing the CURRENT
-         * (most recent) failed renewal attempt for this
-         * subscription, if one exists.
-         *
-         * This is how the existing recovery agent pipeline
-         * is reused without any modification — the agent
-         * only ever operates on a paymentId.
-         */
         currentPaymentId: {
             type: String,
             default: null

@@ -17,21 +17,7 @@ const getOutcome = ({
     executionResult,
     payment
 }) => {
-    const result =
-        executionResult?.result ||
-        executionResult?.status ||
-        payment?.recoveryResult ||
-        payment?.status;
-
-    const action =
-        executionResult?.actionExecuted ||
-        executionResult?.finalAction ||
-        payment?.recoveryAction;
-
-    if (
-        result === "recovered" ||
-        result === "RECOVERED"
-    ) {
+    if (payment?.status === "recovered") {
         return {
             title: "Payment recovered",
             desc: `${
@@ -43,6 +29,17 @@ const getOutcome = ({
             dotClass: "timeline-dot-up"
         };
     }
+
+    const result =
+        executionResult?.result ||
+        executionResult?.status ||
+        payment?.recoveryResult ||
+        payment?.status;
+
+    const action =
+        executionResult?.actionExecuted ||
+        executionResult?.finalAction ||
+        payment?.recoveryAction;
 
     if (action === "CREATE_PAYMENT_LINK") {
         return {
@@ -143,7 +140,7 @@ export const RecoveryTimeline = ({
         {
             title: "Recovery strategy selected",
             desc: hasAI
-                ? `AI chose ${formatRecoveryAction(action)}.`
+                ? `AI chose ${formatRecoveryAction(aiDecision?.action)}.`
                 : "No recovery strategy has been selected yet.",
             status: hasAI ? "completed" : "pending",
             icon: ShieldCheck,

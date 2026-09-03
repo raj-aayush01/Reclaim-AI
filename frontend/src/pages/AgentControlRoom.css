@@ -857,6 +857,8 @@ body.dark .acr-modal-backdrop,
     background:
         var(--acr-surface-soft);
 
+    border-radius: 0 0 1rem 1rem;
+
     scrollbar-color:
         var(--acr-border-strong)
         transparent;
@@ -870,6 +872,7 @@ body.dark .acr-modal-backdrop,
 
 .acr-inspector-body::-webkit-scrollbar-track {
     background: transparent;
+    border-radius: 0 0 1rem 1rem;
 }
 
 .acr-inspector-body::-webkit-scrollbar-thumb {
@@ -1807,8 +1810,7 @@ body.dark .acr-modal-backdrop,
         0.2rem
         0.1rem;
 
-    border-top: 1px solid
-        var(--acr-border);
+    border-top: 0;
 
     color:
         var(--acr-muted);
@@ -1948,4 +1950,13 @@ body.dark .acr-modal-backdrop,
 
         min-height: 360px;
     }
+}
+
+.acr-decision-time {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    margin-top: 5px;
+    font-size: 12px;
+    color: var(--acr-muted);
 }
